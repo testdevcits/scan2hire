@@ -18,18 +18,20 @@ const Home = () => {
       setLoading(true);
       setError("");
 
-      const data = await generateQrId();
+      const res = await generateQrId();
 
-      if (data.success && data.qrId) {
-        // current frontend domain automatically use karega
-        const baseUrl = window.location.origin;
+      const qrId = res?.data?.qrId;
 
-        setFormUrl(`${baseUrl}/form/${data.qrId}`);
-      } else {
-        throw new Error(data.message || "Failed to generate QR ID");
+      if (!res.success || !qrId) {
+        throw new Error(res.message || "Failed to generate QR ID");
       }
+
+      // use current frontend domain automatically
+      const baseUrl = window.location.origin;
+
+      setFormUrl(`${baseUrl}/form/${qrId}`);
     } catch (err) {
-      console.error(err);
+      console.error("QR Generation Error:", err);
       setError("Failed to generate QR. Please try again.");
     } finally {
       setLoading(false);
