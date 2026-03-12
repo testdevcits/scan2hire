@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { apiRequest, generateQrId } from "../api";
 
 const FormPage = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const FormPage = () => {
     mobile: "",
     position: "",
   });
+
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -24,8 +26,7 @@ const FormPage = () => {
     const fetchQrId = async () => {
       if (!qrId) {
         try {
-          const res = await fetch("/api/qr-ids", { method: "POST" });
-          const data = await res.json();
+          const data = await generateQrId();
           if (data.success && data.qrId) {
             setQrId(data.qrId);
           }
@@ -34,73 +35,82 @@ const FormPage = () => {
         }
       }
     };
+
     fetchQrId();
   }, [qrId]);
 
-  // Validate fields
+  // Validate form
   const validate = () => {
     const newErrors = {};
+
     if (!formData.firstName) newErrors.firstName = "First Name is required";
     if (!formData.lastName) newErrors.lastName = "Last Name is required";
     if (!formData.email) newErrors.email = "Email is required";
     if (!formData.mobile) newErrors.mobile = "Mobile is required";
     if (!formData.position) newErrors.position = "Position is required";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  // Submit form -> save candidate -> send OTP -> store in localStorage
+  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     setLoading(true);
+
     try {
-      //  Save candidate in backend
-      const saveRes = await fetch("http://localhost:5000/api/candidates", {
+      // Save candidate
+      const saveData = await apiRequest("/candidates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ qrId, ...formData }),
       });
-      const saveData = await saveRes.json();
+
       if (!saveData.success) {
         alert(saveData.message || "Failed to save candidate");
         setLoading(false);
         return;
       }
 
-      //  Send OTP
-      const otpRes = await fetch(
-        "http://localhost:5000/api/candidates/send-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: formData.email, qrId }),
-        }
-      );
-      const otpData = await otpRes.json();
+      // Send OTP
+      const otpData = await apiRequest("/candidates/send-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: formData.email,
+          qrId,
+        }),
+      });
+
       if (!otpData.success) {
         alert(otpData.message || "Failed to send OTP");
         setLoading(false);
         return;
       }
 
-      //  Save candidate info in localStorage for OTPPage
+      // Save data for OTP page
       localStorage.setItem(
         "candidateForm",
-        JSON.stringify({ email: formData.email, qrId })
+        JSON.stringify({
+          email: formData.email,
+          qrId,
+        })
       );
 
-      //  Navigate to OTP page
       navigate("/otp");
     } catch (err) {
       console.error("Error submitting form:", err);
-      alert("Something went wrong. Please try again.");
+      alert("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -109,17 +119,19 @@ const FormPage = () => {
   return (
     <div className="flex flex-col min-h-screen font-montserrat bg-light dark:bg-dark text-systemText">
       <Header />
+
       <main className="flex flex-col flex-1 items-center justify-center px-4 py-16">
         <h2 className="text-3xl font-bold mb-2 animate-slide-fade-in">
           Candidate Form
         </h2>
-        <p className="text-gray-700 dark:text-gray-300 mb-8 animate-slide-fade-in">
+
+        <p className="text-gray-700 dark:text-gray-300 mb-8">
           Your QR ID: <span className="font-medium">{qrId}</span>
         </p>
 
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4 animate-slide-fade-in"
+          className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4"
         >
           <input
             type="text"
@@ -127,11 +139,7 @@ const FormPage = () => {
             value={formData.firstName}
             onChange={handleChange}
             placeholder="First Name"
-            className={`p-2 rounded border w-full focus:outline-none focus:ring-2 ${
-              errors.firstName
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
+            className="p-2 rounded border w-full"
           />
           {errors.firstName && (
             <p className="text-red-500 text-sm">{errors.firstName}</p>
@@ -143,11 +151,7 @@ const FormPage = () => {
             value={formData.lastName}
             onChange={handleChange}
             placeholder="Last Name"
-            className={`p-2 rounded border w-full focus:outline-none focus:ring-2 ${
-              errors.lastName
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
+            className="p-2 rounded border w-full"
           />
           {errors.lastName && (
             <p className="text-red-500 text-sm">{errors.lastName}</p>
@@ -159,11 +163,7 @@ const FormPage = () => {
             value={formData.email}
             onChange={handleChange}
             placeholder="Email"
-            className={`p-2 rounded border w-full focus:outline-none focus:ring-2 ${
-              errors.email
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
+            className="p-2 rounded border w-full"
           />
           {errors.email && (
             <p className="text-red-500 text-sm">{errors.email}</p>
@@ -175,11 +175,7 @@ const FormPage = () => {
             value={formData.mobile}
             onChange={handleChange}
             placeholder="Mobile"
-            className={`p-2 rounded border w-full focus:outline-none focus:ring-2 ${
-              errors.mobile
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
+            className="p-2 rounded border w-full"
           />
           {errors.mobile && (
             <p className="text-red-500 text-sm">{errors.mobile}</p>
@@ -189,11 +185,7 @@ const FormPage = () => {
             name="position"
             value={formData.position}
             onChange={handleChange}
-            className={`p-2 rounded border w-full focus:outline-none focus:ring-2 ${
-              errors.position
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
+            className="p-2 rounded border w-full"
           >
             <option value="">Select Position</option>
             <option value="Frontend Developer">Frontend Developer</option>
@@ -202,6 +194,7 @@ const FormPage = () => {
             <option value="Designer">Designer</option>
             <option value="QA Engineer">QA Engineer</option>
           </select>
+
           {errors.position && (
             <p className="text-red-500 text-sm">{errors.position}</p>
           )}
@@ -209,12 +202,13 @@ const FormPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-primary/80 text-white py-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50"
+            className="w-full bg-primary text-white py-3 rounded-xl"
           >
             {loading ? "Submitting..." : "Submit & Verify Email"}
           </button>
         </form>
       </main>
+
       <Footer />
     </div>
   );
