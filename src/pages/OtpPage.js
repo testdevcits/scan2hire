@@ -1,56 +1,69 @@
 // src/pages/OtpPage.js
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const OtpPage = () => {
   const navigate = useNavigate();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]); // 6-digit OTP
-  const [error, setError] = useState("");
-  const [agreed, setAgreed] = useState(false); // user consent
-  const [loading, setLoading] = useState(false); // for verify button
-  const [showThankYou, setShowThankYou] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const inputsRef = useRef([]);
-
-  // get candidate data from localStorage
   const storedData = JSON.parse(localStorage.getItem("candidateForm"));
 
-  // Agree button just shows OTP input, no OTP send
-  const handleAgree = () => {
+  useEffect(() => {
     if (!storedData) {
-      alert("No candidate data found. Please fill the form first.");
+      toast.error("No candidate data found. Please fill the form first.");
       navigate("/form");
-      return;
+    } else {
+      inputsRef.current[0]?.focus();
     }
-    setAgreed(true); // only show OTP fields
-  };
+  }, [storedData, navigate]);
 
-  // Handle single digit input
   const handleChange = (index, value) => {
-    if (!/^\d?$/.test(value)) return;
+    if (!/^\d*$/.test(value)) return;
+
     const newOtp = [...otp];
-    newOtp[index] = value;
+    newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
     if (value && index < 5) {
-      inputsRef.current[index + 1].focus();
+      inputsRef.current[index + 1]?.focus();
     }
 
-    // Auto-submit when all digits are filled
-    if (index === 5 && value && newOtp.every((d) => d !== "")) {
+    if (newOtp.every((d) => d !== "")) {
+      handleSubmit(newOtp.join(""));
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData("text").replace(/\D/g, "");
+    if (!pasteData) return;
+
+    const newOtp = [...otp];
+    for (let i = 0; i < 6; i++) {
+      newOtp[i] = pasteData[i] || "";
+    }
+    setOtp(newOtp);
+
+    const nextIndex = newOtp.findIndex((d) => d === "");
+    if (nextIndex !== -1) {
+      inputsRef.current[nextIndex]?.focus();
+    } else {
       handleSubmit(newOtp.join(""));
     }
   };
 
   const handleKeyDown = (e, index) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputsRef.current[index - 1].focus();
+      inputsRef.current[index - 1]?.focus();
     }
   };
 
-  // OTP verification
   const handleSubmit = async (enteredOtp) => {
     const otpValue = enteredOtp || otp.join("");
     if (otpValue.length < 6) return;
@@ -73,18 +86,16 @@ const OtpPage = () => {
 
       if (data.success) {
         localStorage.removeItem("candidateForm");
-        setShowThankYou(true);
-
-        // Redirect after 10 seconds
+        toast.success("OTP verified successfully!");
         setTimeout(() => {
-          navigate("/");
-        }, 10000);
+          navigate("/thankyou", { state: data.data });
+        }, 1000); // small delay to show toast
       } else {
-        setError(data.message || "Invalid OTP. Please try again.");
+        toast.error(data.message || "Invalid OTP. Please try again.");
       }
     } catch (err) {
       console.error("OTP verification error:", err);
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -95,42 +106,25 @@ const OtpPage = () => {
       <Header />
 
       <main className="flex flex-col flex-1 items-center justify-center px-4 py-16">
-        {!agreed ? (
-          <div className="bg-white dark:bg-gray-800 max-w-md w-full p-6 rounded-xl shadow-md text-center space-y-4">
-            <h2 className="text-2xl font-bold">Email Verification Required</h2>
-            <p className="text-gray-700 dark:text-gray-300 text-start mb-4">
-              We need to verify your email to securely contact you regarding
-              your interview and updates. Please agree to continue.
-            </p>
-            <button
-              onClick={handleAgree}
-              className="w-full bg-primary hover:bg-primary/80 text-white py-3 rounded-xl font-medium transition-all duration-300"
-            >
-              I Agree
-            </button>
-          </div>
-        ) : showThankYou ? (
-          <div className="bg-white dark:bg-gray-800 max-w-md w-full p-6 rounded-xl shadow-md text-center space-y-4">
-            <h2 className="text-3xl font-bold mb-2 text-green-600">
-              Thank You!
-            </h2>
-            <p className="text-gray-700 dark:text-gray-300">
-              Your email has been verified successfully. Redirecting to
-              confirmation page...
-            </p>
-          </div>
+        {!storedData ? (
+          <p className="text-red-500">No candidate data found.</p>
         ) : (
           <div className="bg-white dark:bg-gray-800 max-w-md w-full p-6 rounded-xl shadow-md text-center space-y-4">
             <h2 className="text-3xl font-bold mb-2">Enter OTP</h2>
             <p className="text-gray-700 dark:text-gray-300 mb-4 text-start max-w-md">
-              Please enter the 6-digit OTP that was sent to your email.
+              Please enter the 6-digit OTP sent to your email.
             </p>
 
-            <div className="flex space-x-2 mb-4 justify-center">
+            <div
+              className="flex space-x-2 mb-4 justify-center"
+              onPaste={handlePaste}
+            >
               {otp.map((digit, index) => (
                 <input
                   key={index}
-                  type="text"
+                  type="number"
+                  inputMode="numeric"
+                  pattern="\d*"
                   maxLength="1"
                   value={digit}
                   ref={(el) => (inputsRef.current[index] = el)}
@@ -140,8 +134,6 @@ const OtpPage = () => {
                 />
               ))}
             </div>
-
-            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
             <button
               onClick={() => handleSubmit()}
@@ -159,6 +151,7 @@ const OtpPage = () => {
       </main>
 
       <Footer />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
     </div>
   );
 };

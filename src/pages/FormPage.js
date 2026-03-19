@@ -1,214 +1,222 @@
 // src/pages/FormPage.js
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { apiRequest, generateQrId } from "../api";
+import Button from "../components/common/Button";
+import { apiRequest } from "../api";
+import Step1 from "./steps/Step1";
+import Step2 from "./steps/Step2";
+import Step3 from "./steps/Step3";
 
 const FormPage = () => {
+  const { qrId: paramQrId } = useParams(); // Get QR ID from URL
   const navigate = useNavigate();
-  const { qrId: routeQrId } = useParams();
 
-  const [qrId, setQrId] = useState(routeQrId || "");
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [qrId] = useState(paramQrId || ""); // QR ID state
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
+    name: "",
+    qualification: "",
     mobile: "",
-    position: "",
+    altMobile: "",
+    email: "",
+    experience: "",
+    currentSalary: "",
+    currentCompany: "",
+    expectedSalary: "",
+    certificate: "",
+    referenceName: "",
+    referenceMobile: "",
+    jobRole: "",
+    otherJobRole: "",
+    skills: "",
+    cms: [],
+    framework: [],
+    nightShift: "",
   });
 
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  // Fetch QR ID if not present in route
-  useEffect(() => {
-    const fetchQrId = async () => {
-      if (!qrId) {
-        try {
-          const data = await generateQrId();
-          if (data.success && data.qrId) {
-            setQrId(data.qrId);
-          }
-        } catch (err) {
-          console.error("Error fetching QR ID:", err);
-        }
-      }
-    };
-
-    fetchQrId();
-  }, [qrId]);
-
-  // Validate form
-  const validate = () => {
-    const newErrors = {};
-
-    if (!formData.firstName) newErrors.firstName = "First Name is required";
-    if (!formData.lastName) newErrors.lastName = "Last Name is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    if (!formData.mobile) newErrors.mobile = "Mobile is required";
-    if (!formData.position) newErrors.position = "Position is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  // Checkbox handler
+  const handleCheckbox = (field, value) => {
+    setFormData((prev) => {
+      const exists = prev[field].includes(value);
+      return {
+        ...prev,
+        [field]: exists
+          ? prev[field].filter((v) => v !== value)
+          : [...prev[field], value],
+      };
+    });
+    setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  // Validation per step
+  const validateStep = () => {
+    const err = {};
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (step === 1) {
+      if (!formData.name) err.name = "Name required";
+      if (!formData.qualification) err.qualification = "Required";
+
+      // Only 10-digit Indian numbers starting with 6-9
+      if (!formData.mobile) err.mobile = "Required";
+      else if (!/^[6-9]\d{9}$/.test(formData.mobile))
+        err.mobile = "Invalid mobile (10 digits starting with 6-9)";
+
+      if (formData.altMobile && !/^[6-9]\d{9}$/.test(formData.altMobile))
+        err.altMobile = "Invalid mobile (10 digits starting with 6-9)";
+
+      if (!formData.email) err.email = "Required";
+      else if (!/^\S+@\S+\.\S+$/.test(formData.email))
+        err.email = "Invalid email";
+
+      if (!formData.experience) err.experience = "Required";
+      if (!formData.currentSalary) err.currentSalary = "Required";
+      if (!formData.currentCompany) err.currentCompany = "Required";
+      if (!formData.expectedSalary) err.expectedSalary = "Required";
+    }
+
+    if (step === 2) {
+      if (!formData.jobRole) err.jobRole = "Select job role";
+      if (formData.jobRole === "Other" && !formData.otherJobRole)
+        err.otherJobRole = "Required";
+      if (!formData.skills) err.skills = "Skills required";
+      if (!formData.nightShift) err.nightShift = "Required";
+
+      if (
+        formData.referenceMobile &&
+        !/^[6-9]\d{9}$/.test(formData.referenceMobile)
+      )
+        err.referenceMobile = "Invalid mobile (10 digits starting with 6-9)";
+    }
+
+    setErrors(err);
+    return Object.keys(err).length === 0;
   };
+
+  const nextStep = () => {
+    if (validateStep()) setStep((prev) => Math.min(prev + 1, 3));
+  };
+  const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   // Submit form
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!qrId) return alert("QR ID missing. Please scan the QR code.");
 
-    if (!validate()) return;
+    if (!formData.name || !formData.email || !formData.mobile) {
+      return alert("Name, Email, and Mobile are required.");
+    }
+
+    if (!validateStep()) return;
 
     setLoading(true);
-
     try {
-      // Save candidate
+      const payload = {
+        qrId,
+        ...formData,
+        jobRole:
+          formData.jobRole === "Other"
+            ? formData.otherJobRole
+            : formData.jobRole,
+      };
+
+      // Save candidate data
       const saveData = await apiRequest("/candidates", {
         method: "POST",
-        body: JSON.stringify({ qrId, ...formData }),
+        body: JSON.stringify(payload),
       });
 
       if (!saveData.success) {
-        alert(saveData.message || "Failed to save candidate");
-        setLoading(false);
+        alert(saveData.message || "Save failed");
         return;
       }
 
       // Send OTP
       const otpData = await apiRequest("/candidates/send-otp", {
         method: "POST",
-        body: JSON.stringify({
-          email: formData.email,
-          qrId,
-        }),
+        body: JSON.stringify({ email: formData.email, qrId }),
       });
 
       if (!otpData.success) {
-        alert(otpData.message || "Failed to send OTP");
-        setLoading(false);
+        alert("OTP sending failed");
         return;
       }
 
-      // Save data for OTP page
+      // Save candidate info for OTP page
       localStorage.setItem(
         "candidateForm",
-        JSON.stringify({
-          email: formData.email,
-          qrId,
-        })
+        JSON.stringify({ email: formData.email, qrId })
       );
 
+      // Redirect to OTP page automatically
       navigate("/otp");
     } catch (err) {
-      console.error("Error submitting form:", err);
+      console.error(err);
       alert("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="flex flex-col min-h-screen font-montserrat bg-light dark:bg-dark text-systemText">
-      <Header />
-
-      <main className="flex flex-col flex-1 items-center justify-center px-4 py-16">
-        <h2 className="text-3xl font-bold mb-2 animate-slide-fade-in">
-          Candidate Form
-        </h2>
-
-        <p className="text-gray-700 dark:text-gray-300 mb-8">
-          Your QR ID: <span className="font-medium">{qrId}</span>
+  // If QR ID missing in URL
+  if (!qrId) {
+    return (
+      <div className="flex flex-col min-h-screen justify-center items-center">
+        <p className="text-red-500">
+          QR ID missing. Please scan the QR code to open the form.
         </p>
+      </div>
+    );
+  }
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4"
-        >
-          <input
-            type="text"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            placeholder="First Name"
-            className="p-2 rounded border w-full"
-          />
-          {errors.firstName && (
-            <p className="text-red-500 text-sm">{errors.firstName}</p>
+  return (
+    <div className="flex flex-col min-h-screen font-montserrat bg-light dark:bg-dark">
+      <Header />
+      <main className="flex flex-1 justify-center items-center p-4">
+        <div className="w-full max-w-5xl bg-white p-6 rounded-xl shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-center">
+            Step {step} / 3
+          </h2>
+
+          {step === 1 && (
+            <Step1
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              setErrors={setErrors}
+            />
+          )}
+          {step === 2 && (
+            <Step2
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              setErrors={setErrors}
+              handleCheckbox={handleCheckbox}
+            />
+          )}
+          {step === 3 && (
+            <Step3
+              formData={formData}
+              qrId={qrId}
+              onBack={prevStep}
+              onSubmit={handleSubmit}
+              loading={loading}
+            />
           )}
 
-          <input
-            type="text"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            placeholder="Last Name"
-            className="p-2 rounded border w-full"
-          />
-          {errors.lastName && (
-            <p className="text-red-500 text-sm">{errors.lastName}</p>
+          {step < 3 && (
+            <div className="flex gap-2 mt-4">
+              {step > 1 && (
+                <Button text="Back" onClick={prevStep} className="flex-1" />
+              )}
+              <Button text="Next" onClick={nextStep} className="flex-1" />
+            </div>
           )}
-
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Email"
-            className="p-2 rounded border w-full"
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm">{errors.email}</p>
-          )}
-
-          <input
-            type="tel"
-            name="mobile"
-            value={formData.mobile}
-            onChange={handleChange}
-            placeholder="Mobile"
-            className="p-2 rounded border w-full"
-          />
-          {errors.mobile && (
-            <p className="text-red-500 text-sm">{errors.mobile}</p>
-          )}
-
-          <select
-            name="position"
-            value={formData.position}
-            onChange={handleChange}
-            className="p-2 rounded border w-full"
-          >
-            <option value="">Select Position</option>
-            <option value="Frontend Developer">Frontend Developer</option>
-            <option value="Backend Developer">Backend Developer</option>
-            <option value="Fullstack Developer">Fullstack Developer</option>
-            <option value="Designer">Designer</option>
-            <option value="QA Engineer">QA Engineer</option>
-          </select>
-
-          {errors.position && (
-            <p className="text-red-500 text-sm">{errors.position}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-xl"
-          >
-            {loading ? "Submitting..." : "Submit & Verify Email"}
-          </button>
-        </form>
+        </div>
       </main>
-
       <Footer />
     </div>
   );
