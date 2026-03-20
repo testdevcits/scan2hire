@@ -8,10 +8,9 @@ const API = axios.create({
   },
 });
 
-// ✅ Attach token from sessionStorage
 API.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem("token"); // ✅ FIXED
+    const token = sessionStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
