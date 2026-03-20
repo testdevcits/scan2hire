@@ -3,52 +3,122 @@
   <head>
     <meta charset="utf-8" />
 
-    <!-- Favicon -->
-    <link rel="icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="canonical" href="https://scan2hire.vercel.app/" />
 
-    <!-- Viewport -->
+    <link rel="icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Theme Color -->
     <meta name="theme-color" content="#dc2626" />
 
-    <!-- SEO Description -->
+    <title>Scan2Hire – Smart Hiring & Candidate Management Platform</title>
+
     <meta
       name="description"
-      content="Scan2Hire by Conative IT Solutions - Smart candidate hiring and management platform."
+      content="Scan2Hire is a powerful hiring platform to manage candidates, interviews, and recruitment workflows efficiently."
     />
 
-    <!-- Keywords -->
     <meta
       name="keywords"
-      content="Conative, Scan2Hire, HR Panel, Recruitment, Hiring Platform"
+      content="Scan2Hire, Hiring Software, HR Tool, Recruitment Platform, Candidate Tracking System"
     />
 
-    <!-- Author -->
     <meta name="author" content="Conative IT Solutions" />
 
+    <meta name="robots" content="index, follow" />
+
+    <!-- ========================= -->
     <!-- Open Graph -->
-    <meta property="og:title" content="Conative IT Solutions | Scan2Hire" />
+    <!-- ========================= -->
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Scan2Hire – Smart Hiring Platform" />
     <meta
       property="og:description"
-      content="Smart hiring platform for managing candidates efficiently."
+      content="Manage hiring, candidates, and interviews easily with Scan2Hire."
     />
-    <meta property="og:image" content="%PUBLIC_URL%/logo192.png" />
-    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://scan2hire.vercel.app/" />
+    <meta property="og:site_name" content="Scan2Hire" />
 
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!-- IMPORTANT: Replace with banner image -->
+    <meta property="og:image" content="https://scan2hire.vercel.app/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/jpeg" />
+
+    <!-- ========================= -->
+    <!-- Twitter -->
+    <!-- ========================= -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Scan2Hire – Smart Hiring Platform" />
+    <meta
+      name="twitter:description"
+      content="Smart recruitment and candidate management system."
+    />
+    <meta name="twitter:image" content="https://scan2hire.vercel.app/og-image.jpg" />
+    <meta name="twitter:site" content="@CITSINDORE" />
+
+    <!-- ========================= -->
+    <!-- Performance -->
+    <!-- ========================= -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="//www.google-analytics.com" />
 
     <!-- Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
-    <!-- Title -->
-    <title>Conative IT Solutions | Scan2Hire</title>
+    <!-- ========================= -->
+    <!-- Schema -->
+    <!-- ========================= -->
+
+    <!-- Website -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Scan2Hire",
+      "url": "https://scan2hire.vercel.app/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://scan2hire.vercel.app/?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Conative IT Solutions",
+      "url": "https://scan2hire.vercel.app/",
+      "logo": "https://scan2hire.vercel.app/og-image.jpg",
+      "sameAs": [
+        "https://twitter.com/CITSINDORE"
+      ]
+    }
+    </script>
+
+    <!-- Breadcrumb -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://scan2hire.vercel.app/"
+      }]
+    }
+    </script>
+
   </head>
 
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-
     <div id="root"></div>
   </body>
 </html>
