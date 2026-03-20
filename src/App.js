@@ -21,6 +21,7 @@ import ManageEmployees from "./pages/hr/ManageEmployees";
 import ViewReports from "./pages/hr/ViewReports";
 import PostJobs from "./pages/hr/PostJobs";
 import ThankYouPage from "./pages/ThankYouPage";
+import Candidates from "./pages/hr/Candidates/Candidates";
 
 function App() {
   return (
@@ -63,7 +64,8 @@ function App() {
           <Route path="dashboard" element={<HRDashboard />} />
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="reports" element={<ViewReports />} />
-          <Route path="jobs" element={<PostJobs />} />
+          <Route path="jobs" element={<PostJobs />} />{" "}
+          <Route path="candidates" element={<Candidates />} />
         </Route>
 
         {/* Unauthorized route */}

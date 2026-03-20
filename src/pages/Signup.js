@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const Signup = () => {
   const { signup } = useContext(AuthContext);
@@ -98,11 +98,22 @@ const Signup = () => {
 
           <button
             type="submit"
-            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition"
+            className="flex items-center space-x-2 bg-primary hover:bg-primary/80 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 w-full justify-center"
           >
             Signup
           </button>
         </form>
+
+        {/* Link to login */}
+        <p className="text-center mt-4 text-sm text-gray-600">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="text-primary font-medium hover:underline"
+          >
+            Login
+          </Link>
+        </p>
       </div>
     </div>
   );

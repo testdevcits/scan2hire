@@ -1,19 +1,17 @@
 import React, { createContext, useState } from "react";
-import axios from "axios";
-
-// Base URL for your API
-const BASE_URL = "https://scan2hire-backend.vercel.app/api";
+import API from "../api/axios"; // centralized axios instance
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  // Initialize user from sessionStorage
   const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
   const [token, setToken] = useState(() => {
-    return localStorage.getItem("token") || null;
+    return sessionStorage.getItem("token") || null;
   });
 
   const [loading, setLoading] = useState(false);
@@ -24,20 +22,23 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const { data } = await axios.post(`${BASE_URL}/users/login`, {
-        email,
-        password,
-      });
+      const { data } = await API.post("/users/login", { email, password });
 
       if (data.success) {
-        setUser(data.data); // data.data should contain { name, role, token, etc. }
+        // Save in React state
+        setUser(data.data);
         setToken(data.data.token);
-        localStorage.setItem("user", JSON.stringify(data.data));
-        localStorage.setItem("token", data.data.token);
+
+        // Save in sessionStorage
+        sessionStorage.setItem("user", JSON.stringify(data.data));
+        sessionStorage.setItem("token", data.data.token);
+
+        setLoading(false);
+        return { success: true, data: data.data };
       }
 
       setLoading(false);
-      return data;
+      return { success: false, message: "Login failed" };
     } catch (err) {
       setLoading(false);
       return {
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   const signup = async (name, email, mobile, password, role = "hr") => {
     setLoading(true);
     try {
-      const { data } = await axios.post(`${BASE_URL}/users/signup`, {
+      const { data } = await API.post("/users/signup", {
         name,
         email,
         mobile,
@@ -62,12 +63,19 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (data.success) {
-        // Auto-login after signup
-        await login(email, password);
+        // Store user info from signup response
+        setUser(data.data);
+        setToken(data.data.token);
+
+        sessionStorage.setItem("user", JSON.stringify(data.data));
+        sessionStorage.setItem("token", data.data.token);
+
+        setLoading(false);
+        return { success: true, data: data.data };
       }
 
       setLoading(false);
-      return data;
+      return { success: false, message: "Signup failed" };
     } catch (err) {
       setLoading(false);
       return {
@@ -80,11 +88,19 @@ export const AuthProvider = ({ children }) => {
   // ---------------------
   // Logout function
   // ---------------------
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await API.post("/users/logout"); // backend clears cookie if any
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      setUser(null);
+      setToken(null);
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      setLoading(false);
+    }
   };
 
   return (
