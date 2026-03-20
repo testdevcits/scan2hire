@@ -65,7 +65,7 @@ function App() {
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="reports" element={<ViewReports />} />
           <Route path="jobs" element={<PostJobs />} />{" "}
-          <Route path="candidates" element={<Candidates />} />
+          <Route path="candidates/list" element={<Candidates />} />
         </Route>
 
         {/* Unauthorized route */}

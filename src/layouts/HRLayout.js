@@ -44,22 +44,12 @@ const HRLayout = () => {
     {
       name: "Manage Employees",
       path: "/hr/employees",
-      subItems: [
-        { name: "Employees List", path: "/hr/employees/list" },
-        { name: "Add Employee", path: "/hr/employees/add" },
-        { name: "Employee Reports", path: "/hr/employees/reports" },
-      ],
+      subItems: [{ name: "Employees List", path: "/hr/employees/list" }],
     },
-    { name: "View Reports", path: "/hr/reports" },
-    { name: "Post Job Openings", path: "/hr/jobs" },
     {
       name: "Manage Candidate",
       path: "/hr/candidates",
-      subItems: [
-        { name: "Candidate List", path: "/hr/candidates" },
-        { name: "Add Candidate", path: "/hr/candidates/add" },
-        { name: "Candidate Reports", path: "/hr/candidates/reports" },
-      ],
+      subItems: [{ name: "Candidate List", path: "/hr/candidates/list" }],
     },
   ];
 

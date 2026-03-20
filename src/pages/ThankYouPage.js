@@ -4,11 +4,10 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 const ThankYouPage = () => {
-  const { state } = useLocation(); // get candidate data
+  const { state } = useLocation();
   const navigate = useNavigate();
 
   if (!state) {
-    // If someone opens /thankyou directly, redirect to home or form
     navigate("/form");
     return null;
   }
@@ -25,7 +24,7 @@ const ThankYouPage = () => {
             Your email has been verified successfully.
           </p>
           <p className="text-gray-700 dark:text-gray-300 text-lg">
-            Your Candidate ID: <strong>{state.candidateId}</strong>
+            Your Candidate ID: <strong>{state.qrId}</strong>
           </p>
         </div>
       </main>
