@@ -3,28 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
-import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
-
-const emptyForm = {
-  name: "",
-  email: "",
-  mobile: "",
-  password: "",
-};
 
 const AdminDashboard = () => {
   const toast = useToast();
-  const { confirm } = useModal();
   const navigate = useNavigate();
   const [hrs, setHrs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
-  const [form, setForm] = useState(emptyForm);
   const [pageLoading, setPageLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     setPageLoading(true);
@@ -71,71 +60,6 @@ const AdminDashboard = () => {
     ];
   }, [attendance]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === "mobile" && !/^\d{0,10}$/.test(value)) return;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await authApi.createHr({ ...form, role: "hr" });
-      setForm(emptyForm);
-      await fetchDashboard();
-      toast.success("HR account created. HR can now login from the same login page.");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to add HR");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deactivateHr = async (hr) => {
-    const ok = await confirm({
-      title: "Deactivate HR",
-      message: `${hr.name} will not be able to login.`,
-      confirmText: "Deactivate",
-      tone: "danger",
-    });
-    if (!ok) return;
-    try {
-      await authApi.deactivateUser(hr._id);
-      toast.success("HR deactivated");
-      await fetchDashboard();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to deactivate HR");
-    }
-  };
-
-  const activateHr = async (hr) => {
-    try {
-      await authApi.activateUser(hr._id);
-      toast.success("HR activated");
-      await fetchDashboard();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to activate HR");
-    }
-  };
-
-  const deleteHr = async (hr) => {
-    const ok = await confirm({
-      title: "Delete HR",
-      message: `${hr.name} will be permanently deleted.`,
-      confirmText: "Delete",
-      tone: "danger",
-    });
-    if (!ok) return;
-    try {
-      await authApi.deleteUser(hr._id);
-      toast.success("HR deleted");
-      await fetchDashboard();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to delete HR");
-    }
-  };
-
   if (pageLoading) return <CommonLoader text="Loading dashboard..." />;
 
   return (
@@ -143,7 +67,7 @@ const AdminDashboard = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Super Admin Dashboard</h1>
         <p className="text-sm text-gray-500">
-          Create HR accounts here. HR creates employee accounts. Everyone logs in from the same login page.
+          Live overview for HR, employees, candidates, attendance, and leave activity.
         </p>
       </div>
 
@@ -199,37 +123,9 @@ const AdminDashboard = () => {
         </div>
       </section>
 
-      <section className="bg-white rounded-lg shadow p-4">
-        <h2 className="font-semibold mb-1">Create HR Login</h2>
-        <p className="text-xs text-gray-500 mb-3">
-          Use a unique email and mobile number. The HR will login from the same login page.
-        </p>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {[
-            ["name", "Full Name"],
-            ["email", "Email"],
-            ["mobile", "Mobile"],
-            ["password", "Temporary Password"],
-          ].map(([name, label]) => (
-            <label key={name} className="text-sm font-medium text-gray-700">
-              {label}
-              <input
-                type={name === "password" ? "password" : name === "email" ? "email" : "text"}
-                name={name}
-                value={form[name]}
-                onChange={handleChange}
-                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-                required
-              />
-            </label>
-          ))}
-          <Button text={saving ? "Creating..." : "Create HR"} type="submit" disabled={saving} className="md:col-span-4" />
-        </form>
-      </section>
-
       <section className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold">HR Accounts</h2>
+          <h2 className="font-semibold">Recent HR Accounts</h2>
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-1 rounded-md">
             {hrs.length} HR
           </span>
@@ -237,27 +133,13 @@ const AdminDashboard = () => {
         {hrs.length === 0 ? (
           <p className="p-4 text-center text-gray-500">No HR users found</p>
         ) : (
-          hrs.map((hr) => (
-            <div key={hr._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm md:items-center">
+          hrs.slice(0, 5).map((hr) => (
+            <div key={hr._id} className="grid grid-cols-1 md:grid-cols-4 gap-2 border-t px-4 py-3 text-sm md:items-center">
               <span>{hr.name}</span>
               <span className="break-all">{hr.email}</span>
               <span>{hr.mobile}</span>
               <span className={hr.isActive ? "text-green-600 font-medium" : "text-gray-500"}>
                 {hr.isActive ? "Active" : "Inactive"}
-              </span>
-              <span className="flex gap-2">
-                {hr.isActive ? (
-                  <button className="px-2 py-1 bg-gray-900 text-white rounded-sm text-xs" onClick={() => deactivateHr(hr)}>
-                    Deactivate
-                  </button>
-                ) : (
-                  <button className="px-2 py-1 bg-green-600 text-white rounded-sm text-xs" onClick={() => activateHr(hr)}>
-                    Activate
-                  </button>
-                )}
-                <button className="px-2 py-1 bg-red-600 text-white rounded-sm text-xs" onClick={() => deleteHr(hr)}>
-                  Delete
-                </button>
               </span>
             </div>
           ))

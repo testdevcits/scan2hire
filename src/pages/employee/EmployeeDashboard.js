@@ -158,6 +158,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const updateRound = async (e) => {
     e.preventDefault();
+    if (roundForm.score === "" || !roundForm.comments.trim()) {
+      toast.error("Score and comments are required before submitting review");
+      return;
+    }
     setRoundSaving(true);
     try {
       await employeeApi.updateRound(selected._id, roundForm);
@@ -538,11 +542,11 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </label>
             <label className="block text-sm font-medium">
               Score
-              <input type="number" min="0" max="10" value={roundForm.score} onChange={(e) => setRoundForm((prev) => ({ ...prev, score: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
+              <input type="number" min="0" max="10" value={roundForm.score} onChange={(e) => setRoundForm((prev) => ({ ...prev, score: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
             <label className="block text-sm font-medium">
               Comments
-              <textarea value={roundForm.comments} onChange={(e) => setRoundForm((prev) => ({ ...prev, comments: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
+              <textarea value={roundForm.comments} onChange={(e) => setRoundForm((prev) => ({ ...prev, comments: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
             <Button text="Save Review" type="submit" loading={roundSaving} className="w-full" />
           </form>

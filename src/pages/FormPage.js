@@ -22,8 +22,7 @@ const FormPage = () => {
   const [formData, setFormData] = useState({
     name: "",
     qualification: "",
-    degrees: [],
-    otherDegree: "",
+    otherQualification: "",
     mobile: "",
     altMobile: "",
     email: "",
@@ -66,8 +65,8 @@ const FormPage = () => {
     if (step === 1) {
       if (!formData.name) err.name = "Name required";
       if (!formData.qualification) err.qualification = "Required";
-      if (!formData.degrees.length) err.degrees = "Select degree";
-      if (formData.degrees.includes("Other") && !formData.otherDegree) err.otherDegree = "Required";
+      if (formData.qualification === "Other" && !formData.otherQualification)
+        err.otherQualification = "Required";
 
       // Only 10-digit Indian numbers starting with 6-9
       if (!formData.mobile) err.mobile = "Required";
@@ -134,12 +133,10 @@ const FormPage = () => {
       const payload = {
         qrId,
         ...formData,
-        degrees: formData.degrees.includes("Other")
-          ? [
-              ...formData.degrees.filter((degree) => degree !== "Other"),
-              formData.otherDegree,
-            ].filter(Boolean)
-          : formData.degrees,
+        qualification:
+          formData.qualification === "Other"
+            ? formData.otherQualification
+            : formData.qualification,
         jobRole:
           formData.jobRole === "Other"
             ? formData.otherJobRole

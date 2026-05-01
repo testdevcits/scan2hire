@@ -55,16 +55,6 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
     }
   };
 
-  const toggleDegree = (degree) => {
-    setFormData((prev) => ({
-      ...prev,
-      degrees: prev.degrees.includes(degree)
-        ? prev.degrees.filter((item) => item !== degree)
-        : [...prev.degrees, degree],
-    }));
-    setErrors((prev) => ({ ...prev, degrees: "", otherDegree: "" }));
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <InputField
@@ -76,41 +66,23 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         error={errors.name}
         required
       />
-      <InputField
+      <SelectField
         label="Qualification"
         name="qualification"
         value={formData.qualification}
         onChange={handleChange}
-        placeholder="Enter qualification"
+        options={degreeOptions}
         error={errors.qualification}
         required
       />
-      <div className="md:col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          IT Degree
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {degreeOptions.map((degree) => (
-            <label key={degree} className="flex items-center gap-2 border rounded-sm px-3 py-2 text-sm">
-              <input
-                type="checkbox"
-                checked={formData.degrees.includes(degree)}
-                onChange={() => toggleDegree(degree)}
-              />
-              {degree}
-            </label>
-          ))}
-        </div>
-        {errors.degrees && <span className="text-red-500 text-sm mt-1 block">{errors.degrees}</span>}
-      </div>
-      {formData.degrees.includes("Other") && (
+      {formData.qualification === "Other" && (
         <InputField
-          label="Other Degree"
-          name="otherDegree"
-          value={formData.otherDegree}
+          label="Other Qualification"
+          name="otherQualification"
+          value={formData.otherQualification}
           onChange={handleChange}
-          placeholder="Enter degree"
-          error={errors.otherDegree}
+          placeholder="Enter qualification"
+          error={errors.otherQualification}
           required
         />
       )}

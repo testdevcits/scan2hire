@@ -190,7 +190,6 @@ const CandidateDetail = () => {
             <p><b>Email:</b> {formatValue(candidate.email)}</p>
             <p><b>Mobile:</b> {formatValue(candidate.mobile)}</p>
             <p><b>Qualification:</b> {formatValue(candidate.qualification)}</p>
-            <p><b>Degrees:</b> {formatValue(candidate.degrees)}</p>
             <p><b>Experience:</b> {candidate.experienceType === "fresher" ? "Fresher" : `${formatValue(candidate.experience)} yrs`}</p>
             <p><b>Company:</b> {formatValue(candidate.currentCompany)}</p>
             <p><b>Expected Salary:</b> {formatValue(candidate.expectedSalary)}</p>

@@ -28,6 +28,8 @@ import EmployeeDetail from "./pages/hr/Employees/EmployeeDetail";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeForgotPassword from "./pages/EmployeeForgotPassword";
 import AdminSettings from "./pages/admin/AdminSettings";
+import ManageHR from "./pages/admin/ManageHR";
+import UserProfile from "./pages/UserProfile";
 
 function App() {
   return (
@@ -59,7 +61,8 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="hrs" element={<AdminDashboard />} />
+          <Route path="hrs" element={<ManageHR />} />
+          <Route path="profile" element={<UserProfile />} />
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="candidates" element={<Candidates />} />
@@ -85,6 +88,7 @@ function App() {
           <Route path="reports" element={<ViewReports />} />
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
+          <Route path="profile" element={<UserProfile />} />
         </Route>
 
         <Route

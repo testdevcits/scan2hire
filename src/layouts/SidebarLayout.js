@@ -16,6 +16,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const handleLogout = () => {
     logout();
@@ -51,15 +52,30 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
     }
   };
 
+  const markNotificationRead = async (notificationId) => {
+    const target = notifications.find((item) => item._id === notificationId);
+    if (!target || target.isRead) return;
+    setNotifications((prev) =>
+      prev.map((item) => (item._id === notificationId ? { ...item, isRead: true } : item))
+    );
+    try {
+      await authApi.markNotificationRead(notificationId);
+    } catch {
+      setNotifications((prev) =>
+        prev.map((item) => (item._id === notificationId ? { ...item, isRead: false } : item))
+      );
+    }
+  };
+
   const isAdmin = variant === "admin";
   const asideClass = isAdmin
-    ? "bg-black text-white"
+    ? "bg-[#111827] text-white"
     : mode === "dark"
     ? "bg-gray-900 text-white border-r border-gray-800"
     : "bg-white";
-  const activeClass = isAdmin ? "bg-white text-black" : "bg-header text-white";
+  const activeClass = isAdmin ? "bg-[#f84525] text-white" : "bg-header text-white";
   const inactiveClass = isAdmin
-    ? "text-gray-300 hover:bg-white hover:text-black"
+    ? "text-gray-300 hover:bg-gray-800 hover:text-white"
     : mode === "dark"
     ? "text-gray-300 hover:bg-gray-800 hover:text-white"
     : "text-gray-700 hover:bg-red-50 hover:text-[#f84525]";
@@ -150,9 +166,9 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
               aria-label="Notifications"
             >
               <FiBell />
-              {notifications.length > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#f84525] text-white text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center">
-                  {notifications.length > 9 ? "9+" : notifications.length}
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </button>
@@ -171,16 +187,25 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                     <p className="p-4 text-sm text-gray-500">No notifications</p>
                   ) : (
                     notifications.map((item) => (
-                      <div key={item._id} className="p-4 border-b text-sm">
+                      <div
+                        key={item._id}
+                        onClick={() => markNotificationRead(item._id)}
+                        className={`p-4 border-b text-sm cursor-pointer ${
+                          item.isRead ? "bg-white" : "bg-[#fff5f3]"
+                        }`}
+                      >
                         <div className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900">{item.title}</p>
+                            <p className={`font-semibold ${item.isRead ? "text-gray-800" : "text-gray-950"}`}>{item.title}</p>
                             <p className="text-gray-600 mt-1">{item.message}</p>
                             <p className="text-xs text-gray-400 mt-2">{new Date(item.createdAt).toLocaleString()}</p>
                           </div>
                           {["hr", "superadmin"].includes(user?.role) && (
                             <button
-                              onClick={() => deleteNotification(item._id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotification(item._id);
+                              }}
                               className="text-gray-400 hover:text-red-600"
                               aria-label="Delete notification"
                             >

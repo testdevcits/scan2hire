@@ -21,6 +21,7 @@ const EmployeeDetail = () => {
   const [summary, setSummary] = useState(null);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState(null);
 
   const loadEmployee = async () => {
     setLoading(true);
@@ -90,6 +91,57 @@ const EmployeeDetail = () => {
     }
   };
 
+  const downloadEmployeeReport = () => {
+    const rows = attendance
+      .map(
+        (item) => `
+          <tr>
+            <td>${item.dateKey}</td>
+            <td>${item.loginAt ? new Date(item.loginAt).toLocaleTimeString() : "-"}</td>
+            <td>${item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "-"}</td>
+            <td>${minutesToHours(item.totalWorkMinutes)}</td>
+            <td>${minutesToHours(item.totalBreakMinutes)}</td>
+            <td>${item.status}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <html>
+        <head>
+          <title>${employee.name} Report ${month}</title>
+          <style>
+            body{font-family:Arial,sans-serif;padding:24px;color:#111}
+            h1{font-size:22px;margin-bottom:4px}
+            table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+            th,td{border:1px solid #ddd;padding:8px;text-align:left}
+            th{background:#f5f5f5}
+            .summary{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+            .box{border:1px solid #ddd;padding:10px}
+          </style>
+        </head>
+        <body>
+          <h1>${employee.name} - Monthly Report</h1>
+          <p>${employee.employeeId || ""} | ${employee.designation || ""} | ${month}</p>
+          <div class="summary">
+            <div class="box">Days: ${summary?.days || 0}</div>
+            <div class="box">Present: ${summary?.present || 0}</div>
+            <div class="box">Half Day: ${summary?.halfDay || 0}</div>
+            <div class="box">Work: ${minutesToHours(summary?.workMinutes || 0)}</div>
+            <div class="box">Break: ${minutesToHours(summary?.breakMinutes || 0)}</div>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
+            <tbody>${rows || "<tr><td colspan='6'>No attendance found</td></tr>"}</tbody>
+          </table>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   if (loading) return <CommonLoader text="Loading employee..." />;
   if (!employee) return <p className="text-red-500">Employee not found</p>;
 
@@ -110,6 +162,7 @@ const EmployeeDetail = () => {
             className="border rounded-sm px-3 py-2"
           />
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
+          <Button text="Download PDF" onClick={downloadEmployeeReport} />
           {employee.isActive ? (
             <Button text="Deactivate" variant="danger" onClick={deactivateEmployee} />
           ) : (
@@ -139,9 +192,9 @@ const EmployeeDetail = () => {
             <p key={key} className="text-sm capitalize mb-2">
               <b>{key.replace(/([A-Z])/g, " $1")}:</b>{" "}
               {employee.documents?.[key]?.url ? (
-                <a href={employee.documents[key].url} target="_blank" rel="noreferrer" className="text-[#f84525] underline">
+                <button type="button" onClick={() => setPreview({ title: key, url: employee.documents[key].url })} className="text-[#f84525] underline">
                   View
-                </a>
+                </button>
               ) : (
                 "N/A"
               )}
@@ -197,6 +250,18 @@ const EmployeeDetail = () => {
           ))
         )}
       </section>
+
+      {preview && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-sm shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold capitalize">{preview.title.replace(/([A-Z])/g, " $1")}</h2>
+              <button onClick={() => setPreview(null)} className="text-gray-500">x</button>
+            </div>
+            <iframe title={preview.title} src={preview.url} className="w-full h-[70vh]" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
