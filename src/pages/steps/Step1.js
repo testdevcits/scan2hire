@@ -1,4 +1,5 @@
 import InputField from "../../components/common/InputField";
+import SelectField from "../../components/common/SelectField";
 
 const Step1 = ({ formData, setFormData, errors, setErrors }) => {
   const handleChange = (e) => {
@@ -19,6 +20,23 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         setErrors((prev) => ({ ...prev, [name]: "" })); // Clear error
       }
     } else {
+      if (name === "experienceType" && value === "fresher") {
+        setFormData((prev) => ({
+          ...prev,
+          experienceType: value,
+          experience: "0",
+          currentSalary: "",
+          currentCompany: "",
+        }));
+        setErrors((prev) => ({
+          ...prev,
+          experienceType: "",
+          experience: "",
+          currentSalary: "",
+          currentCompany: "",
+        }));
+        return;
+      }
       setFormData((prev) => ({ ...prev, [name]: value }));
       setErrors((prev) => ({ ...prev, [name]: "" })); // Clear error
     }
@@ -71,6 +89,17 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         error={errors.email}
         required
       />
+      <SelectField
+        label="Candidate Type"
+        name="experienceType"
+        value={formData.experienceType}
+        onChange={handleChange}
+        options={["fresher", "experienced"]}
+        error={errors.experienceType}
+        required
+      />
+      {formData.experienceType === "experienced" && (
+        <>
       <InputField
         label="Experience (Years)"
         name="experience"
@@ -98,6 +127,8 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         error={errors.currentCompany}
         required
       />
+        </>
+      )}
       <InputField
         label="Expected Salary"
         name="expectedSalary"

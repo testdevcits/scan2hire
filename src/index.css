@@ -4,3 +4,9 @@
 
 /* Optional: Google Font */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+
+.rounded-lg,
+.rounded-xl,
+.rounded-2xl {
+  border-radius: 0.125rem !important;
+}

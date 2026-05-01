@@ -1,5 +1,5 @@
 import React, { createContext, useState } from "react";
-import API from "../api/axios"; // centralized axios instance
+import { authApi } from "../api";
 
 export const AuthContext = createContext();
 
@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const { data } = await API.post("/users/login", { email, password });
+      const { data } = await authApi.login({ email, password });
 
       if (data.success) {
         // Save in React state
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   const signup = async (name, email, mobile, password, role = "hr") => {
     setLoading(true);
     try {
-      const { data } = await API.post("/users/signup", {
+      const { data } = await authApi.signup({
         name,
         email,
         mobile,
@@ -90,17 +90,11 @@ export const AuthProvider = ({ children }) => {
   // ---------------------
   const logout = async () => {
     setLoading(true);
-    try {
-      await API.post("/users/logout"); // backend clears cookie if any
-    } catch (err) {
-      console.error("Logout error:", err);
-    } finally {
-      setUser(null);
-      setToken(null);
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("token");
-      setLoading(false);
-    }
+    setUser(null);
+    setToken(null);
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    setLoading(false);
   };
 
   return (

@@ -2,11 +2,12 @@ import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { candidateApi } from "../api";
+import { useToast } from "../contexts/ToastContext";
 
 const OtpPage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   const [timer, setTimer] = useState(30);
@@ -26,7 +27,7 @@ const OtpPage = () => {
         inputsRef.current[0]?.focus();
       }, 100);
     }
-  }, [storedData, navigate]);
+  }, [storedData, navigate, toast]);
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -89,20 +90,11 @@ const OtpPage = () => {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "https://scan2hire-backend.vercel.app/api/candidates/verify-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: storedData.email,
-            qrId: storedData.qrId,
-            otp: otpValue,
-          }),
-        }
-      );
-
-      const data = await res.json();
+      const { data } = await candidateApi.verifyOtp({
+        email: storedData.email,
+        qrId: storedData.qrId,
+        otp: otpValue,
+      });
 
       if (data.success) {
         localStorage.removeItem("candidateForm");
@@ -126,19 +118,10 @@ const OtpPage = () => {
     try {
       setResendLoading(true);
 
-      const res = await fetch(
-        "https://scan2hire-backend.vercel.app/api/candidates/resend-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: storedData.email,
-            qrId: storedData.qrId,
-          }),
-        }
-      );
-
-      const data = await res.json();
+      const { data } = await candidateApi.resendOtp({
+        email: storedData.email,
+        qrId: storedData.qrId,
+      });
 
       if (data.success) {
         toast.success("OTP resent successfully!");
@@ -220,7 +203,6 @@ const OtpPage = () => {
       </main>
 
       <Footer />
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

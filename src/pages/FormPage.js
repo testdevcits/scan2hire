@@ -4,7 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/common/Button";
-import { apiRequest } from "../api";
+import { candidateApi } from "../api";
+import { useToast } from "../contexts/ToastContext";
 import Step1 from "./steps/Step1";
 import Step2 from "./steps/Step2";
 import Step3 from "./steps/Step3";
@@ -12,6 +13,7 @@ import Step3 from "./steps/Step3";
 const FormPage = () => {
   const { qrId: paramQrId } = useParams(); // Get QR ID from URL
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -23,16 +25,19 @@ const FormPage = () => {
     mobile: "",
     altMobile: "",
     email: "",
+    experienceType: "fresher",
     experience: "",
     currentSalary: "",
     currentCompany: "",
     expectedSalary: "",
     certificate: "",
+    certificateName: "",
     referenceName: "",
     referenceMobile: "",
     jobRole: "",
     otherJobRole: "",
-    skills: "",
+    skills: [],
+    otherSkills: "",
     cms: [],
     framework: [],
     nightShift: "",
@@ -72,9 +77,12 @@ const FormPage = () => {
       else if (!/^\S+@\S+\.\S+$/.test(formData.email))
         err.email = "Invalid email";
 
-      if (!formData.experience) err.experience = "Required";
-      if (!formData.currentSalary) err.currentSalary = "Required";
-      if (!formData.currentCompany) err.currentCompany = "Required";
+      if (!formData.experienceType) err.experienceType = "Required";
+      if (formData.experienceType === "experienced") {
+        if (!formData.experience) err.experience = "Required";
+        if (!formData.currentSalary) err.currentSalary = "Required";
+        if (!formData.currentCompany) err.currentCompany = "Required";
+      }
       if (!formData.expectedSalary) err.expectedSalary = "Required";
     }
 
@@ -82,7 +90,9 @@ const FormPage = () => {
       if (!formData.jobRole) err.jobRole = "Select job role";
       if (formData.jobRole === "Other" && !formData.otherJobRole)
         err.otherJobRole = "Required";
-      if (!formData.skills) err.skills = "Skills required";
+      if (!formData.skills.length) err.skills = "Skills required";
+      if (formData.skills.includes("Other") && !formData.otherSkills)
+        err.otherSkills = "Required";
       if (!formData.nightShift) err.nightShift = "Required";
 
       if (
@@ -103,10 +113,14 @@ const FormPage = () => {
 
   // Submit form
   const handleSubmit = async () => {
-    if (!qrId) return alert("QR ID missing. Please scan the QR code.");
+    if (!qrId) {
+      toast.error("QR ID missing. Please scan the QR code.");
+      return;
+    }
 
     if (!formData.name || !formData.email || !formData.mobile) {
-      return alert("Name, Email, and Mobile are required.");
+      toast.error("Name, Email, and Mobile are required.");
+      return;
     }
 
     if (!validateStep()) return;
@@ -120,27 +134,30 @@ const FormPage = () => {
           formData.jobRole === "Other"
             ? formData.otherJobRole
             : formData.jobRole,
+        skills: formData.skills.includes("Other")
+          ? [
+              ...formData.skills.filter((skill) => skill !== "Other"),
+              formData.otherSkills,
+            ].filter(Boolean)
+          : formData.skills,
       };
 
       // Save candidate data
-      const saveData = await apiRequest("/candidates", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const { data: saveData } = await candidateApi.save(payload);
 
       if (!saveData.success) {
-        alert(saveData.message || "Save failed");
+        toast.error(saveData.message || "Save failed");
         return;
       }
 
       // Send OTP
-      const otpData = await apiRequest("/candidates/send-otp", {
-        method: "POST",
-        body: JSON.stringify({ email: formData.email, qrId }),
+      const { data: otpData } = await candidateApi.sendOtp({
+        email: formData.email,
+        qrId,
       });
 
       if (!otpData.success) {
-        alert("OTP sending failed");
+        toast.error("OTP sending failed");
         return;
       }
 
@@ -154,7 +171,7 @@ const FormPage = () => {
       navigate("/otp");
     } catch (err) {
       console.error(err);
-      alert("Something went wrong");
+      toast.error(err.response?.data?.message || err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -172,13 +189,47 @@ const FormPage = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen font-montserrat bg-light dark:bg-dark">
+    <div className="flex flex-col min-h-screen font-montserrat bg-[#f7f8fb] dark:bg-dark">
       <Header />
-      <main className="flex flex-1 justify-center items-center p-4">
-        <div className="w-full max-w-5xl bg-white p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold mb-4 text-center">
-            Step {step} / 3
-          </h2>
+      <main className="flex flex-1 justify-center items-start p-4 md:p-8">
+        <div className="w-full max-w-5xl">
+          <div className="mb-5">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Candidate Application
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Complete the details below. Fresher and experienced fields adjust automatically.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+            <div className="bg-[#fff5f3] px-4 md:px-6 py-4 border-b border-[#ffd8cf]">
+              <div className="grid grid-cols-3 gap-2">
+                {["Personal", "Role & Skills", "Review"].map((label, index) => {
+                  const current = index + 1;
+                  const active = current <= step;
+                  return (
+                    <div key={label} className="flex items-center gap-2">
+                      <span
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                          active ? "bg-[#f84525] text-white" : "bg-white text-gray-500 border"
+                        }`}
+                      >
+                        {current}
+                      </span>
+                      <span className={`hidden sm:block text-sm font-medium ${active ? "text-[#f84525]" : "text-gray-500"}`}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-4 md:p-6">
+              <h2 className="text-lg font-semibold mb-4 text-gray-900">
+                Step {step} of 3
+              </h2>
 
           {step === 1 && (
             <Step1
@@ -208,13 +259,15 @@ const FormPage = () => {
           )}
 
           {step < 3 && (
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row gap-2 mt-6">
               {step > 1 && (
-                <Button text="Back" onClick={prevStep} className="flex-1" />
+                <Button text="Back" variant="secondary" onClick={prevStep} className="flex-1" />
               )}
               <Button text="Next" onClick={nextStep} className="flex-1" />
             </div>
           )}
+            </div>
+          </div>
         </div>
       </main>
       <Footer />

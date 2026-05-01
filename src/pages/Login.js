@@ -21,6 +21,8 @@ const Login = () => {
         navigate("/admin");
       } else if (res.data.role === "hr") {
         navigate("/hr");
+      } else if (res.data.role === "employee") {
+        navigate("/employee/dashboard");
       } else {
         navigate("/unauthorized");
       }
@@ -32,9 +34,12 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-montserrat">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">
-          Admin / HR Login
+        <h2 className="text-2xl font-bold text-center mb-2">
+          Scan2Hire Login
         </h2>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          Login to continue.
+        </p>
 
         {error && <p className="text-red-500 mb-4">{error}</p>}
 
@@ -70,13 +75,23 @@ const Login = () => {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-gray-600 text-sm">
-          Don’t have an account?{" "}
+        <p className="mt-3 text-center text-gray-600 text-sm">
+          Employee forgot password?{" "}
+          <span
+            className="text-blue-600 cursor-pointer hover:underline"
+            onClick={() => navigate("/employee/forgot-password")}
+          >
+            Reset here
+          </span>
+        </p>
+
+        <p className="mt-3 text-center text-gray-600 text-sm">
+          Need account?{" "}
           <span
             className="text-blue-600 cursor-pointer hover:underline"
             onClick={() => navigate("/signup")}
           >
-            Signup
+            Request signup
           </span>
         </p>
       </div>

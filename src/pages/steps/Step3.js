@@ -27,7 +27,10 @@ const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
       <div className="bg-gray-50 p-4 rounded-lg space-y-1">
         <h3 className="font-semibold text-lg mb-2">Job Details</h3>
         <p>
-          <b>Experience:</b> {display(formData.experience)}
+          <b>Candidate Type:</b> {display(formData.experienceType)}
+        </p>
+        <p>
+          <b>Experience:</b> {formData.experienceType === "fresher" ? "Fresher" : display(formData.experience)}
         </p>
         <p>
           <b>Current Salary:</b> {display(formData.currentSalary)}
@@ -43,7 +46,7 @@ const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
       <div className="bg-gray-50 p-4 rounded-lg space-y-1">
         <h3 className="font-semibold text-lg mb-2">Additional Info</h3>
         <p>
-          <b>Certificate:</b> {display(formData.certificate)}
+          <b>Certificate:</b> {display(formData.certificateName)}
         </p>
         <p>
           <b>Reference:</b>{" "}
@@ -58,7 +61,13 @@ const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
             : display(formData.jobRole)}
         </p>
         <p>
-          <b>Skills:</b> {display(formData.skills)}
+          <b>Skills:</b>{" "}
+          {formData.skills?.length
+            ? formData.skills
+                .map((skill) => (skill === "Other" ? formData.otherSkills : skill))
+                .filter(Boolean)
+                .join(", ")
+            : "-"}
         </p>
       </div>
 

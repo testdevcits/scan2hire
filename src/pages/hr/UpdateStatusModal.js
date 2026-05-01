@@ -1,30 +1,37 @@
 import { useState } from "react";
-import API from "../../api/axios";
+import { hrApi } from "../../api";
+import { useEmployee } from "../../contexts/Hr/EmployeeContext";
+import { useToast } from "../../contexts/ToastContext";
 
 function UpdateStatusModal({ candidate, onClose, refresh }) {
-  const [status, setStatus] = useState("");
-  const [hrStatus, setHrStatus] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+  const { employees } = useEmployee();
+  const toast = useToast();
+  const [status, setStatus] = useState(candidate?.interviewStatus || "");
+  const [hrStatus, setHrStatus] = useState(candidate?.hrReview?.hrStatus || "");
+  const [assignedTo, setAssignedTo] = useState(candidate?.assignedTo?._id || "");
   const [remarks, setRemarks] = useState("");
+  const [score, setScore] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleUpdate = async () => {
     try {
       setLoading(true);
 
-      await API.put(`/candidates/${candidate._id}/status`, {
+      await hrApi.updateCandidateStatus(candidate._id, {
         interviewStatus: status,
         hrStatus: hrStatus,
         assignedTo: assignedTo,
         remarks: remarks,
+        score,
+        round: status,
       });
 
-      alert("Status Updated");
+      toast.success("Status updated");
       refresh();
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Error updating status");
+      toast.error(err.response?.data?.message || "Error updating status");
     } finally {
       setLoading(false);
     }
@@ -47,11 +54,12 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="">Select</option>
-            <option value="First Round">First Round</option>
-            <option value="Second Round">Second Round</option>
-            <option value="Final Round">Final Round</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Selected">Selected</option>
+            <option value="first_round">First Round</option>
+            <option value="second_round">Second Round</option>
+            <option value="third_round">Third Round</option>
+            <option value="final">Final Round</option>
+            <option value="rejected">Rejected</option>
+            <option value="selected">Selected</option>
           </select>
         </div>
 
@@ -64,9 +72,8 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
             onChange={(e) => setHrStatus(e.target.value)}
           >
             <option value="">Select</option>
-            <option value="Pending">Pending</option>
-            <option value="Reviewed">Reviewed</option>
-            <option value="Shortlisted">Shortlisted</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
           </select>
         </div>
 
@@ -74,12 +81,30 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
           <label className="block text-sm mb-1">
             Assign Interviewer (Second Round)
           </label>
-          <input
-            type="text"
+          <select
             className="w-full border p-2 rounded"
-            placeholder="Enter interviewer name"
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
+          >
+            <option value="">Unassigned</option>
+            {employees.map((employee) => (
+              <option key={employee._id} value={employee._id}>
+                {employee.name} - {employee.designation || employee.employeeId}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-3">
+          <label className="block text-sm mb-1">Score</label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            className="w-full border p-2 rounded"
+            placeholder="0-100"
+            value={score}
+            onChange={(e) => setScore(e.target.value)}
           />
         </div>
 

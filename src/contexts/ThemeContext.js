@@ -18,6 +18,7 @@ export const ThemeProvider = ({ children }) => {
   // Save to sessionStorage whenever changed
   useEffect(() => {
     sessionStorage.setItem("themeMode", mode);
+    document.documentElement.classList.toggle("dark", mode === "dark");
   }, [mode]);
 
   useEffect(() => {

@@ -51,6 +51,7 @@ const HRLayout = () => {
       path: "/hr/candidates",
       subItems: [{ name: "Candidate List", path: "/hr/candidates/list" }],
     },
+    { name: "Reports", path: "/hr/reports" },
   ];
 
   useEffect(() => {

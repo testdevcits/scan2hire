@@ -1,7 +1,7 @@
 // src/pages/hr/HRDashboard.js
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUsers, FiFileText, FiBriefcase } from "react-icons/fi";
+import { FiUsers, FiFileText, FiUserCheck } from "react-icons/fi";
 
 const HRDashboard = () => {
   const navigate = useNavigate();
@@ -20,10 +20,10 @@ const HRDashboard = () => {
       icon: <FiFileText className="text-red-600 w-6 h-6" />,
     },
     {
-      title: "Post Job Openings",
-      description: "Add or manage job openings for recruitment.",
-      path: "/hr/jobs", // <-- Absolute path
-      icon: <FiBriefcase className="text-red-600 w-6 h-6" />,
+      title: "Manage Candidates",
+      description: "Review candidate forms and assign interview rounds.",
+      path: "/hr/candidates/list",
+      icon: <FiUserCheck className="text-red-600 w-6 h-6" />,
     },
   ];
 

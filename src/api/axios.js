@@ -1,7 +1,15 @@
 import axios from "axios";
 
+const getBaseURL = () => {
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
+  }
+
+  return "https://scan2hire-backend.vercel.app/api";
+};
+
 const API = axios.create({
-  baseURL: "https://scan2hire-backend.vercel.app/api",
+  baseURL: getBaseURL(),
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

@@ -1,6 +1,6 @@
 // contexts/Hr/EmployeeContext.js
 import { createContext, useContext, useState } from "react";
-import API from "../../api/axios";
+import { hrApi } from "../../api";
 
 const EmployeeContext = createContext();
 
@@ -17,7 +17,7 @@ export const EmployeeProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const res = await API.get("/hr/employees"); // endpoint from previous route
+      const res = await hrApi.getEmployees();
 
       setEmployees(res.data.data);
     } catch (err) {
@@ -28,6 +28,12 @@ export const EmployeeProvider = ({ children }) => {
     }
   };
 
+  const createEmployee = async (payload) => {
+    const res = await hrApi.createEmployee(payload);
+    await fetchEmployees();
+    return res.data;
+  };
+
   return (
     <EmployeeContext.Provider
       value={{
@@ -35,6 +41,7 @@ export const EmployeeProvider = ({ children }) => {
         loading,
         error,
         fetchEmployees,
+        createEmployee,
       }}
     >
       {children}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-import API from "../../api/axios";
+import { hrApi } from "../../api";
 
 const CandidateContext = createContext();
 
@@ -13,7 +13,7 @@ export const CandidateProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const res = await API.get("/hr/candidates");
+      const res = await hrApi.getCandidates();
 
       setCandidates(res.data.data);
     } catch (err) {
