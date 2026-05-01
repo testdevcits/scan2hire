@@ -64,7 +64,6 @@ const CandidateDetail = () => {
     try {
       await hrApi.updateCandidateStatus(candidateId, {
         ...statusForm,
-        round: statusForm.interviewStatus,
       });
       toast.success("Candidate updated. Assigned employee will receive email.");
       await loadCandidate();
@@ -131,6 +130,16 @@ const CandidateDetail = () => {
     }
   };
 
+  const activateCandidate = async () => {
+    try {
+      await hrApi.activateCandidate(candidateId);
+      toast.success("Candidate activated");
+      await loadCandidate();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to activate");
+    }
+  };
+
   const deleteCandidate = async () => {
     const ok = await confirm({
       title: "Delete Candidate",
@@ -163,7 +172,11 @@ const CandidateDetail = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
-          <Button text="Deactivate" variant="danger" onClick={deactivateCandidate} />
+          {candidate.isActive ? (
+            <Button text="Deactivate" variant="danger" onClick={deactivateCandidate} />
+          ) : (
+            <Button text="Activate" variant="success" onClick={activateCandidate} />
+          )}
           {user?.role === "superadmin" && (
             <Button text="Delete" variant="danger" onClick={deleteCandidate} />
           )}
@@ -177,6 +190,7 @@ const CandidateDetail = () => {
             <p><b>Email:</b> {formatValue(candidate.email)}</p>
             <p><b>Mobile:</b> {formatValue(candidate.mobile)}</p>
             <p><b>Qualification:</b> {formatValue(candidate.qualification)}</p>
+            <p><b>Degrees:</b> {formatValue(candidate.degrees)}</p>
             <p><b>Experience:</b> {candidate.experienceType === "fresher" ? "Fresher" : `${formatValue(candidate.experience)} yrs`}</p>
             <p><b>Company:</b> {formatValue(candidate.currentCompany)}</p>
             <p><b>Expected Salary:</b> {formatValue(candidate.expectedSalary)}</p>

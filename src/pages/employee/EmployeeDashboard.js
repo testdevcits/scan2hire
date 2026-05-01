@@ -23,16 +23,17 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [calendar, setCalendar] = useState([]);
   const [docs, setDocs] = useState({});
+  const [documentOtp, setDocumentOtp] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
   const [breakType, setBreakType] = useState("lunch");
   const [leaveForm, setLeaveForm] = useState({
-    type: "full_day",
+    type: "earned_leave",
     fromDate: "",
     toDate: "",
     reason: "",
   });
   const [selected, setSelected] = useState(null);
   const [roundForm, setRoundForm] = useState({
-    interviewStatus: "second_round",
     roundType: "technical",
     score: "",
     comments: "",
@@ -78,11 +79,25 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const saveDocuments = async (e) => {
     e.preventDefault();
     try {
-      const res = await employeeApi.updateDocuments(docs);
+      const res = await employeeApi.updateDocuments({ ...docs, otp: documentOtp });
       setProfile(res.data.data);
+      setDocs({});
+      setDocumentOtp("");
       toast.success("Documents updated");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update documents");
+    }
+  };
+
+  const requestDocumentOtp = async () => {
+    setOtpSending(true);
+    try {
+      const res = await employeeApi.requestDocumentOtp();
+      toast.success(res.data.message || "OTP sent to HR");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to send OTP");
+    } finally {
+      setOtpSending(false);
     }
   };
 
@@ -114,7 +129,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         ...leaveForm,
         toDate: leaveForm.toDate || leaveForm.fromDate,
       });
-      setLeaveForm({ type: "full_day", fromDate: "", toDate: "", reason: "" });
+      setLeaveForm({ type: "earned_leave", fromDate: "", toDate: "", reason: "" });
       await fetchData();
       toast.success("Leave request submitted");
     } catch (err) {
@@ -294,7 +309,24 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 )}
               </label>
             ))}
-            <Button text="Save Documents" type="submit" className="md:col-span-2" />
+            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              OTP from HR
+              <input
+                value={documentOtp}
+                onChange={(e) => setDocumentOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                placeholder="Enter 6 digit OTP"
+                required
+              />
+            </label>
+            <Button
+              text={otpSending ? "Sending..." : "Send OTP to HR"}
+              type="button"
+              variant="secondary"
+              onClick={requestDocumentOtp}
+              disabled={otpSending}
+            />
+            <Button text="Save Documents" type="submit" />
           </form>
           )}
 
@@ -436,16 +468,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
               <h2 className="font-semibold">{selected.name}</h2>
               <button type="button" onClick={() => setSelected(null)}>x</button>
             </div>
-            <label className="block text-sm font-medium">
-              Status
-              <select value={roundForm.interviewStatus} onChange={(e) => setRoundForm((prev) => ({ ...prev, interviewStatus: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2">
-                <option value="second_round">Second Round</option>
-                <option value="third_round">Third Round</option>
-                <option value="final">Final Round</option>
-                <option value="selected">Selected</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </label>
+            <div className="text-sm bg-gray-50 rounded-sm p-3">
+              Current assigned round: <b>{selected.interviewStatus}</b>. HR will move this candidate to the next round after reviewing your report.
+            </div>
             <label className="block text-sm font-medium">
               Round Type
               <select value={roundForm.roundType} onChange={(e) => setRoundForm((prev) => ({ ...prev, roundType: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2">
@@ -460,7 +485,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </label>
             <label className="block text-sm font-medium">
               Score
-              <input type="number" value={roundForm.score} onChange={(e) => setRoundForm((prev) => ({ ...prev, score: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
+              <input type="number" min="0" max="10" value={roundForm.score} onChange={(e) => setRoundForm((prev) => ({ ...prev, score: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
             </label>
             <label className="block text-sm font-medium">
               Comments

@@ -8,7 +8,10 @@ export const authApi = {
   getHrs: () => API.get("/users/hrs"),
   createHr: (payload) => API.post("/users/hrs", payload),
   deactivateUser: (userId) => API.patch(`/users/${userId}/deactivate`),
+  activateUser: (userId) => API.patch(`/users/${userId}/activate`),
   deleteUser: (userId) => API.delete(`/users/${userId}`),
+  getNotifications: () => API.get("/users/notifications"),
+  markNotificationRead: (notificationId) => API.patch(`/users/notifications/${notificationId}/read`),
 };
 
 export const candidateApi = {
@@ -27,12 +30,16 @@ export const hrApi = {
     API.post(`/hr/candidates/${candidateId}/convert-to-employee`, payload),
   deactivateCandidate: (candidateId) =>
     API.patch(`/hr/candidates/${candidateId}/deactivate`),
+  activateCandidate: (candidateId) =>
+    API.patch(`/hr/candidates/${candidateId}/activate`),
   deleteCandidate: (candidateId) => API.delete(`/hr/candidates/${candidateId}`),
   getEmployees: () => API.get("/hr/employees"),
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   deactivateEmployee: (employeeId) =>
     API.patch(`/hr/employees/${employeeId}/deactivate`),
+  activateEmployee: (employeeId) =>
+    API.patch(`/hr/employees/${employeeId}/activate`),
   deleteEmployee: (employeeId) => API.delete(`/hr/employees/${employeeId}`),
   getAttendance: (month) => API.get("/hr/attendance", { params: { month } }),
   getEmployeeMonthlyReport: (employeeId, month) =>
@@ -45,6 +52,7 @@ export const hrApi = {
 
 export const employeeApi = {
   getProfile: () => API.get("/employees/me"),
+  requestDocumentOtp: () => API.post("/employees/me/documents/otp"),
   updateDocuments: (payload) => API.patch("/employees/me/documents", payload),
   getAttendance: () => API.get("/employees/attendance"),
   startDay: () => API.post("/employees/attendance/start"),

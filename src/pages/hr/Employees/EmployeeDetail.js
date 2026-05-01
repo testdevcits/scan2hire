@@ -62,6 +62,16 @@ const EmployeeDetail = () => {
     }
   };
 
+  const activateEmployee = async () => {
+    try {
+      await hrApi.activateEmployee(employeeId);
+      toast.success("Employee activated");
+      await loadEmployee();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to activate");
+    }
+  };
+
   const deleteEmployee = async () => {
     const ok = await confirm({
       title: "Delete Employee",
@@ -100,7 +110,11 @@ const EmployeeDetail = () => {
             className="border rounded-sm px-3 py-2"
           />
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
-          <Button text="Deactivate" variant="danger" onClick={deactivateEmployee} />
+          {employee.isActive ? (
+            <Button text="Deactivate" variant="danger" onClick={deactivateEmployee} />
+          ) : (
+            <Button text="Activate" variant="success" onClick={activateEmployee} />
+          )}
           {user?.role === "superadmin" && (
             <Button text="Delete" variant="danger" onClick={deleteEmployee} />
           )}
@@ -134,6 +148,26 @@ const EmployeeDetail = () => {
             </p>
           ))}
         </div>
+      </section>
+
+      <section className="bg-white rounded-sm shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Document Update History</h2>
+        </div>
+        {employee.documentHistory?.length ? (
+          employee.documentHistory
+            .slice()
+            .reverse()
+            .map((item, index) => (
+              <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-t px-4 py-3 text-sm">
+                <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                <span>{item.documents?.join(", ") || "Documents"}</span>
+                <span>{item.verifiedByEmail || "HR verified"}</span>
+              </div>
+            ))
+        ) : (
+          <p className="p-4 text-sm text-gray-500">No document update history.</p>
+        )}
       </section>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">

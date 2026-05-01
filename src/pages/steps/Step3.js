@@ -14,6 +14,15 @@ const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
           <b>Qualification:</b> {display(formData.qualification)}
         </p>
         <p>
+          <b>Degrees:</b>{" "}
+          {formData.degrees?.length
+            ? formData.degrees
+                .map((degree) => (degree === "Other" ? formData.otherDegree : degree))
+                .filter(Boolean)
+                .join(", ")
+            : "-"}
+        </p>
+        <p>
           <b>Mobile:</b> {display(formData.mobile)}
         </p>
         <p>

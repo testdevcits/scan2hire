@@ -1,10 +1,19 @@
 // src/pages/hr/HRDashboard.js
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUsers, FiFileText, FiUserCheck } from "react-icons/fi";
+import { authApi } from "../../api";
 
 const HRDashboard = () => {
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    authApi
+      .getNotifications()
+      .then((res) => setNotifications(res.data.data || []))
+      .catch(() => setNotifications([]));
+  }, []);
 
   const actions = [
     {
@@ -58,6 +67,23 @@ const HRDashboard = () => {
           </div>
         ))}
       </div>
+
+      <section className="mt-5 bg-white rounded-sm shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Notifications</h3>
+        </div>
+        {notifications.length === 0 ? (
+          <p className="p-4 text-sm text-gray-500">No notifications</p>
+        ) : (
+          notifications.slice(0, 8).map((item) => (
+            <div key={item._id} className="border-t px-4 py-3 text-sm">
+              <p className="font-medium">{item.title}</p>
+              <p className="text-gray-600">{item.message}</p>
+              <p className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleString()}</p>
+            </div>
+          ))
+        )}
+      </section>
     </div>
   );
 };

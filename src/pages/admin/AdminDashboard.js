@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [candidates, setCandidates] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [pageLoading, setPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,13 +30,14 @@ const AdminDashboard = () => {
   const fetchDashboard = useCallback(async () => {
     setPageLoading(true);
     try {
-      const [hrRes, employeeRes, candidateRes, attendanceRes, leavesRes] =
+      const [hrRes, employeeRes, candidateRes, attendanceRes, leavesRes, notificationRes] =
         await Promise.all([
           authApi.getHrs(),
           hrApi.getEmployees(),
           hrApi.getCandidates(),
           hrApi.getAttendance(new Date().toISOString().slice(0, 7)),
           hrApi.getLeaves(),
+          authApi.getNotifications(),
         ]);
 
       setHrs(hrRes.data.data || []);
@@ -43,6 +45,7 @@ const AdminDashboard = () => {
       setCandidates(candidateRes.data.data || []);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data || []);
+      setNotifications(notificationRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load dashboard data");
     } finally {
@@ -106,6 +109,16 @@ const AdminDashboard = () => {
       await fetchDashboard();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to deactivate HR");
+    }
+  };
+
+  const activateHr = async (hr) => {
+    try {
+      await authApi.activateUser(hr._id);
+      toast.success("HR activated");
+      await fetchDashboard();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to activate HR");
     }
   };
 
@@ -189,6 +202,23 @@ const AdminDashboard = () => {
         </div>
       </section>
 
+      <section className="bg-white rounded-sm shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Notifications</h2>
+        </div>
+        {notifications.length === 0 ? (
+          <p className="p-4 text-sm text-gray-500">No notifications</p>
+        ) : (
+          notifications.slice(0, 6).map((item) => (
+            <div key={item._id} className="border-t px-4 py-3 text-sm">
+              <p className="font-medium">{item.title}</p>
+              <p className="text-gray-600">{item.message}</p>
+              <p className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleString()}</p>
+            </div>
+          ))
+        )}
+      </section>
+
       <section className="bg-white rounded-lg shadow p-4">
         <h2 className="font-semibold mb-1">Create HR Login</h2>
         <p className="text-xs text-gray-500 mb-3">
@@ -236,9 +266,15 @@ const AdminDashboard = () => {
                 {hr.isActive ? "Active" : "Inactive"}
               </span>
               <span className="flex gap-2">
-                <button className="px-2 py-1 bg-gray-900 text-white rounded-sm text-xs" onClick={() => deactivateHr(hr)}>
-                  Deactivate
-                </button>
+                {hr.isActive ? (
+                  <button className="px-2 py-1 bg-gray-900 text-white rounded-sm text-xs" onClick={() => deactivateHr(hr)}>
+                    Deactivate
+                  </button>
+                ) : (
+                  <button className="px-2 py-1 bg-green-600 text-white rounded-sm text-xs" onClick={() => activateHr(hr)}>
+                    Activate
+                  </button>
+                )}
                 <button className="px-2 py-1 bg-red-600 text-white rounded-sm text-xs" onClick={() => deleteHr(hr)}>
                   Delete
                 </button>
