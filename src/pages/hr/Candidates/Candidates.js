@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { useCandidate } from "../../../contexts/Hr/CandidateContext";
@@ -12,6 +12,7 @@ function Candidates() {
   const { fetchEmployees } = useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const [viewMode, setViewMode] = useState("day");
 
   useEffect(() => {
     fetchCandidates();
@@ -43,9 +44,14 @@ function Candidates() {
         </div>
       ),
     },
-    { header: "Email", accessor: "email" },
+    { header: "Email", accessor: "email", render: (value) => <span className="break-all">{value}</span> },
     { header: "Mobile", accessor: "mobile" },
     { header: "Role", accessor: "jobRole" },
+    {
+      header: "Assigned To",
+      accessor: "assignedTo",
+      render: (value) => value?.name || "Unassigned",
+    },
     {
       header: "Status",
       accessor: "interviewStatus",
@@ -61,6 +67,20 @@ function Candidates() {
       render: (val) => `${val} yrs`,
     },
   ];
+
+  const groupedCandidates = useMemo(() => {
+    return candidates.reduce((acc, candidate) => {
+      const dateKey = new Date(candidate.updatedAt || candidate.createdAt).toISOString().slice(0, 10);
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(candidate);
+      return acc;
+    }, {});
+  }, [candidates]);
+
+  const sortedDays = useMemo(
+    () => Object.keys(groupedCandidates).sort((a, b) => new Date(b) - new Date(a)),
+    [groupedCandidates]
+  );
 
   const actions = [
     {
@@ -80,9 +100,46 @@ function Candidates() {
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (
-    <div className="relative">
-      <h1 className="text-xl font-bold mb-4">Candidates List</h1>
-      <CommonTable columns={columns} data={candidates} actions={actions} />
+    <div className="relative space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Interview Candidates</h1>
+          <p className="text-sm text-gray-500">Candidates are grouped by interview/update day for easy interview handling.</p>
+        </div>
+        <div className="bg-white border rounded-sm p-1 flex">
+          <button
+            className={`px-3 py-2 text-sm font-semibold rounded-sm ${viewMode === "day" ? "bg-[#f84525] text-white" : "text-gray-600"}`}
+            onClick={() => setViewMode("day")}
+          >
+            Day Wise
+          </button>
+          <button
+            className={`px-3 py-2 text-sm font-semibold rounded-sm ${viewMode === "table" ? "bg-[#f84525] text-white" : "text-gray-600"}`}
+            onClick={() => setViewMode("table")}
+          >
+            Table
+          </button>
+        </div>
+      </div>
+      {viewMode === "table" ? (
+        <CommonTable columns={columns} data={candidates} actions={actions} />
+      ) : sortedDays.length === 0 ? (
+        <div className="bg-white rounded-sm shadow p-6 text-center text-gray-500">No candidates found</div>
+      ) : (
+        <div className="space-y-4">
+          {sortedDays.map((day) => (
+            <section key={day} className="bg-white rounded-sm shadow overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
+                <h2 className="font-semibold">{new Date(day).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", year: "numeric" })}</h2>
+                <span className="text-xs bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm font-semibold">
+                  {groupedCandidates[day].length} Candidates
+                </span>
+              </div>
+              <CommonTable columns={columns} data={groupedCandidates[day]} actions={actions} />
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

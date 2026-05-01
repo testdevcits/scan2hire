@@ -22,7 +22,6 @@ const AdminDashboard = () => {
   const [candidates, setCandidates] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [pageLoading, setPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,14 +29,13 @@ const AdminDashboard = () => {
   const fetchDashboard = useCallback(async () => {
     setPageLoading(true);
     try {
-      const [hrRes, employeeRes, candidateRes, attendanceRes, leavesRes, notificationRes] =
+      const [hrRes, employeeRes, candidateRes, attendanceRes, leavesRes] =
         await Promise.all([
           authApi.getHrs(),
           hrApi.getEmployees(),
           hrApi.getCandidates(),
           hrApi.getAttendance(new Date().toISOString().slice(0, 7)),
           hrApi.getLeaves(),
-          authApi.getNotifications(),
         ]);
 
       setHrs(hrRes.data.data || []);
@@ -45,7 +43,6 @@ const AdminDashboard = () => {
       setCandidates(candidateRes.data.data || []);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data || []);
-      setNotifications(notificationRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load dashboard data");
     } finally {
@@ -200,23 +197,6 @@ const AdminDashboard = () => {
             ))}
           </div>
         </div>
-      </section>
-
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold">Notifications</h2>
-        </div>
-        {notifications.length === 0 ? (
-          <p className="p-4 text-sm text-gray-500">No notifications</p>
-        ) : (
-          notifications.slice(0, 6).map((item) => (
-            <div key={item._id} className="border-t px-4 py-3 text-sm">
-              <p className="font-medium">{item.title}</p>
-              <p className="text-gray-600">{item.message}</p>
-              <p className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleString()}</p>
-            </div>
-          ))
-        )}
       </section>
 
       <section className="bg-white rounded-lg shadow p-4">

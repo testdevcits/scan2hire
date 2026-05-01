@@ -13,6 +13,7 @@ const Button = ({
   onClick,
   className = "",
   disabled = false,
+  loading = false,
   type = "button",
   variant = "primary",
 }) => {
@@ -20,12 +21,19 @@ const Button = ({
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       className={`py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
         variants[variant] || variants.primary
       } ${className}`}
     >
-      {children || text}
+      {loading ? (
+        <span className="inline-flex items-center gap-2">
+          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          {text || "Processing..."}
+        </span>
+      ) : (
+        children || text
+      )}
     </button>
   );
 };

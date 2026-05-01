@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
+import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
 
 const docFields = [
@@ -22,6 +23,11 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [calendar, setCalendar] = useState([]);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState("");
+  const [documentSaving, setDocumentSaving] = useState(false);
+  const [leaveSaving, setLeaveSaving] = useState(false);
+  const [roundSaving, setRoundSaving] = useState(false);
   const [docs, setDocs] = useState({});
   const [documentOtp, setDocumentOtp] = useState("");
   const [otpSending, setOtpSending] = useState(false);
@@ -45,19 +51,23 @@ const EmployeeDashboard = ({ section = "all" }) => {
   );
 
   const fetchData = useCallback(async () => {
-    const [profileRes, candidatesRes, attendanceRes, leavesRes, calendarRes] = await Promise.all([
-      employeeApi.getProfile(),
-      employeeApi.getAssignedCandidates(),
-      employeeApi.getAttendance(),
-      employeeApi.getLeaves(),
-      employeeApi.getCalendar(new Date().toISOString().slice(0, 7)),
-    ]);
-    setProfile(profileRes.data.data);
-    setCandidates(candidatesRes.data.data || []);
-    setAttendance(attendanceRes.data.data || []);
-    setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
-    setLeaveBalance(leavesRes.data.data?.balance || null);
-    setCalendar(calendarRes.data.data || []);
+    try {
+      const [profileRes, candidatesRes, attendanceRes, leavesRes, calendarRes] = await Promise.all([
+        employeeApi.getProfile(),
+        employeeApi.getAssignedCandidates(),
+        employeeApi.getAttendance(),
+        employeeApi.getLeaves(),
+        employeeApi.getCalendar(new Date().toISOString().slice(0, 7)),
+      ]);
+      setProfile(profileRes.data.data);
+      setCandidates(candidatesRes.data.data || []);
+      setAttendance(attendanceRes.data.data || []);
+      setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
+      setLeaveBalance(leavesRes.data.data?.balance || null);
+      setCalendar(calendarRes.data.data || []);
+    } finally {
+      setPageLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -66,18 +76,22 @@ const EmployeeDashboard = ({ section = "all" }) => {
     );
   }, [fetchData, toast]);
 
-  const runAttendanceAction = async (action, successMessage, payload) => {
+  const runAttendanceAction = async (action, successMessage, payload, key) => {
+    setActionLoading(key);
     try {
       await action(payload);
       await fetchData();
       toast.success(successMessage);
     } catch (err) {
       toast.error(err.response?.data?.message || "Attendance action failed");
+    } finally {
+      setActionLoading("");
     }
   };
 
   const saveDocuments = async (e) => {
     e.preventDefault();
+    setDocumentSaving(true);
     try {
       const res = await employeeApi.updateDocuments({ ...docs, otp: documentOtp });
       setProfile(res.data.data);
@@ -86,6 +100,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
       toast.success("Documents updated");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update documents");
+    } finally {
+      setDocumentSaving(false);
     }
   };
 
@@ -124,6 +140,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const applyLeave = async (e) => {
     e.preventDefault();
+    setLeaveSaving(true);
     try {
       await employeeApi.applyLeave({
         ...leaveForm,
@@ -134,11 +151,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
       toast.success("Leave request submitted");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to apply leave");
+    } finally {
+      setLeaveSaving(false);
     }
   };
 
   const updateRound = async (e) => {
     e.preventDefault();
+    setRoundSaving(true);
     try {
       await employeeApi.updateRound(selected._id, roundForm);
       setSelected(null);
@@ -146,6 +166,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
       toast.success("Round updated");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update round");
+    } finally {
+      setRoundSaving(false);
     }
   };
 
@@ -180,9 +202,35 @@ const EmployeeDashboard = ({ section = "all" }) => {
     );
   }, [attendance]);
 
+  const pendingInterviews = useMemo(
+    () => candidates.filter((candidate) => !candidate.interviewRounds?.some((round) => round.round === candidate.interviewStatus)),
+    [candidates]
+  );
+
+  if (pageLoading) return <CommonLoader text="Loading employee dashboard..." />;
+
   return (
     <div className="space-y-5">
         {isDashboard && (
+          <section className="space-y-4">
+            <div className="bg-white rounded-sm shadow p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  Today attendance, monthly report, and assigned interview work in one place.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-[#fff5f3] text-[#f84525] rounded-sm px-4 py-3">
+                  <p className="font-bold text-xl">{pendingInterviews.length}</p>
+                  <p>Pending Interviews</p>
+                </div>
+                <div className="bg-gray-900 text-white rounded-sm px-4 py-3">
+                  <p className="font-bold text-xl">{todayAttendance?.status || "Not started"}</p>
+                  <p>Today Status</p>
+                </div>
+              </div>
+            </div>
           <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {[
               ["Work Time", minutesToHours(monthlySummary.work)],
@@ -198,8 +246,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <div className="bg-white rounded-sm shadow p-4 lg:col-span-4">
               <h2 className="font-semibold mb-3">Monthly Report Chart</h2>
               {[
-                ["Work", monthlySummary.work, 9600],
-                ["Break", monthlySummary.breaks, 1200],
+                ["Work Time", monthlySummary.work, 9600],
+                ["Break Time", monthlySummary.breaks, 1200],
                 ["Present", monthlySummary.present, 26],
                 ["Half Day", monthlySummary.halfDay, 26],
               ].map(([label, value, max]) => (
@@ -215,13 +263,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
               ))}
             </div>
           </section>
+          </section>
         )}
 
         {(show("attendance") || isDashboard) && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 lg:col-span-2">
+          <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
             <h2 className="font-semibold mb-3">My Profile</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[15px]">
               <p><b>Employee ID:</b> {profile?.employeeId || "N/A"}</p>
               <p><b>Email:</b> {profile?.email || "N/A"}</p>
               <p><b>Mobile:</b> {profile?.mobile || "N/A"}</p>
@@ -231,14 +280,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-sm shadow p-4">
             <h2 className="font-semibold mb-3">Today Attendance</h2>
             <p className="text-sm"><b>Status:</b> {todayAttendance?.status || "Not started"}</p>
             <p className="text-sm"><b>Work:</b> {minutesToHours(todayAttendance?.totalWorkMinutes || 0)}</p>
             <p className="text-sm"><b>Break:</b> {minutesToHours(todayAttendance?.totalBreakMinutes || 0)}</p>
             <div className="grid grid-cols-2 gap-2 mt-4">
-              <Button text="Start Day" onClick={() => runAttendanceAction(employeeApi.startDay, "Day started")} />
-              <Button text="End Day" variant="danger" onClick={() => runAttendanceAction(employeeApi.endDay, "Day ended")} />
+              <Button text="Start Day" loading={actionLoading === "start"} onClick={() => runAttendanceAction(employeeApi.startDay, "Day started", undefined, "start")} />
+              <Button text="End Day" variant="danger" loading={actionLoading === "end"} onClick={() => runAttendanceAction(employeeApi.endDay, "Day ended", undefined, "end")} />
             </div>
             <div className="flex gap-2 mt-3">
               <select
@@ -252,8 +301,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <option value="personal">Personal</option>
                 <option value="other">Other</option>
               </select>
-              <Button text="Start Break" variant="secondary" onClick={() => runAttendanceAction(employeeApi.startBreak, "Break started", { type: breakType })} />
-              <Button text="End" variant="success" onClick={() => runAttendanceAction(employeeApi.endBreak, "Break ended")} />
+              <Button text="Start Break" variant="secondary" loading={actionLoading === "breakStart"} onClick={() => runAttendanceAction(employeeApi.startBreak, "Break started", { type: breakType }, "breakStart")} />
+              <Button text="End" variant="success" loading={actionLoading === "breakEnd"} onClick={() => runAttendanceAction(employeeApi.endBreak, "Break ended", undefined, "breakEnd")} />
             </div>
             <div className="mt-4 border-t pt-3">
               <h3 className="font-semibold text-sm mb-2">Today Timeline</h3>
@@ -290,7 +339,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
           </div>
           )}
           {show("profile") && (
-          <form onSubmit={saveDocuments} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <h2 className="font-semibold md:col-span-2">Documents</h2>
             {docFields.map(([name, label]) => (
               <label key={name} className="text-sm font-medium text-gray-700">
@@ -324,14 +373,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
               type="button"
               variant="secondary"
               onClick={requestDocumentOtp}
-              disabled={otpSending}
+              loading={otpSending}
             />
-            <Button text="Save Documents" type="submit" />
+            <Button text="Save Documents" type="submit" loading={documentSaving} />
           </form>
           )}
 
           {show("leaves") && (
-          <form onSubmit={applyLeave} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <form onSubmit={applyLeave} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <h2 className="font-semibold md:col-span-2">Apply Leave</h2>
             <label className="text-sm font-medium">
               Leave Type
@@ -359,7 +408,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               Reason
               <textarea value={leaveForm.reason} onChange={(e) => setLeaveForm((prev) => ({ ...prev, reason: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
-            <Button text="Submit Leave" type="submit" className="md:col-span-2" />
+            <Button text="Submit Leave" type="submit" loading={leaveSaving} className="md:col-span-2" />
           </form>
           )}
         </section>
@@ -368,7 +417,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         {(show("attendance") || show("leaves")) && (
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {show("attendance") && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-sm shadow overflow-hidden">
             <div className="p-4 border-b"><h2 className="font-semibold">Attendance History</h2></div>
             {attendance.slice(0, 8).map((item) => (
               <div key={item._id} className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm">
@@ -382,7 +431,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
           )}
 
           {show("leaves") && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-sm shadow overflow-hidden">
             <div className="p-4 border-b"><h2 className="font-semibold">My Leaves</h2></div>
             {leaves.length === 0 ? <p className="p-4 text-sm text-gray-500">No leaves applied</p> : leaves.slice(0, 8).map((leave) => (
               <div key={leave._id} className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm">
@@ -443,18 +492,22 @@ const EmployeeDashboard = ({ section = "all" }) => {
         )}
 
         {show("candidates") && (
-        <section className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 border-b"><h2 className="font-semibold">Assigned Candidates</h2></div>
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b bg-gray-50">
+            <h2 className="font-semibold">Assigned Interviews</h2>
+            <p className="text-xs text-gray-500 mt-1">HR assigns the current round. You only add the review after taking the interview.</p>
+          </div>
           {candidates.length === 0 ? (
             <p className="p-4 text-center text-gray-500">No assigned candidates</p>
           ) : (
             candidates.map((candidate) => (
-              <div key={candidate._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm md:items-center">
+              <div key={candidate._id} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center">
                 <span className="font-medium">{candidate.name}</span>
-                <span>{candidate.email}</span>
+                <span className="break-all">{candidate.email}</span>
                 <span>{candidate.jobRole}</span>
-                <span>{candidate.interviewStatus}</span>
-                <Button text="Update Round" onClick={() => setSelected(candidate)} />
+                <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] rounded-sm font-semibold w-fit">{candidate.interviewStatus}</span>
+                <span>{candidate.experienceType === "fresher" ? "Fresher" : `${candidate.experience || 0} yrs`}</span>
+                <Button text="Add Review" onClick={() => setSelected(candidate)} />
               </div>
             ))
           )}
@@ -463,7 +516,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
       {selected && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <form onSubmit={updateRound} className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 space-y-3">
+          <form onSubmit={updateRound} className="bg-white rounded-sm shadow-xl w-full max-w-lg p-4 space-y-3">
             <div className="flex justify-between items-center border-b pb-3">
               <h2 className="font-semibold">{selected.name}</h2>
               <button type="button" onClick={() => setSelected(null)}>x</button>
@@ -491,7 +544,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               Comments
               <textarea value={roundForm.comments} onChange={(e) => setRoundForm((prev) => ({ ...prev, comments: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
             </label>
-            <Button text="Save Round" type="submit" className="w-full" />
+            <Button text="Save Review" type="submit" loading={roundSaving} className="w-full" />
           </form>
         </div>
       )}

@@ -1,15 +1,21 @@
-import { useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { FiLogOut, FiMenu, FiMoon, FiSun, FiX } from "react-icons/fi";
+import { FiBell, FiLogOut, FiMenu, FiMoon, FiSun, FiTrash2, FiX } from "react-icons/fi";
+import { authApi } from "../api";
 import { AuthContext } from "../contexts/AuthContext";
 import { ThemeContext } from "../contexts/ThemeContext";
+import { useToast } from "../contexts/ToastContext";
 import logo from "../assets/logo.png";
 
 const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
+  const toast = useToast();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -18,15 +24,48 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
 
   const closeMobileSidebar = () => setSidebarOpen(false);
 
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    setNotificationsLoading(true);
+    try {
+      const res = await authApi.getNotifications();
+      setNotifications(res.data.data || []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const deleteNotification = async (notificationId) => {
+    try {
+      await authApi.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((item) => item._id !== notificationId));
+      toast.success("Notification deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete notification");
+    }
+  };
+
   const isAdmin = variant === "admin";
-  const asideClass = isAdmin ? "bg-black text-white" : "bg-white";
+  const asideClass = isAdmin
+    ? "bg-black text-white"
+    : mode === "dark"
+    ? "bg-gray-900 text-white border-r border-gray-800"
+    : "bg-white";
   const activeClass = isAdmin ? "bg-white text-black" : "bg-header text-white";
   const inactiveClass = isAdmin
     ? "text-gray-300 hover:bg-white hover:text-black"
+    : mode === "dark"
+    ? "text-gray-300 hover:bg-gray-800 hover:text-white"
     : "text-gray-700 hover:bg-red-50 hover:text-[#f84525]";
 
   return (
-    <div className="flex h-screen font-montserrat bg-light">
+    <div className={`flex h-screen font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}>
       <aside
         className={`fixed top-0 left-0 h-full w-64 ${asideClass} shadow-lg p-4 flex flex-col justify-between transform transition-transform duration-300 z-40 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -49,12 +88,15 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 end={item.end}
                 onClick={closeMobileSidebar}
                 className={({ isActive }) =>
-                  `px-3 py-2 rounded-sm text-sm font-medium transition-colors ${
+                  `px-3 py-2.5 rounded-sm text-[15px] font-semibold transition-colors ${
                     isActive ? activeClass : inactiveClass
                   }`
                 }
               >
-                {item.label}
+                <span className="flex items-center gap-2">
+                  {item.icon}
+                  {item.label}
+                </span>
               </NavLink>
             ))}
           </nav>
@@ -88,19 +130,74 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white shadow px-4 py-3 flex items-center gap-3">
+        <header className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} shadow-sm px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}>
           <button
             className="md:hidden text-xl text-[#f84525]"
             onClick={() => setSidebarOpen((prev) => !prev)}
           >
             {sidebarOpen ? <FiX /> : <FiMenu />}
           </button>
-          <span className="font-semibold text-gray-800">
+          <span className={`font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
             Welcome, {user?.name}
           </span>
+          <div className="ml-auto relative">
+            <button
+              onClick={() => {
+                setNotificationOpen((prev) => !prev);
+                loadNotifications();
+              }}
+              className={`relative w-10 h-10 rounded-sm border flex items-center justify-center hover:text-[#f84525] ${mode === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-white text-gray-800"}`}
+              aria-label="Notifications"
+            >
+              <FiBell />
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#f84525] text-white text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center">
+                  {notifications.length > 9 ? "9+" : notifications.length}
+                </span>
+              )}
+            </button>
+            {notificationOpen && (
+              <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-sm z-50 overflow-hidden">
+                <div className="px-4 py-3 border-b flex items-center justify-between">
+                  <h3 className="font-semibold">Notifications</h3>
+                  <button onClick={() => setNotificationOpen(false)} className="text-gray-500 hover:text-gray-900">
+                    <FiX />
+                  </button>
+                </div>
+                <div className="max-h-96 overflow-auto">
+                  {notificationsLoading ? (
+                    <p className="p-4 text-sm text-gray-500">Loading...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="p-4 text-sm text-gray-500">No notifications</p>
+                  ) : (
+                    notifications.map((item) => (
+                      <div key={item._id} className="p-4 border-b text-sm">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900">{item.title}</p>
+                            <p className="text-gray-600 mt-1">{item.message}</p>
+                            <p className="text-xs text-gray-400 mt-2">{new Date(item.createdAt).toLocaleString()}</p>
+                          </div>
+                          {["hr", "superadmin"].includes(user?.role) && (
+                            <button
+                              onClick={() => deleteNotification(item._id)}
+                              className="text-gray-400 hover:text-red-600"
+                              aria-label="Delete notification"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-3 md:p-5">
+        <main className={`flex-1 overflow-auto p-3 md:p-5 ${mode === "dark" ? "bg-gray-950" : ""}`}>
           <Outlet />
         </main>
       </div>

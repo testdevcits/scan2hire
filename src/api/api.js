@@ -12,6 +12,7 @@ export const authApi = {
   deleteUser: (userId) => API.delete(`/users/${userId}`),
   getNotifications: () => API.get("/users/notifications"),
   markNotificationRead: (notificationId) => API.patch(`/users/notifications/${notificationId}/read`),
+  deleteNotification: (notificationId) => API.delete(`/users/notifications/${notificationId}`),
 };
 
 export const candidateApi = {

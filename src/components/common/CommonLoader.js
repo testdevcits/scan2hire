@@ -1,14 +1,14 @@
 import React from "react";
 
-function CommonLoader({ text = "Loading...", fullScreen = false }) {
+function CommonLoader({ text = "Loading...", fullScreen = false, compact = false }) {
   return (
     <div
       className={`flex flex-col items-center justify-center ${
-        fullScreen ? "fixed inset-0 bg-black/20 z-50" : "py-10"
+        fullScreen ? "fixed inset-0 bg-black/20 z-50" : compact ? "py-4" : "py-10"
       }`}
     >
-      <div className="w-10 h-10 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
-      <p className="mt-3 text-sm text-gray-600">{text}</p>
+      <div className="w-9 h-9 border-4 border-gray-200 border-t-[#f84525] rounded-full animate-spin"></div>
+      <p className="mt-3 text-sm font-medium text-gray-700">{text}</p>
     </div>
   );
 }
