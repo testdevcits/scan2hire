@@ -51,6 +51,7 @@ export const hrApi = {
   reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload),
   getCalendar: (month) => API.get("/hr/calendar", { params: { month } }),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
+  deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),
 };
 
 export const employeeApi = {

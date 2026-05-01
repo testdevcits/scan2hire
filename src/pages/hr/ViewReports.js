@@ -15,6 +15,7 @@ const ViewReports = () => {
   const [calendar, setCalendar] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [calendarSaving, setCalendarSaving] = useState(false);
+  const [calendarDeleting, setCalendarDeleting] = useState(false);
   const [leaveUpdating, setLeaveUpdating] = useState("");
   const [holidayForm, setHolidayForm] = useState({
     date: "",
@@ -175,12 +176,12 @@ const ViewReports = () => {
     const last = new Date(year, monthNumber, 0);
     const blanks = Array.from({ length: first.getDay() }, (_, index) => ({ blank: true, key: `blank-${index}` }));
     const days = Array.from({ length: last.getDate() }, (_, index) => {
-      const date = new Date(year, monthNumber - 1, index + 1);
-      const dateKey = date.toISOString().slice(0, 10);
+      const dayNumber = index + 1;
+      const dateKey = `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
       return {
-        date,
+        date: new Date(year, monthNumber - 1, dayNumber),
         dateKey,
-        dayNumber: index + 1,
+        dayNumber,
         saved: calendarMap[dateKey],
       };
     });
@@ -195,6 +196,21 @@ const ViewReports = () => {
       type: existing?.type || "holiday",
       description: existing?.description || "",
     });
+  };
+
+  const deleteCalendarDay = async () => {
+    if (!holidayForm.date || !calendarMap[holidayForm.date]) return;
+    setCalendarDeleting(true);
+    try {
+      await hrApi.deleteCalendar(holidayForm.date);
+      setHolidayForm({ date: "", title: "", type: "holiday", description: "" });
+      await loadReports();
+      toast.success("Calendar event deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete calendar event");
+    } finally {
+      setCalendarDeleting(false);
+    }
   };
 
   const downloadMonthlyPdf = () => {
@@ -386,6 +402,16 @@ const ViewReports = () => {
             className="w-full border rounded-sm px-3 py-2"
           />
           <Button text={calendarSaving ? "Saving..." : "Save Calendar Day"} loading={calendarSaving} type="submit" className="w-full" />
+          {holidayForm.date && calendarMap[holidayForm.date] && (
+            <Button
+              text={calendarDeleting ? "Deleting..." : "Delete Calendar Event"}
+              loading={calendarDeleting}
+              type="button"
+              variant="danger"
+              onClick={deleteCalendarDay}
+              className="w-full"
+            />
+          )}
         </form>
 
         <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
