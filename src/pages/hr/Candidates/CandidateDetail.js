@@ -25,6 +25,7 @@ const CandidateDetail = () => {
   const [loading, setLoading] = useState(true);
   const [statusForm, setStatusForm] = useState({
     interviewStatus: "first_round",
+    roundType: "technical",
     hrStatus: "pending",
     assignedTo: "",
     remarks: "",
@@ -41,6 +42,7 @@ const CandidateDetail = () => {
       setCandidate(data);
       setStatusForm({
         interviewStatus: data.interviewStatus || "first_round",
+        roundType: "technical",
         hrStatus: data.hrReview?.hrStatus || "pending",
         assignedTo: data.assignedTo?._id || "",
         remarks: data.remarks || "",
@@ -203,6 +205,22 @@ const CandidateDetail = () => {
             </select>
           </label>
           <label className="block text-sm font-medium">
+            Round Type
+            <select
+              value={statusForm.roundType}
+              onChange={(e) => setStatusForm((prev) => ({ ...prev, roundType: e.target.value }))}
+              className="mt-1 w-full border rounded-sm px-3 py-2"
+            >
+              <option value="technical">Technical Round</option>
+              <option value="machine_test">Machine Test</option>
+              <option value="ui_ux">UI/UX Review</option>
+              <option value="testing">Testing Round</option>
+              <option value="hr">HR Round</option>
+              <option value="project_coordinator">Project Coordinator</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium">
             Assign Employee
             <select
               value={statusForm.assignedTo}
@@ -249,8 +267,9 @@ const CandidateDetail = () => {
         </div>
         {candidate.interviewRounds?.length ? (
           candidate.interviewRounds.map((round, index) => (
-            <div key={`${round.round}-${index}`} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm">
+            <div key={`${round.round}-${index}`} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm">
               <span>{round.round}</span>
+              <span>{round.roundType || "technical"}</span>
               <span>{round.interviewer || "N/A"}</span>
               <span>Score: {round.score || 0}</span>
               <span>{round.status}</span>

@@ -4,12 +4,12 @@ import Button from "../../components/common/Button";
 import { useToast } from "../../contexts/ToastContext";
 
 const docFields = [
-  ["photo", "Photo URL"],
-  ["aadhaarCard", "Aadhaar Card URL"],
-  ["panCard", "PAN Card URL"],
-  ["passbook", "Passbook URL"],
-  ["degree", "Degree URL"],
-  ["resume", "Resume URL"],
+  ["photo", "Photo"],
+  ["aadhaarCard", "Aadhaar Card"],
+  ["panCard", "PAN Card"],
+  ["passbook", "Passbook"],
+  ["degree", "Degree"],
+  ["resume", "Resume"],
 ];
 
 const minutesToHours = (minutes = 0) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -20,6 +20,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [candidates, setCandidates] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
+  const [leaveBalance, setLeaveBalance] = useState(null);
   const [calendar, setCalendar] = useState([]);
   const [docs, setDocs] = useState({});
   const [breakType, setBreakType] = useState("lunch");
@@ -32,6 +33,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [selected, setSelected] = useState(null);
   const [roundForm, setRoundForm] = useState({
     interviewStatus: "second_round",
+    roundType: "technical",
     score: "",
     comments: "",
   });
@@ -52,7 +54,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
     setProfile(profileRes.data.data);
     setCandidates(candidatesRes.data.data || []);
     setAttendance(attendanceRes.data.data || []);
-    setLeaves(leavesRes.data.data || []);
+    setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
+    setLeaveBalance(leavesRes.data.data?.balance || null);
     setCalendar(calendarRes.data.data || []);
   }, []);
 
@@ -83,6 +86,27 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }
   };
 
+  const fileToDataUri = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleDocumentFile = async (docKey, file) => {
+    if (!file) return;
+    const dataUri = await fileToDataUri(file);
+    setDocs((prev) => ({
+      ...prev,
+      [docKey]: {
+        dataUri,
+        name: file.name,
+        type: file.type,
+      },
+    }));
+  };
+
   const applyLeave = async (e) => {
     e.preventDefault();
     try {
@@ -110,11 +134,75 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }
   };
 
-  const show = (name) => section === "all" || section === name;
+  const show = (name) => section === name;
+  const isDashboard = section === "all";
+  const todayTimeline = useMemo(() => {
+    if (!todayAttendance) return [];
+    const items = [];
+    if (todayAttendance.loginAt) {
+      items.push({ label: "Login", time: todayAttendance.loginAt });
+    }
+    todayAttendance.breaks?.forEach((item) => {
+      items.push({ label: `${item.type} break start`, time: item.startAt });
+      if (item.endAt) items.push({ label: `${item.type} break end`, time: item.endAt });
+    });
+    if (todayAttendance.logoutAt) {
+      items.push({ label: "Logout", time: todayAttendance.logoutAt });
+    }
+    return items.sort((a, b) => new Date(a.time) - new Date(b.time));
+  }, [todayAttendance]);
+
+  const monthlySummary = useMemo(() => {
+    return attendance.reduce(
+      (acc, item) => {
+        acc.work += item.totalWorkMinutes || 0;
+        acc.breaks += item.totalBreakMinutes || 0;
+        acc.present += item.status === "present" ? 1 : 0;
+        acc.halfDay += item.status === "half_day" ? 1 : 0;
+        return acc;
+      },
+      { work: 0, breaks: 0, present: 0, halfDay: 0 }
+    );
+  }, [attendance]);
 
   return (
     <div className="space-y-5">
-        {show("attendance") && (
+        {isDashboard && (
+          <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {[
+              ["Work Time", minutesToHours(monthlySummary.work)],
+              ["Break Time", minutesToHours(monthlySummary.breaks)],
+              ["Present Days", monthlySummary.present],
+              ["Half Days", monthlySummary.halfDay],
+            ].map(([label, value]) => (
+              <div key={label} className="bg-white rounded-sm shadow p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="text-2xl font-bold text-[#f84525] mt-1">{value}</p>
+              </div>
+            ))}
+            <div className="bg-white rounded-sm shadow p-4 lg:col-span-4">
+              <h2 className="font-semibold mb-3">Monthly Report Chart</h2>
+              {[
+                ["Work", monthlySummary.work, 9600],
+                ["Break", monthlySummary.breaks, 1200],
+                ["Present", monthlySummary.present, 26],
+                ["Half Day", monthlySummary.halfDay, 26],
+              ].map(([label, value, max]) => (
+                <div key={label} className="mb-3">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>{label}</span>
+                    <span>{typeof value === "number" && label.includes("Time") ? minutesToHours(value) : value}</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-sm overflow-hidden">
+                    <div className="h-full bg-[#f84525]" style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {(show("attendance") || isDashboard) && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow p-4 lg:col-span-2">
             <h2 className="font-semibold mb-3">My Profile</h2>
@@ -152,25 +240,58 @@ const EmployeeDashboard = ({ section = "all" }) => {
               <Button text="Start Break" variant="secondary" onClick={() => runAttendanceAction(employeeApi.startBreak, "Break started", { type: breakType })} />
               <Button text="End" variant="success" onClick={() => runAttendanceAction(employeeApi.endBreak, "Break ended")} />
             </div>
+            <div className="mt-4 border-t pt-3">
+              <h3 className="font-semibold text-sm mb-2">Today Timeline</h3>
+              {todayTimeline.length === 0 ? (
+                <p className="text-xs text-gray-500">No timeline yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {todayTimeline.map((item, index) => (
+                    <div key={`${item.label}-${index}`} className="flex justify-between text-xs bg-gray-50 p-2 rounded-sm">
+                      <span>{item.label}</span>
+                      <span>{new Date(item.time).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
         )}
 
-        {(show("documents") || show("leaves")) && (
+        {(show("profile") || show("leaves")) && (
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {show("documents") && (
+          {show("profile") && (
+          <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
+            <h2 className="font-semibold mb-3">My Profile</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <p><b>Employee ID:</b> {profile?.employeeId || "N/A"}</p>
+              <p><b>Email:</b> {profile?.email || "N/A"}</p>
+              <p><b>Mobile:</b> {profile?.mobile || "N/A"}</p>
+              <p><b>Department:</b> {profile?.department || "N/A"}</p>
+              <p><b>Designation:</b> {profile?.designation || "N/A"}</p>
+              <p><b>Joining:</b> {profile?.dateOfJoining ? new Date(profile.dateOfJoining).toLocaleDateString() : "N/A"}</p>
+            </div>
+          </div>
+          )}
+          {show("profile") && (
           <form onSubmit={saveDocuments} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <h2 className="font-semibold md:col-span-2">Documents</h2>
             {docFields.map(([name, label]) => (
               <label key={name} className="text-sm font-medium text-gray-700">
                 {label}
                 <input
-                  name={name}
-                  value={docs[name] || ""}
-                  onChange={(e) => setDocs((prev) => ({ ...prev, [name]: e.target.value }))}
-                  placeholder="Paste uploaded file URL"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleDocumentFile(name, e.target.files?.[0])}
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
                 />
+                {docs[name]?.name && <span className="text-xs text-gray-500">{docs[name].name}</span>}
+                {profile?.documents?.[name]?.url && (
+                  <a href={profile.documents[name].url} target="_blank" rel="noreferrer" className="block text-xs text-[#f84525] underline mt-1">
+                    View uploaded
+                  </a>
+                )}
               </label>
             ))}
             <Button text="Save Documents" type="submit" className="md:col-span-2" />
@@ -187,7 +308,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 onChange={(e) => setLeaveForm((prev) => ({ ...prev, type: e.target.value }))}
                 className="mt-1 w-full border rounded-md px-3 py-2"
               >
-                <option value="full_day">Full Day</option>
+                <option value="earned_leave">EL - Earned Leave</option>
+                <option value="sick_leave">SK - Sick Leave</option>
+                <option value="urgent_leave">Urgent Leave</option>
+                <option value="optional_leave">Optional Leave</option>
                 <option value="half_day">Half Day</option>
               </select>
             </label>
@@ -241,9 +365,29 @@ const EmployeeDashboard = ({ section = "all" }) => {
         </section>
         )}
 
-        {(show("attendance") || show("leaves") || show("all")) && (
+        {show("leaves") && leaveBalance && (
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              ["EL", leaveBalance.earned_leave],
+              ["SK", leaveBalance.sick_leave],
+              ["Urgent", leaveBalance.urgent_leave],
+            ].map(([label, item]) => (
+              <div key={label} className="bg-white rounded-sm shadow p-4">
+                <p className="font-semibold">{label}</p>
+                <p className="text-sm text-gray-500">
+                  Used {item.used} / {item.total} | Remaining {item.remaining}
+                </p>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {show("leaves") && (
           <section className="bg-white rounded-sm shadow p-4">
             <h2 className="font-semibold mb-3">Company Leave Calendar</h2>
+            {calendar.length === 0 ? (
+              <p className="text-sm text-gray-500">No HR uploaded calendar available.</p>
+            ) : (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {calendar.map((day) => (
                 <div
@@ -262,6 +406,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 </div>
               ))}
             </div>
+            )}
           </section>
         )}
 
@@ -299,6 +444,18 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <option value="final">Final Round</option>
                 <option value="selected">Selected</option>
                 <option value="rejected">Rejected</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium">
+              Round Type
+              <select value={roundForm.roundType} onChange={(e) => setRoundForm((prev) => ({ ...prev, roundType: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2">
+                <option value="technical">Technical Round</option>
+                <option value="machine_test">Machine Test</option>
+                <option value="ui_ux">UI/UX Review</option>
+                <option value="testing">Testing Round</option>
+                <option value="hr">HR Round</option>
+                <option value="project_coordinator">Project Coordinator</option>
+                <option value="other">Other</option>
               </select>
             </label>
             <label className="block text-sm font-medium">

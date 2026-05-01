@@ -97,9 +97,9 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<EmployeeDashboard section="all" />} />
+          <Route path="profile" element={<EmployeeDashboard section="profile" />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
-          <Route path="documents" element={<EmployeeDashboard section="documents" />} />
           <Route path="candidates" element={<EmployeeDashboard section="candidates" />} />
         </Route>
 

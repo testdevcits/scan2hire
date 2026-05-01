@@ -14,7 +14,7 @@ const OtpPage = () => {
   const [resendLoading, setResendLoading] = useState(false);
 
   const inputsRef = useRef([]);
-  const otpRef = useRef(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
 
   const storedData = JSON.parse(localStorage.getItem("candidateForm"));
 
@@ -42,7 +42,11 @@ const OtpPage = () => {
   const handleChange = (index, value) => {
     if (!/^\d?$/.test(value)) return;
 
-    otpRef.current[index] = value;
+    setOtp((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
 
     if (value && index < 5) {
       inputsRef.current[index + 1]?.focus();
@@ -51,36 +55,29 @@ const OtpPage = () => {
 
   const handleKeyDown = (e, index) => {
     if (e.key === "Backspace") {
-      if (!otpRef.current[index] && index > 0) {
+      if (!otp[index] && index > 0) {
         inputsRef.current[index - 1]?.focus();
       } else {
-        otpRef.current[index] = "";
-        if (inputsRef.current[index]) {
-          inputsRef.current[index].value = "";
-        }
+        setOtp((prev) => {
+          const next = [...prev];
+          next[index] = "";
+          return next;
+        });
       }
     }
   };
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasteData = e.clipboardData.getData("text").replace(/\D/g, "");
-
-    for (let i = 0; i < 6; i++) {
-      const digit = pasteData[i] || "";
-      otpRef.current[i] = digit;
-
-      if (inputsRef.current[i]) {
-        inputsRef.current[i].value = digit;
-      }
-    }
-
-    const nextIndex = pasteData.length < 6 ? pasteData.length : 5;
+    const pasteData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const nextOtp = [...Array(6)].map((_, index) => pasteData[index] || "");
+    setOtp(nextOtp);
+    const nextIndex = Math.min(pasteData.length, 5);
     inputsRef.current[nextIndex]?.focus();
   };
 
   const handleSubmit = async () => {
-    const otpValue = otpRef.current.join("");
+    const otpValue = otp.join("");
 
     if (otpValue.length !== 6) {
       toast.error("Please enter complete OTP");
@@ -162,6 +159,7 @@ const OtpPage = () => {
                   pattern="[0-9]*"
                   maxLength={1}
                   ref={(el) => (inputsRef.current[index] = el)}
+                  value={otp[index]}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
                   onPaste={handlePaste}
