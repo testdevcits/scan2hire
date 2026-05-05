@@ -1,12 +1,14 @@
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiCalendar, FiClock, FiFileText, FiLock, FiSettings } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiFileText, FiFolder, FiLock, FiSettings } from "react-icons/fi";
 
 const EmployeeLayout = () => {
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
+    { label: "Leave Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
     { label: "Interviews", path: "/employee/candidates", icon: <FiFileText /> },
+    { label: "Documents", path: "/employee/documents", icon: <FiFolder /> },
     { label: "Credentials", path: "/employee/credentials", icon: <FiLock /> },
     { label: "Settings", path: "/employee/settings", icon: <FiSettings /> },
   ];

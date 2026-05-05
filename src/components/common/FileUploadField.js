@@ -39,13 +39,23 @@ const FileUploadField = ({
           required={required}
           className="w-full min-w-0 text-xs sm:text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-[#f84525] file:px-3 file:py-2 file:text-white"
         />
+        {canShowImagePreview ? (
+          <div className="mt-3 flex items-center gap-3 rounded-sm border border-[#f7a08f] bg-white p-2">
+            <div className="w-16 h-16 rounded-sm overflow-hidden border border-[#ffd8cf] bg-[#fff5f3] shrink-0">
+              <img src={selectedPreviewUrl} alt={label} className="w-full h-full object-cover" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-700">Selected image</p>
+              {fileName ? (
+                <p className="text-xs text-gray-500 truncate mt-1">{fileName}</p>
+              ) : (
+                <p className="text-xs text-gray-500 truncate mt-1">Preview ready</p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
-      {fileName ? <span className="text-xs text-gray-500 mt-1">{fileName}</span> : null}
-      {canShowImagePreview ? (
-        <div className="mt-2 w-20 h-20 rounded-sm overflow-hidden border border-[#f7a08f] bg-[#fff5f3]">
-          <img src={selectedPreviewUrl} alt={label} className="w-full h-full object-cover" />
-        </div>
-      ) : null}
+      {fileName && !canShowImagePreview ? <span className="text-xs text-gray-500 mt-1">{fileName}</span> : null}
       {previewText && onPreview ? (
         <button
           type="button"

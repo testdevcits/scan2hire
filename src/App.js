@@ -33,6 +33,8 @@ import ManageHR from "./pages/admin/ManageHR";
 import UserProfile from "./pages/UserProfile";
 import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
+import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
+import EmployeeLeaveCalendar from "./pages/employee/EmployeeLeaveCalendar";
 
 function App() {
   return (
@@ -91,6 +93,7 @@ function App() {
           <Route path="reports" element={<ViewReports />} />
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
+          <Route path="documents" element={<UserProfile title="Documents" />} />
           <Route path="profile" element={<UserProfile />} />
         </Route>
 
@@ -105,9 +108,11 @@ function App() {
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<EmployeeDashboard section="all" />} />
           <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="documents" element={<EmployeeDocuments />} />
           <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
+          <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
           <Route path="candidates" element={<EmployeeDashboard section="candidates" />} />
         </Route>
 

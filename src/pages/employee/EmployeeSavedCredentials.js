@@ -20,6 +20,7 @@ const EmployeeSavedCredentials = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [showForm, setShowForm] = useState(false);
 
   const loadCredentials = useCallback(async () => {
     setLoading(true);
@@ -43,6 +44,7 @@ const EmployeeSavedCredentials = () => {
     try {
       await employeeApi.createMyAccountCredential(form);
       setForm(emptyForm);
+      setShowForm(false);
       toast.success("Credential saved");
       await loadCredentials();
     } catch (err) {
@@ -81,12 +83,18 @@ const EmployeeSavedCredentials = () => {
             <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
             <p className="text-sm text-gray-500 mt-1">Save multiple account logins for your own work and copy them when needed.</p>
           </div>
-          <div className="w-11 h-11 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => setShowForm((prev) => !prev)}
+            className="w-11 h-11 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center"
+            aria-label={showForm ? "Close credential form" : "Open credential form"}
+          >
             <FiPlus />
-          </div>
+          </button>
         </div>
       </section>
 
+      {showForm && (
       <form onSubmit={saveCredential} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <label className="text-sm font-medium text-gray-700">
           Account Type
@@ -118,8 +126,9 @@ const EmployeeSavedCredentials = () => {
           Notes
           <textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 min-h-[96px]" />
         </label>
-        <Button text="Save Credential" type="submit" loading={saving} className="md:col-span-2" />
+        <Button text="Save Credential" type="submit" loading={saving} className="md:col-span-2 justify-self-start" />
       </form>
+      )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">

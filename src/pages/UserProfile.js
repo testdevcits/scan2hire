@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { authApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
 import FileUploadField from "../components/common/FileUploadField";
+import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 
 const docFields = [
@@ -21,8 +22,9 @@ const fileToDataUri = (file) =>
     reader.readAsDataURL(file);
   });
 
-const UserProfile = () => {
+const UserProfile = ({ title = "My Profile" }) => {
   const toast = useToast();
+  const { mode } = useContext(ThemeContext);
   const [profile, setProfile] = useState(null);
   const [docs, setDocs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -73,8 +75,8 @@ const UserProfile = () => {
 
   return (
     <div className="space-y-5">
-      <section className="bg-white rounded-sm shadow p-5">
-        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+      <section className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5`}>
+        <h1 className={`text-2xl font-bold ${mode === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-sm">
           <p><b>Name:</b> {profile?.name}</p>
           <p><b>Email:</b> {profile?.email}</p>
@@ -83,7 +85,7 @@ const UserProfile = () => {
         </div>
       </section>
 
-      <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={saveDocuments} className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4`}>
         <h2 className="font-semibold md:col-span-2">Documents</h2>
         {docFields.map(([name, label]) => (
           <FileUploadField
@@ -92,6 +94,7 @@ const UserProfile = () => {
             accept=".pdf,.jpg,.jpeg,.png"
             onChange={(e) => handleFile(name, e.target.files?.[0])}
             fileName={docs[name]?.name}
+            selectedPreviewUrl={docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined}
             previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
             onPreview={profile?.documents?.[name]?.url ? () => setPreview({ title: label, url: profile.documents[name].url }) : undefined}
           />
@@ -99,19 +102,19 @@ const UserProfile = () => {
         <Button text="Save Documents" type="submit" loading={saving} className="md:col-span-2" />
       </form>
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
+      <section className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow overflow-hidden`}>
+        <div className={`p-4 border-b ${mode === "dark" ? "border-gray-800" : ""}`}>
           <h2 className="font-semibold">Document History</h2>
         </div>
         {profile?.documentHistory?.length ? (
           profile.documentHistory.slice().reverse().map((item, index) => (
-            <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm">
+            <div key={`${item.updatedAt}-${index}`} className={`grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm ${mode === "dark" ? "border-gray-800 text-gray-200" : ""}`}>
               <span>{new Date(item.updatedAt).toLocaleString()}</span>
               <span>{item.documents?.join(", ")}</span>
             </div>
           ))
         ) : (
-          <p className="p-4 text-sm text-gray-500">No document update history.</p>
+          <p className={`p-4 text-sm ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>No document update history.</p>
         )}
       </section>
 

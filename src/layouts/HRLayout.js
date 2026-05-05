@@ -1,4 +1,4 @@
-import { FiBarChart2, FiCalendar, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiFolder, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
 import SidebarLayout from "./SidebarLayout";
 
 const HRLayout = () => {
@@ -7,6 +7,7 @@ const HRLayout = () => {
     { label: "Employees", path: "/hr/employees", icon: <FiUsers /> },
     { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
     { label: "Reports & Calendar", path: "/hr/reports", icon: <FiCalendar /> },
+    { label: "Documents", path: "/hr/documents", icon: <FiFolder /> },
     { label: "Profile", path: "/hr/profile", icon: <FiUser /> },
   ];
 

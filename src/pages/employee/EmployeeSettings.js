@@ -156,8 +156,8 @@ const EmployeeSettings = () => {
       <section className="bg-white rounded-sm shadow p-5">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="w-20 h-20 rounded-sm overflow-hidden bg-[#fff5f3] flex items-center justify-center">
-            {profile?.documents?.photo?.url ? (
-              <img src={profile.documents.photo.url} alt={profile.name} className="w-full h-full object-cover" />
+            {profileImageForm?.dataUri || profile?.documents?.photo?.url ? (
+              <img src={profileImageForm?.dataUri || profile.documents.photo.url} alt={profile.name} className="w-full h-full object-cover" />
             ) : (
               <span className="text-2xl font-semibold text-[#f84525]">{profile?.name?.[0] || "E"}</span>
             )}
@@ -193,6 +193,7 @@ const EmployeeSettings = () => {
             type="submit"
             loading={profileImageSaving}
             disabled={!profileImageForm}
+            className="justify-self-start"
           />
         </div>
       </form>
@@ -237,6 +238,7 @@ const EmployeeSettings = () => {
           type="submit"
           loading={documentSaving}
           disabled={!otpRequested || !documentOtp || Object.keys(docs).length === 0}
+          className="justify-self-start"
         />
       </form>
 
@@ -265,7 +267,7 @@ const EmployeeSettings = () => {
             required
           />
         </label>
-        <Button text={passwordSaving ? "Updating..." : "Update Password"} loading={passwordSaving} type="submit" className="md:col-span-2" />
+        <Button text={passwordSaving ? "Updating..." : "Update Password"} loading={passwordSaving} type="submit" className="md:col-span-2 justify-self-start" />
       </form>
 
       {preview && (
