@@ -1,4 +1,3 @@
-// src/pages/Home.js
 import { useEffect, useState, useRef } from "react";
 import QRCode from "react-qr-code";
 import { FiRefreshCw } from "react-icons/fi";
@@ -26,7 +25,6 @@ const Home = () => {
         throw new Error(res.message || "Failed to generate QR ID");
       }
 
-      // use current frontend domain automatically
       const baseUrl = window.location.origin;
 
       setFormUrl(`${baseUrl}/form/${qrId}`);

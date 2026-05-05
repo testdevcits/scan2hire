@@ -16,7 +16,6 @@ const Login = () => {
     const res = await login(email, password);
 
     if (res.success) {
-      // Role-based redirect
       if (res.data.role === "superadmin") {
         navigate("/admin");
       } else if (res.data.role === "hr") {
@@ -34,9 +33,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-montserrat">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-2">
-          Scan2Hire Login
-        </h2>
+        <h2 className="text-2xl font-bold text-center mb-2">Scan2Hire Login</h2>
         <p className="text-sm text-gray-500 text-center mb-6">
           Login to continue.
         </p>
