@@ -8,10 +8,21 @@ const Step2 = ({
   setErrors,
   handleCheckbox,
 }) => {
+  const skillOptionsByRole = {
+    "Frontend Developer": ["HTML/CSS", "JavaScript", "React", "Vue", "Angular", "Tailwind CSS", "TypeScript", "Other"],
+    "Backend Developer": ["Node.js", "Express", "PHP", "Laravel", "Python", "Django", "MongoDB", "MySQL", "Other"],
+    "Fullstack Developer": ["HTML/CSS", "JavaScript", "React", "Node.js", "Express", "MongoDB", "MySQL", "Other"],
+    Designer: ["UI/UX Design", "Figma", "Adobe XD", "Photoshop", "Illustrator", "Wireframing", "Other"],
+    "QA Engineer": ["Manual Testing", "Automation Testing", "Selenium", "API Testing", "Postman", "Jira", "Other"],
+    Other: ["HTML/CSS", "JavaScript", "React", "Node.js", "PHP", "Laravel", "UI/UX Design", "Digital Marketing", "Other"],
+  };
+
+  const skillOptions = skillOptionsByRole[formData.jobRole] || skillOptionsByRole.Other;
+
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
-    if (name === "certificate") {
+    if (name === "certificate" || name === "resume") {
       const file = files?.[0];
       if (!file) return;
 
@@ -19,9 +30,10 @@ const Step2 = ({
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
-          certificate: reader.result,
-          certificateName: file.name,
+          [name]: reader.result,
+          [`${name}Name`]: file.name,
         }));
+        setErrors((prev) => ({ ...prev, [name]: "" }));
       };
       reader.readAsDataURL(file);
       return;
@@ -35,30 +47,30 @@ const Step2 = ({
         setErrors((prev) => ({ ...prev, [name]: "" })); // Clear error
       }
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value, ...(name === "jobRole" ? { skills: [], otherSkills: "" } : {}) }));
       setErrors((prev) => ({ ...prev, [name]: "" })); // Clear error
     }
   };
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <SelectField
-        label="Apply for Job"
-        name="jobRole"
-        value={formData.jobRole}
-        onChange={handleChange}
-        options={[
-          "Frontend Developer",
-          "Backend Developer",
-          "Fullstack Developer",
-          "Designer",
-          "QA Engineer",
-          "Other",
-        ]}
-        error={errors.jobRole}
-        required
-      />
+    <div className="space-y-4 sm:space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <SelectField
+          label="Apply for Job"
+          name="jobRole"
+          value={formData.jobRole}
+          onChange={handleChange}
+          options={[
+            "Frontend Developer",
+            "Backend Developer",
+            "Fullstack Developer",
+            "Designer",
+            "QA Engineer",
+            "Other",
+          ]}
+          error={errors.jobRole}
+          required
+        />
       {formData.jobRole === "Other" && (
         <InputField
           label="Other Role"
@@ -70,23 +82,13 @@ const Step2 = ({
         />
       )}
 
-      <div className="md:col-span-2 border rounded-lg p-4">
+      <div className="md:col-span-2 border rounded-sm p-3 sm:p-4">
         <p className="font-medium mb-3">
           Skills <span className="text-red-500">*</span>
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {[
-            "HTML/CSS",
-            "JavaScript",
-            "React",
-            "Node.js",
-            "PHP",
-            "Laravel",
-            "UI/UX Design",
-            "Digital Marketing",
-            "Other",
-          ].map((item) => (
-            <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-md px-3 py-2">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2">
+          {skillOptions.map((item) => (
+            <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-sm px-3 py-2 min-h-10">
               <input
                 type="checkbox"
                 checked={formData.skills.includes(item)}
@@ -112,13 +114,28 @@ const Step2 = ({
         />
       )}
       <label className="flex flex-col text-sm font-medium text-gray-700">
-        Certificate Upload
+        Resume Upload <span className="text-red-500">*</span>
+        <input
+          type="file"
+          name="resume"
+          accept=".pdf,.doc,.docx"
+          onChange={handleChange}
+          className="mt-1 w-full min-w-0 text-xs sm:text-sm border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          required
+        />
+        {formData.resumeName && (
+          <span className="text-xs text-gray-500 mt-1">{formData.resumeName}</span>
+        )}
+        {errors.resume && <span className="text-red-500 text-sm mt-1">{errors.resume}</span>}
+      </label>
+      <label className="flex flex-col text-sm font-medium text-gray-700">
+        Certificate Upload (Optional)
         <input
           type="file"
           name="certificate"
           accept=".pdf,.jpg,.jpeg,.png"
           onChange={handleChange}
-          className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          className="mt-1 w-full min-w-0 text-xs sm:text-sm border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
         />
         {formData.certificateName && (
           <span className="text-xs text-gray-500 mt-1">{formData.certificateName}</span>
@@ -150,12 +167,12 @@ const Step2 = ({
       />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border rounded-lg p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="border rounded-sm p-3 sm:p-4">
           <p className="font-medium mb-3">CMS</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
             {["WordPress", "Shopify", "Drupal", "Magento"].map((item) => (
-              <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-md px-3 py-2">
+            <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-sm px-3 py-2 min-h-10">
                 <input
                   type="checkbox"
                   checked={formData.cms.includes(item)}
@@ -170,11 +187,11 @@ const Step2 = ({
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
+        <div className="border rounded-sm p-3 sm:p-4">
           <p className="font-medium mb-3">Framework</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
             {["Laravel", "CodeIgniter", "Symfony", "React"].map((item) => (
-              <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-md px-3 py-2">
+            <label key={item} className="flex items-center gap-2 text-sm bg-gray-50 rounded-sm px-3 py-2 min-h-10">
                 <input
                   type="checkbox"
                   checked={formData.framework.includes(item)}

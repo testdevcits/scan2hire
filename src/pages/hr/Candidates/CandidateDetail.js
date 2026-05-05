@@ -14,6 +14,40 @@ const formatValue = (value) => {
   return value;
 };
 
+const roundOrder = ["first_round", "second_round", "third_round", "final", "selected"];
+const roundLabels = {
+  first_round: "First Round",
+  second_round: "Second Round",
+  third_round: "Third Round",
+  final: "Final",
+  selected: "Selected",
+  rejected: "Rejected",
+};
+
+const getAllowedStatuses = (candidate) => {
+  const completed = new Set(
+    (candidate?.interviewRounds || [])
+      .filter((round) => round.status === "completed")
+      .map((round) => round.round)
+  );
+  const allowed = ["rejected"];
+  for (const status of roundOrder) {
+    if (status === "first_round") {
+      allowed.push(status);
+      if (!completed.has(status)) break;
+      continue;
+    }
+    const previous = roundOrder[roundOrder.indexOf(status) - 1];
+    if (!completed.has(previous)) break;
+    allowed.push(status);
+    if (status !== "selected" && !completed.has(status)) break;
+  }
+  return allowed;
+};
+
+const salaryText = (amount, period) =>
+  amount ? `${amount} / ${period === "monthly" ? "month" : "annum"}` : "N/A";
+
 const CandidateDetail = () => {
   const { candidateId } = useParams();
   const navigate = useNavigate();
@@ -61,6 +95,10 @@ const CandidateDetail = () => {
 
   const updateAssignment = async (e) => {
     e.preventDefault();
+    if (statusForm.interviewStatus === "rejected" && !statusForm.remarks.trim()) {
+      toast.error("Please add HR reply in remarks before rejecting.");
+      return;
+    }
     try {
       await hrApi.updateCandidateStatus(candidateId, {
         ...statusForm,
@@ -80,6 +118,7 @@ const CandidateDetail = () => {
       fields: [
         { name: "designation", label: "Designation", required: true },
         { name: "department", label: "Department", required: true },
+        { name: "dateOfJoining", label: "Joining Date", type: "date", required: true },
         {
           name: "employeeType",
           label: "Employee Type",
@@ -160,6 +199,7 @@ const CandidateDetail = () => {
 
   if (loading) return <CommonLoader text="Loading candidate..." />;
   if (!candidate) return <p className="text-red-500">Candidate not found</p>;
+  const allowedStatuses = getAllowedStatuses(candidate);
 
   return (
     <div className="space-y-4">
@@ -189,14 +229,20 @@ const CandidateDetail = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <p><b>Email:</b> {formatValue(candidate.email)}</p>
             <p><b>Mobile:</b> {formatValue(candidate.mobile)}</p>
+            <p><b>Alt Mobile:</b> {formatValue(candidate.altMobile)}</p>
             <p><b>Qualification:</b> {formatValue(candidate.qualification)}</p>
+            <p><b>Branch:</b> {formatValue(candidate.branch)}</p>
             <p><b>Experience:</b> {candidate.experienceType === "fresher" ? "Fresher" : `${formatValue(candidate.experience)} yrs`}</p>
             <p><b>Company:</b> {formatValue(candidate.currentCompany)}</p>
-            <p><b>Expected Salary:</b> {formatValue(candidate.expectedSalary)}</p>
+            <p><b>Current Salary:</b> {salaryText(candidate.currentSalary, candidate.currentSalaryPeriod)}</p>
+            <p><b>Expected Salary:</b> {salaryText(candidate.expectedSalary, candidate.expectedSalaryPeriod)}</p>
+            <p><b>Night Shift:</b> {formatValue(candidate.nightShift)}</p>
+            <p><b>Reference:</b> {candidate.referenceName ? `${candidate.referenceName} (${candidate.referenceMobile || "N/A"})` : "N/A"}</p>
             <p><b>Skills:</b> {formatValue(candidate.skills)}</p>
             <p><b>Framework:</b> {formatValue(candidate.framework)}</p>
             <p><b>CMS:</b> {formatValue(candidate.cms)}</p>
             <p><b>Certificate:</b> {candidate.certificateName || (candidate.certificate ? "Uploaded" : "N/A")}</p>
+            <p><b>Resume:</b> {candidate.resumeName || (candidate.resume ? "Uploaded" : "N/A")}</p>
           </div>
         </div>
 
@@ -209,12 +255,11 @@ const CandidateDetail = () => {
               onChange={(e) => setStatusForm((prev) => ({ ...prev, interviewStatus: e.target.value }))}
               className="mt-1 w-full border rounded-sm px-3 py-2"
             >
-              <option value="first_round">First Round</option>
-              <option value="second_round">Second Round</option>
-              <option value="third_round">Third Round</option>
-              <option value="final">Final</option>
-              <option value="selected">Selected</option>
-              <option value="rejected">Rejected</option>
+              {["first_round", "second_round", "third_round", "final", "selected", "rejected"].map((status) => (
+                <option key={status} value={status} disabled={!allowedStatuses.includes(status)}>
+                  {roundLabels[status]}
+                </option>
+              ))}
             </select>
           </label>
           <label className="block text-sm font-medium">
@@ -265,6 +310,7 @@ const CandidateDetail = () => {
               value={statusForm.remarks}
               onChange={(e) => setStatusForm((prev) => ({ ...prev, remarks: e.target.value }))}
               className="mt-1 w-full border rounded-sm px-3 py-2"
+              placeholder={statusForm.interviewStatus === "rejected" ? "Required. This reply will be sent in rejection email." : "Internal HR remarks"}
             />
           </label>
           <Button text="Save Assignment" type="submit" className="w-full" />

@@ -25,6 +25,7 @@ import ThankYouPage from "./pages/ThankYouPage";
 import Candidates from "./pages/hr/Candidates/Candidates";
 import CandidateDetail from "./pages/hr/Candidates/CandidateDetail";
 import EmployeeDetail from "./pages/hr/Employees/EmployeeDetail";
+import EmployeeCredentials from "./pages/hr/EmployeeCredentials";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeForgotPassword from "./pages/EmployeeForgotPassword";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -68,6 +69,7 @@ function App() {
           <Route path="candidates" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="credentials" element={<EmployeeCredentials />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
 

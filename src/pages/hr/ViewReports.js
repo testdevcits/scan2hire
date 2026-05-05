@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import { AuthContext } from "../../contexts/AuthContext";
+import { ThemeContext } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const minutesToHours = (minutes = 0) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 
 const ViewReports = () => {
   const toast = useToast();
+  const { user } = useContext(AuthContext);
+  const { mode } = useContext(ThemeContext);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [calendarYear, setCalendarYear] = useState(String(new Date().getFullYear()));
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -16,6 +21,7 @@ const ViewReports = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [leaveUpdating, setLeaveUpdating] = useState("");
   const [holidayForm, setHolidayForm] = useState({
     date: "",
@@ -30,7 +36,7 @@ const ViewReports = () => {
       const [attendanceRes, leavesRes, calendarRes, employeesRes] = await Promise.all([
         hrApi.getAttendance(month),
         hrApi.getLeaves(),
-        hrApi.getCalendar(month),
+        hrApi.getCalendar(null, calendarYear),
         hrApi.getEmployees(),
       ]);
       setAttendance(attendanceRes.data.data || []);
@@ -42,7 +48,7 @@ const ViewReports = () => {
     } finally {
       setPageLoading(false);
     }
-  }, [month, toast]);
+  }, [calendarYear, month, toast]);
 
   useEffect(() => {
     loadReports();
@@ -153,12 +159,18 @@ const ViewReports = () => {
 
   const saveCalendar = async (e) => {
     e.preventDefault();
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (user?.role !== "superadmin" && holidayForm.date < todayKey) {
+      toast.error("Only super admin can update previous calendar dates.");
+      return;
+    }
     setCalendarSaving(true);
     try {
-      await hrApi.upsertCalendar(holidayForm);
+      const res = await hrApi.upsertCalendar(holidayForm);
+      const responseMessage = res.data.message || "Calendar updated";
       setHolidayForm({ date: "", title: "", type: "holiday", description: "" });
       await loadReports();
-      toast.success("Calendar updated");
+      toast.success(responseMessage);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update calendar");
     } finally {
@@ -170,8 +182,7 @@ const ViewReports = () => {
     return calendar.reduce((acc, item) => ({ ...acc, [item.dateKey]: item }), {});
   }, [calendar]);
 
-  const monthDays = useMemo(() => {
-    const [year, monthNumber] = month.split("-").map(Number);
+  const buildMonthDays = useCallback((year, monthNumber) => {
     const first = new Date(year, monthNumber - 1, 1);
     const last = new Date(year, monthNumber, 0);
     const blanks = Array.from({ length: first.getDay() }, (_, index) => ({ blank: true, key: `blank-${index}` }));
@@ -186,7 +197,15 @@ const ViewReports = () => {
       };
     });
     return [...blanks, ...days];
-  }, [calendarMap, month]);
+  }, [calendarMap]);
+
+  const calendarMonths = useMemo(() => {
+    const year = Number(calendarYear);
+    return Array.from({ length: 12 }, (_, index) => ({
+      label: new Date(year, index, 1).toLocaleDateString("en-US", { month: "long" }),
+      days: buildMonthDays(year, index + 1),
+    }));
+  }, [buildMonthDays, calendarYear]);
 
   const selectCalendarDay = (dateKey) => {
     const existing = calendarMap[dateKey];
@@ -200,6 +219,11 @@ const ViewReports = () => {
 
   const deleteCalendarDay = async () => {
     if (!holidayForm.date || !calendarMap[holidayForm.date]) return;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (user?.role !== "superadmin" && holidayForm.date < todayKey) {
+      toast.error("Only super admin can delete previous calendar dates.");
+      return;
+    }
     setCalendarDeleting(true);
     try {
       await hrApi.deleteCalendar(holidayForm.date);
@@ -295,6 +319,7 @@ const ViewReports = () => {
         </div>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
         <Button text="Download Monthly PDF" onClick={downloadMonthlyPdf} />
+        <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} />
       </div>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -367,10 +392,28 @@ const ViewReports = () => {
         )}
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <form onSubmit={saveCalendar} className="bg-white rounded-sm shadow p-4 space-y-3">
+      {calendarModalOpen && (
+      <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-3 sm:p-4">
+        <section className="bg-white rounded-sm shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Leave Calendar</h2>
+              <p className="text-xs text-gray-500">Add holidays, working Saturdays, events and notices from one place.</p>
+            </div>
+            <button type="button" onClick={() => setCalendarModalOpen(false)} className="text-[#f84525] font-semibold px-2 py-1">Close</button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4 p-4 min-h-0 flex-1 overflow-hidden">
+        <form onSubmit={saveCalendar} className="bg-white rounded-sm border p-4 space-y-3 self-start">
           <h2 className="font-semibold">HR Leave Calendar</h2>
-          <p className="text-xs text-gray-500">Click any date in the month grid, add title/type, then save.</p>
+          <p className="text-xs text-gray-500">Click any date in the year grid, add title/type, then save.</p>
+          <input
+            type="number"
+            min="2000"
+            max="2100"
+            value={calendarYear}
+            onChange={(e) => setCalendarYear(e.target.value)}
+            className="w-full border rounded-sm px-3 py-2"
+          />
           <input
             type="date"
             value={holidayForm.date}
@@ -392,6 +435,7 @@ const ViewReports = () => {
           >
             <option value="holiday">Holiday</option>
             <option value="working_saturday">Working Saturday</option>
+            <option value="optional_leave">Optional Leave</option>
             <option value="event">Event</option>
             <option value="notice">Notice</option>
           </select>
@@ -414,52 +458,61 @@ const ViewReports = () => {
           )}
         </form>
 
-        <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
+        <div className="bg-white rounded-sm border p-4 overflow-y-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-            <h2 className="font-semibold">Monthly Calendar</h2>
+            <h2 className="font-semibold">Year Calendar - {calendarYear}</h2>
             <div className="flex gap-2 text-xs">
               <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-sm">Holiday</span>
               <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-sm">Working Sat</span>
+              <span className="px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-sm">Optional Leave</span>
               <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-sm">Event/Notice</span>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500 mb-1">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {monthDays.map((day) => {
-              if (day.blank) return <div key={day.key} className="min-h-20" />;
-              const saved = day.saved;
-              const selected = holidayForm.date === day.dateKey;
-              const className = selected
-                ? "bg-[#fff5f3] border-[#f84525] ring-2 ring-[#f84525] text-gray-950"
-                : saved?.type === "holiday"
-                ? "bg-red-50 border-red-200 text-gray-950"
-                : saved?.type === "working_saturday"
-                ? "bg-green-50 border-green-200 text-gray-950"
-                : saved
-                ? "bg-blue-50 border-blue-200 text-gray-950"
-                : "bg-white hover:bg-gray-50 text-gray-950";
-              return (
-                <button
-                  type="button"
-                  key={day.dateKey}
-                  onClick={() => selectCalendarDay(day.dateKey)}
-                  className={`min-h-20 border rounded-sm p-2 text-left text-xs transition ${className}`}
-                >
-                  <span className="font-bold text-gray-950">{day.dayNumber}</span>
-                  {saved && (
-                    <>
-                      <p className="mt-1 font-semibold truncate">{saved.title}</p>
-                      <p className="capitalize text-gray-700 truncate">{saved.type.replace("_", " ")}</p>
-                    </>
-                  )}
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {calendarMonths.map((monthBlock) => (
+              <div key={monthBlock.label} className="border rounded-sm p-3">
+                <h3 className="font-semibold text-sm mb-2">{monthBlock.label}</h3>
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-gray-500 mb-1">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {monthBlock.days.map((day) => {
+                    if (day.blank) return <div key={`${monthBlock.label}-${day.key}`} className="min-h-14" />;
+                    const saved = day.saved;
+                    const selected = holidayForm.date === day.dateKey;
+                    const className = selected
+                      ? "bg-[#fff5f3] border-[#f84525] ring-2 ring-[#f84525] text-gray-950"
+                      : saved?.type === "holiday"
+                      ? "bg-red-50 border-red-200 text-gray-950"
+                      : saved?.type === "working_saturday"
+                      ? "bg-green-50 border-green-200 text-gray-950"
+                      : saved?.type === "optional_leave"
+                      ? "bg-yellow-50 border-yellow-200 text-gray-950"
+                      : saved
+                      ? "bg-blue-50 border-blue-200 text-gray-950"
+                      : mode === "dark"
+                      ? "bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
+                      : "bg-white hover:bg-gray-50 text-gray-950";
+                    return (
+                      <button
+                        type="button"
+                        key={day.dateKey}
+                        onClick={() => selectCalendarDay(day.dateKey)}
+                        className={`min-h-14 border rounded-sm p-1 text-left text-[11px] transition ${className}`}
+                      >
+                        <span className={`font-bold ${mode === "dark" && !saved && !selected ? "text-white" : "text-gray-950"}`}>{day.dayNumber}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </section>
+          </div>
+        </section>
+      </div>
+      )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">

@@ -22,6 +22,17 @@ const EmployeeDetail = () => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    mobile: "",
+    altMobile: "",
+    department: "",
+    designation: "",
+    dateOfJoining: "",
+    reportingManager: "",
+    employeeType: "Permanent",
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const loadEmployee = async () => {
     setLoading(true);
@@ -30,7 +41,18 @@ const EmployeeDetail = () => {
         hrApi.getEmployee(employeeId),
         hrApi.getEmployeeMonthlyReport(employeeId, month),
       ]);
-      setEmployee(employeeRes.data.data);
+      const employeeData = employeeRes.data.data;
+      setEmployee(employeeData);
+      setEditForm({
+        name: employeeData.name || "",
+        mobile: employeeData.mobile || "",
+        altMobile: employeeData.altMobile || "",
+        department: employeeData.department || "",
+        designation: employeeData.designation || "",
+        dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
+        reportingManager: employeeData.reportingManager || "",
+        employeeType: employeeData.employeeType || "Permanent",
+      });
       setAttendance(reportRes.data.data?.records || []);
       setSummary(reportRes.data.data?.summary || null);
     } catch (err) {
@@ -88,6 +110,20 @@ const EmployeeDetail = () => {
       navigate(user?.role === "superadmin" ? "/admin/employees" : "/hr/employees");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete");
+    }
+  };
+
+  const updateEmployee = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      await hrApi.updateEmployee(employeeId, editForm);
+      toast.success("Employee updated");
+      await loadEmployee();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update employee");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -182,6 +218,8 @@ const EmployeeDetail = () => {
             <p><b>Mobile:</b> {employee.mobile}</p>
             <p><b>Department:</b> {employee.department || "N/A"}</p>
             <p><b>Designation:</b> {employee.designation || "N/A"}</p>
+            <p><b>Joining:</b> {employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : "N/A"}</p>
+            <p><b>Reporting Manager:</b> {employee.reportingManager || "N/A"}</p>
             <p><b>Type:</b> {employee.employeeType || "N/A"}</p>
             <p><b>Created By:</b> {employee.createdBy?.name || "N/A"}</p>
           </div>
@@ -200,8 +238,62 @@ const EmployeeDetail = () => {
               )}
             </p>
           ))}
+          {employee.documents?.salarySlips?.length > 0 && (
+            <div className="text-sm">
+              <b>Salary Slips:</b>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {employee.documents.salarySlips.map((slip, index) => (
+                  <button
+                    key={slip.public_id || index}
+                    type="button"
+                    onClick={() => setPreview({ title: `salary slip ${index + 1}`, url: slip.url })}
+                    className="text-[#f84525] underline"
+                  >
+                    View Slip {index + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </section>
+
+      <form onSubmit={updateEmployee} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <h2 className="font-semibold md:col-span-4">Update Employee</h2>
+        {[
+          ["name", "Full Name", "text"],
+          ["mobile", "Mobile", "text"],
+          ["altMobile", "Alt Mobile", "text"],
+          ["department", "Department", "text"],
+          ["designation", "Designation", "text"],
+          ["dateOfJoining", "Joining Date", "date"],
+          ["reportingManager", "Reporting Manager", "text"],
+        ].map(([name, label, type]) => (
+          <label key={name} className="text-sm font-medium text-gray-700">
+            {label}
+            <input
+              type={type}
+              value={editForm[name]}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, [name]: name.includes("Mobile") || name === "mobile" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+              required={["name", "mobile"].includes(name)}
+            />
+          </label>
+        ))}
+        <label className="text-sm font-medium text-gray-700">
+          Employee Type
+          <select
+            value={editForm.employeeType}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, employeeType: e.target.value }))}
+            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          >
+            <option>Permanent</option>
+            <option>Contract</option>
+            <option>Intern</option>
+          </select>
+        </label>
+        <Button text={savingProfile ? "Saving..." : "Save Employee"} loading={savingProfile} type="submit" className="md:col-span-4" />
+      </form>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">

@@ -81,3 +81,20 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: #d93a1e;
 }
+
+.scan2hire-toast {
+  border-radius: 4px !important;
+  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.14) !important;
+  border-left: none !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.Toastify__toast-icon {
+  color: #f84525 !important;
+}
+
+.Toastify__close-button {
+  color: #f84525 !important;
+  opacity: 0.85 !important;
+}

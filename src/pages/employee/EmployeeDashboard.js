@@ -28,7 +28,13 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [documentSaving, setDocumentSaving] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [roundSaving, setRoundSaving] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [docs, setDocs] = useState({});
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [documentOtp, setDocumentOtp] = useState("");
   const [otpSending, setOtpSending] = useState(false);
   const [breakType, setBreakType] = useState("lunch");
@@ -57,7 +63,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         employeeApi.getAssignedCandidates(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
-        employeeApi.getCalendar(new Date().toISOString().slice(0, 7)),
+        employeeApi.getCalendar(null, new Date().getFullYear()),
       ]);
       setProfile(profileRes.data.data);
       setCandidates(candidatesRes.data.data || []);
@@ -175,6 +181,20 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }
   };
 
+  const changePassword = async (e) => {
+    e.preventDefault();
+    setPasswordSaving(true);
+    try {
+      await employeeApi.changePassword(passwordForm);
+      setPasswordForm({ currentPassword: "", newPassword: "" });
+      toast.success("Password updated successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update password");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const show = (name) => section === name;
   const isDashboard = section === "all";
   const todayTimeline = useMemo(() => {
@@ -210,6 +230,15 @@ const EmployeeDashboard = ({ section = "all" }) => {
     () => candidates.filter((candidate) => !candidate.interviewRounds?.some((round) => round.round === candidate.interviewStatus)),
     [candidates]
   );
+
+  const noticeItems = useMemo(
+    () => calendar.filter((item) => ["notice", "event"].includes(item.type)),
+    [calendar]
+  );
+  const missingDocuments = useMemo(() => {
+    const required = ["photo", "aadhaarCard", "panCard", "passbook", "degree", "resume"];
+    return required.filter((key) => !profile?.documents?.[key]?.url);
+  }, [profile]);
 
   if (pageLoading) return <CommonLoader text="Loading employee dashboard..." />;
 
@@ -272,6 +301,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
         {(show("attendance") || isDashboard) && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {missingDocuments.length > 0 && (
+            <div className="bg-[#fff5f3] border border-[#ffd8cf] rounded-sm p-4 lg:col-span-3">
+              <h2 className="font-semibold text-[#f84525]">Documents Pending</h2>
+              <p className="text-sm text-gray-700 mt-1">
+                Please upload all required documents. Missing: {missingDocuments.join(", ")}.
+              </p>
+            </div>
+          )}
           <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
             <h2 className="font-semibold mb-3">My Profile</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[15px]">
@@ -383,6 +420,33 @@ const EmployeeDashboard = ({ section = "all" }) => {
           </form>
           )}
 
+          {show("profile") && (
+          <form onSubmit={changePassword} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <h2 className="font-semibold md:col-span-2">Update Password</h2>
+            <label className="text-sm font-medium text-gray-700">
+              Current Password
+              <input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                required
+              />
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              New Password
+              <input
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                required
+              />
+            </label>
+            <Button text={passwordSaving ? "Updating..." : "Update Password"} loading={passwordSaving} type="submit" className="md:col-span-2" />
+          </form>
+          )}
+
           {show("leaves") && (
           <form onSubmit={applyLeave} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <h2 className="font-semibold md:col-span-2">Apply Leave</h2>
@@ -412,6 +476,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               Reason
               <textarea value={leaveForm.reason} onChange={(e) => setLeaveForm((prev) => ({ ...prev, reason: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
+            <Button text="View Calendar" type="button" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="md:col-span-2" />
             <Button text="Submit Leave" type="submit" loading={leaveSaving} className="md:col-span-2" />
           </form>
           )}
@@ -464,34 +529,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 </p>
               </div>
             ))}
-          </section>
-        )}
-
-        {show("leaves") && (
-          <section className="bg-white rounded-sm shadow p-4">
-            <h2 className="font-semibold mb-3">Company Leave Calendar</h2>
-            {calendar.length === 0 ? (
-              <p className="text-sm text-gray-500">No HR uploaded calendar available.</p>
-            ) : (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {calendar.map((day) => (
-                <div
-                  key={day.dateKey}
-                  className={`border rounded-sm p-2 text-xs ${
-                    day.type === "holiday"
-                      ? "bg-red-50 border-red-200"
-                      : day.type === "working_saturday"
-                      ? "bg-green-50 border-green-200"
-                      : "bg-gray-50"
-                  }`}
-                >
-                  <p className="font-semibold">{day.dateKey}</p>
-                  <p>{day.day}</p>
-                  <p className="capitalize">{day.title}</p>
-                </div>
-              ))}
-            </div>
-            )}
           </section>
         )}
 
@@ -550,6 +587,63 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </label>
             <Button text="Save Review" type="submit" loading={roundSaving} className="w-full" />
           </form>
+        </div>
+      )}
+
+      {calendarModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-sm shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-4 py-3 border-b flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">Company Leave Calendar</h2>
+                <p className="text-xs text-gray-500">Current year holidays, working Saturdays, notices and events.</p>
+              </div>
+              <button type="button" onClick={() => setCalendarModalOpen(false)} className="text-[#f84525] font-semibold px-2 py-1">
+                Close
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {noticeItems.length > 0 && (
+                <section className="space-y-2">
+                  <h3 className="font-semibold text-sm">Latest Notices</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {noticeItems.map((item) => (
+                      <div key={item._id || item.dateKey} className="border rounded-sm p-3 bg-[#fff5f3]">
+                        <p className="text-xs text-[#f84525] font-semibold uppercase">{item.type}</p>
+                        <p className="font-semibold mt-1">{item.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">{item.dateKey}</p>
+                        <p className="text-sm text-gray-700 mt-2">{item.description || "No description"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {calendar.length === 0 ? (
+                <p className="text-sm text-gray-500">No HR uploaded calendar available.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {calendar.map((day) => (
+                    <div
+                      key={day.dateKey}
+                      className={`border rounded-sm p-3 text-sm ${
+                        day.type === "holiday"
+                          ? "bg-red-50 border-red-200"
+                          : day.type === "working_saturday"
+                          ? "bg-green-50 border-green-200"
+                          : "bg-blue-50 border-blue-200"
+                      }`}
+                    >
+                      <p className="font-semibold">{day.title}</p>
+                      <p className="text-xs text-gray-600 mt-1">{day.dateKey} • {day.day}</p>
+                      <p className="capitalize text-xs mt-2">{day.type.replace("_", " ")}</p>
+                      {day.description && <p className="text-xs text-gray-700 mt-2">{day.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

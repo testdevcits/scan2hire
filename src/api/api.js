@@ -6,6 +6,9 @@ export const authApi = {
   requestSignupOtp: (payload) => API.post("/users/signup/request-otp", payload),
   verifySignupOtp: (payload) => API.post("/users/signup/verify-otp", payload),
   getProfile: () => API.get("/users/me"),
+  getSettings: () => API.get("/users/settings"),
+  updateSettings: (payload) => API.put("/users/settings", payload),
+  verifyVaultPassword: (payload) => API.post("/users/settings/verify-vault", payload),
   updateMyDocuments: (payload) => API.patch("/users/me/documents", payload),
   getHrs: () => API.get("/users/hrs"),
   createHr: (payload) => API.post("/users/hrs", payload),
@@ -39,6 +42,7 @@ export const hrApi = {
   getEmployees: () => API.get("/hr/employees"),
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
+  updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
   deactivateEmployee: (employeeId) =>
     API.patch(`/hr/employees/${employeeId}/deactivate`),
   activateEmployee: (employeeId) =>
@@ -49,9 +53,11 @@ export const hrApi = {
     API.get(`/hr/attendance/employees/${employeeId}/monthly`, { params: { month } }),
   getLeaves: () => API.get("/hr/leaves"),
   reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload),
-  getCalendar: (month) => API.get("/hr/calendar", { params: { month } }),
+  getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
   deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),
+  getEmployeeCredentials: (vaultPassword) =>
+    API.get("/hr/employee-credentials", { params: { vaultPassword } }),
 };
 
 export const employeeApi = {
@@ -65,12 +71,13 @@ export const employeeApi = {
   endBreak: () => API.post("/employees/attendance/break/end"),
   getLeaves: () => API.get("/employees/leaves"),
   applyLeave: (payload) => API.post("/employees/leaves", payload),
-  getCalendar: (month) => API.get("/employees/calendar", { params: { month } }),
+  getCalendar: (month, year) => API.get("/employees/calendar", { params: { month, year } }),
   getAssignedCandidates: () => API.get("/employees/candidates"),
   updateRound: (candidateId, payload) =>
     API.put(`/employees/candidates/${candidateId}/round`, payload),
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
+  changePassword: (payload) => API.post("/employees/me/change-password", payload),
 };
 
 export const qrApi = {

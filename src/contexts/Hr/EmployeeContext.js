@@ -34,6 +34,12 @@ export const EmployeeProvider = ({ children }) => {
     return res.data;
   };
 
+  const updateEmployee = async (employeeId, payload) => {
+    const res = await hrApi.updateEmployee(employeeId, payload);
+    await fetchEmployees();
+    return res.data;
+  };
+
   return (
     <EmployeeContext.Provider
       value={{
@@ -42,6 +48,7 @@ export const EmployeeProvider = ({ children }) => {
         error,
         fetchEmployees,
         createEmployee,
+        updateEmployee,
       }}
     >
       {children}

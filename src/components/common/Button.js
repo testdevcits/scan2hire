@@ -22,7 +22,7 @@ const Button = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`py-2 px-4 rounded-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
         variants[variant] || variants.primary
       } ${className}`}
     >

@@ -23,16 +23,21 @@ const FormPage = () => {
     name: "",
     qualification: "",
     otherQualification: "",
+    branch: "",
     mobile: "",
     altMobile: "",
     email: "",
     experienceType: "fresher",
     experience: "",
     currentSalary: "",
+    currentSalaryPeriod: "monthly",
     currentCompany: "",
     expectedSalary: "",
+    expectedSalaryPeriod: "annual",
     certificate: "",
     certificateName: "",
+    resume: "",
+    resumeName: "",
     referenceName: "",
     referenceMobile: "",
     jobRole: "",
@@ -67,6 +72,7 @@ const FormPage = () => {
       if (!formData.qualification) err.qualification = "Required";
       if (formData.qualification === "Other" && !formData.otherQualification)
         err.otherQualification = "Required";
+      if (formData.qualification && !formData.branch) err.branch = "Required";
 
       // Only 10-digit Indian numbers starting with 6-9
       if (!formData.mobile) err.mobile = "Required";
@@ -96,6 +102,7 @@ const FormPage = () => {
       if (!formData.skills.length) err.skills = "Skills required";
       if (formData.skills.includes("Other") && !formData.otherSkills)
         err.otherSkills = "Required";
+      if (!formData.resume) err.resume = "Resume required";
       if (!formData.nightShift) err.nightShift = "Required";
 
       if (
@@ -198,33 +205,33 @@ const FormPage = () => {
   return (
     <div className="flex flex-col min-h-screen font-montserrat bg-[#f7f8fb] dark:bg-dark">
       <Header />
-      <main className="flex flex-1 justify-center items-start p-4 md:p-8">
-        <div className="w-full max-w-5xl">
-          <div className="mb-5">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+      <main className="flex flex-1 justify-center items-start px-3 py-4 sm:p-5 md:p-8">
+        <div className="w-full max-w-5xl min-w-0">
+          <div className="mb-4 sm:mb-5">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
               Candidate Application
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Complete the details below. Fresher and experienced fields adjust automatically.
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
-            <div className="bg-[#fff5f3] px-4 md:px-6 py-4 border-b border-[#ffd8cf]">
+          <div className="bg-white rounded-sm shadow border border-gray-100 overflow-hidden">
+            <div className="bg-[#fff5f3] px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-[#ffd8cf]">
               <div className="grid grid-cols-3 gap-2">
                 {["Personal", "Role & Skills", "Review"].map((label, index) => {
                   const current = index + 1;
                   const active = current <= step;
                   return (
-                    <div key={label} className="flex items-center gap-2">
+                    <div key={label} className="flex flex-col xs:flex-row items-center xs:items-center gap-1 xs:gap-2 min-w-0">
                       <span
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shrink-0 ${
                           active ? "bg-[#f84525] text-white" : "bg-white text-gray-500 border"
                         }`}
                       >
                         {current}
                       </span>
-                      <span className={`hidden sm:block text-sm font-medium ${active ? "text-[#f84525]" : "text-gray-500"}`}>
+                      <span className={`text-[10px] xs:text-xs sm:text-sm text-center xs:text-left leading-tight font-medium truncate ${active ? "text-[#f84525]" : "text-gray-500"}`}>
                         {label}
                       </span>
                     </div>
@@ -233,8 +240,8 @@ const FormPage = () => {
               </div>
             </div>
 
-            <div className="p-4 md:p-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-900">
+            <div className="p-3 sm:p-4 md:p-6">
+              <h2 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">
                 Step {step} of 3
               </h2>
 
@@ -266,7 +273,7 @@ const FormPage = () => {
           )}
 
           {step < 3 && (
-            <div className="flex flex-col sm:flex-row gap-2 mt-6">
+            <div className="sticky bottom-0 -mx-3 sm:mx-0 bg-white/95 backdrop-blur border-t sm:border-t-0 px-3 sm:px-0 py-3 sm:py-0 flex flex-col sm:flex-row gap-2 mt-6">
               {step > 1 && (
                 <Button text="Back" variant="secondary" onClick={prevStep} className="flex-1" />
               )}

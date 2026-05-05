@@ -2,17 +2,30 @@ import InputField from "../../components/common/InputField";
 import SelectField from "../../components/common/SelectField";
 
 const degreeOptions = [
-  "B.Tech / BE Computer Science",
-  "B.Tech / BE Information Technology",
+  "B.Tech / BE",
   "BCA",
   "MCA",
-  "B.Sc Computer Science",
-  "M.Sc Computer Science",
-  "Diploma Computer Science",
-  "B.Des UI/UX",
-  "MBA IT",
+  "B.Sc",
+  "M.Sc",
+  "Diploma",
+  "B.Des",
+  "MBA",
   "Other",
 ];
+
+const branchOptions = [
+  "Computer Science",
+  "Information Technology",
+  "Electronics",
+  "Mechanical",
+  "Civil",
+  "UI/UX Design",
+  "Marketing",
+  "Finance",
+  "Other",
+];
+
+const salaryPeriodOptions = ["monthly", "annual"];
 
 const Step1 = ({ formData, setFormData, errors, setErrors }) => {
   const handleChange = (e) => {
@@ -50,13 +63,17 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         }));
         return;
       }
-      setFormData((prev) => ({ ...prev, [name]: value }));
-      setErrors((prev) => ({ ...prev, [name]: "" })); // Clear error
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        ...(name === "qualification" ? { branch: "" } : {}),
+      }));
+      setErrors((prev) => ({ ...prev, [name]: "", ...(name === "qualification" ? { branch: "" } : {}) })); // Clear error
     }
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
       <InputField
         label="Full Name"
         name="name"
@@ -83,6 +100,17 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
           onChange={handleChange}
           placeholder="Enter qualification"
           error={errors.otherQualification}
+          required
+        />
+      )}
+      {formData.qualification && (
+        <SelectField
+          label="Branch / Specialization"
+          name="branch"
+          value={formData.branch}
+          onChange={handleChange}
+          options={branchOptions}
+          error={errors.branch}
           required
         />
       )}
@@ -114,7 +142,7 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         required
       />
       <SelectField
-        label="Candidate Type"
+        label="Experience Type"
         name="experienceType"
         value={formData.experienceType}
         onChange={handleChange}
@@ -124,33 +152,40 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
       />
       {formData.experienceType === "experienced" && (
         <>
-      <InputField
-        label="Experience (Years)"
-        name="experience"
-        value={formData.experience}
-        onChange={handleChange}
-        placeholder="e.g. 2"
-        error={errors.experience}
-        required
-      />
-      <InputField
-        label="Current Salary"
-        name="currentSalary"
-        value={formData.currentSalary}
-        onChange={handleChange}
-        placeholder="Enter current salary"
-        error={errors.currentSalary}
-        required
-      />
-      <InputField
-        label="Current Company"
-        name="currentCompany"
-        value={formData.currentCompany}
-        onChange={handleChange}
-        placeholder="Enter company name"
-        error={errors.currentCompany}
-        required
-      />
+          <InputField
+            label="Experience (Years)"
+            name="experience"
+            value={formData.experience}
+            onChange={handleChange}
+            placeholder="e.g. 2"
+            error={errors.experience}
+            required
+          />
+          <InputField
+            label="Current Salary"
+            name="currentSalary"
+            value={formData.currentSalary}
+            onChange={handleChange}
+            placeholder="Enter current salary"
+            error={errors.currentSalary}
+            required
+          />
+          <SelectField
+            label="Current Salary Period"
+            name="currentSalaryPeriod"
+            value={formData.currentSalaryPeriod}
+            onChange={handleChange}
+            options={salaryPeriodOptions}
+          />
+          <InputField
+            label="Current Company"
+            name="currentCompany"
+            value={formData.currentCompany}
+            onChange={handleChange}
+            placeholder="Enter company name"
+            error={errors.currentCompany}
+            required
+          />
         </>
       )}
       <InputField
@@ -160,6 +195,14 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         onChange={handleChange}
         placeholder="Enter expected salary"
         error={errors.expectedSalary}
+        required
+      />
+      <SelectField
+        label="Expected Salary Period"
+        name="expectedSalaryPeriod"
+        value={formData.expectedSalaryPeriod}
+        onChange={handleChange}
+        options={salaryPeriodOptions}
         required
       />
     </div>
