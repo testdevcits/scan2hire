@@ -49,7 +49,6 @@ const FormPage = () => {
     nightShift: "",
   });
 
-  // Checkbox handler
   const handleCheckbox = (field, value) => {
     setFormData((prev) => {
       const exists = prev[field].includes(value);
@@ -185,7 +184,9 @@ const FormPage = () => {
       navigate("/otp");
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || err.message || "Something went wrong");
+      toast.error(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
     } finally {
       setLoading(false);
     }
@@ -212,7 +213,8 @@ const FormPage = () => {
               Candidate Application
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Complete the details below. Fresher and experienced fields adjust automatically.
+              Complete the details below. Fresher and experienced fields adjust
+              automatically.
             </p>
           </div>
 
@@ -223,15 +225,24 @@ const FormPage = () => {
                   const current = index + 1;
                   const active = current <= step;
                   return (
-                    <div key={label} className="flex flex-col xs:flex-row items-center xs:items-center gap-1 xs:gap-2 min-w-0">
+                    <div
+                      key={label}
+                      className="flex flex-col xs:flex-row items-center xs:items-center gap-1 xs:gap-2 min-w-0"
+                    >
                       <span
                         className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shrink-0 ${
-                          active ? "bg-[#f84525] text-white" : "bg-white text-gray-500 border"
+                          active
+                            ? "bg-[#f84525] text-white"
+                            : "bg-white text-gray-500 border"
                         }`}
                       >
                         {current}
                       </span>
-                      <span className={`text-[10px] xs:text-xs sm:text-sm text-center xs:text-left leading-tight font-medium truncate ${active ? "text-[#f84525]" : "text-gray-500"}`}>
+                      <span
+                        className={`text-[10px] xs:text-xs sm:text-sm text-center xs:text-left leading-tight font-medium truncate ${
+                          active ? "text-[#f84525]" : "text-gray-500"
+                        }`}
+                      >
                         {label}
                       </span>
                     </div>
@@ -245,41 +256,46 @@ const FormPage = () => {
                 Step {step} of 3
               </h2>
 
-          {step === 1 && (
-            <Step1
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              setErrors={setErrors}
-            />
-          )}
-          {step === 2 && (
-            <Step2
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              setErrors={setErrors}
-              handleCheckbox={handleCheckbox}
-            />
-          )}
-          {step === 3 && (
-            <Step3
-              formData={formData}
-              qrId={qrId}
-              onBack={prevStep}
-              onSubmit={handleSubmit}
-              loading={loading}
-            />
-          )}
-
-          {step < 3 && (
-            <div className="sticky bottom-0 -mx-3 sm:mx-0 bg-white/95 backdrop-blur border-t sm:border-t-0 px-3 sm:px-0 py-3 sm:py-0 flex flex-col sm:flex-row gap-2 mt-6">
-              {step > 1 && (
-                <Button text="Back" variant="secondary" onClick={prevStep} className="flex-1" />
+              {step === 1 && (
+                <Step1
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                  setErrors={setErrors}
+                />
               )}
-              <Button text="Next" onClick={nextStep} className="flex-1" />
-            </div>
-          )}
+              {step === 2 && (
+                <Step2
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                  setErrors={setErrors}
+                  handleCheckbox={handleCheckbox}
+                />
+              )}
+              {step === 3 && (
+                <Step3
+                  formData={formData}
+                  qrId={qrId}
+                  onBack={prevStep}
+                  onSubmit={handleSubmit}
+                  loading={loading}
+                />
+              )}
+
+              {step < 3 && (
+                <div className="sticky bottom-0 -mx-3 sm:mx-0 bg-white/95 backdrop-blur border-t sm:border-t-0 px-3 sm:px-0 py-3 sm:py-0 flex flex-col sm:flex-row gap-2 mt-6">
+                  {step > 1 && (
+                    <Button
+                      text="Back"
+                      variant="secondary"
+                      onClick={prevStep}
+                      className="flex-1"
+                    />
+                  )}
+                  <Button text="Next" onClick={nextStep} className="flex-1" />
+                </div>
+              )}
             </div>
           </div>
         </div>
