@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { FiBell, FiLogOut, FiMenu, FiMoon, FiSun, FiTrash2, FiX } from "react-icons/fi";
 import { authApi } from "../api";
@@ -16,6 +16,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [profileImage, setProfileImage] = useState("");
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const handleLogout = () => {
@@ -41,6 +42,45 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!user) return undefined;
+    authApi
+      .getProfile()
+      .then((res) => {
+        if (!mounted) return;
+        const data = res.data.data || {};
+        setProfileImage(
+          data.profileImage ||
+            data.documents?.photo?.url ||
+            data.employeeProfile?.documents?.photo?.url ||
+            ""
+        );
+      })
+      .catch(() => {
+        if (mounted) setProfileImage("");
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const handleProfileImageUpdate = (event) => {
+      if (event?.detail?.url) {
+        setProfileImage(event.detail.url);
+      }
+    };
+
+    window.addEventListener("profile-image-updated", handleProfileImageUpdate);
+    return () => window.removeEventListener("profile-image-updated", handleProfileImageUpdate);
+  }, []);
+
+  const initials = useMemo(() => {
+    const parts = String(user?.name || "U").trim().split(/\s+/);
+    return parts.slice(0, 2).map((item) => item[0]?.toUpperCase() || "").join("");
+  }, [user?.name]);
 
   const deleteNotification = async (notificationId) => {
     try {
@@ -153,10 +193,33 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
           >
             {sidebarOpen ? <FiX /> : <FiMenu />}
           </button>
-          <span className={`font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
-            Welcome, {user?.name}
-          </span>
-          <div className="ml-auto relative">
+          <div className="min-w-0 flex-1">
+            <p className={`font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
+              Welcome, {user?.name}
+            </p>
+            <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              {user?.email}
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-3 shrink-0">
+            <div className="hidden sm:flex items-center gap-3 min-w-0">
+              <div className="text-right min-w-0">
+                <p className={`text-sm font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
+                  {user?.name}
+                </p>
+                <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                  {user?.role}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0">
+                {profileImage ? (
+                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
+                ) : (
+                  initials || "U"
+                )}
+              </div>
+            </div>
+            <div className="relative shrink-0">
             <button
               onClick={() => {
                 setNotificationOpen((prev) => !prev);
@@ -219,6 +282,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </header>
 

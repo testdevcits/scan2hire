@@ -1,7 +1,9 @@
 import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
+import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import FileUploadField from "../../components/common/FileUploadField";
 import { useToast } from "../../contexts/ToastContext";
 import { AuthContext } from "../../contexts/AuthContext";
 
@@ -15,6 +17,7 @@ const emptyForm = {
   dateOfJoining: "",
   reportingManager: "",
   employeeType: "Permanent",
+  photo: null,
 };
 
 const ManageEmployees = () => {
@@ -25,6 +28,8 @@ const ManageEmployees = () => {
   const { user } = useContext(AuthContext);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [viewMode, setViewMode] = useState("list");
 
   useEffect(() => {
     fetchEmployees();
@@ -37,12 +42,30 @@ const ManageEmployees = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const fileToDataUri = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handlePhoto = async (file) => {
+    if (!file) return;
+    const dataUri = await fileToDataUri(file);
+    setForm((prev) => ({
+      ...prev,
+      photo: { dataUri, name: file.name, type: file.type },
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       await createEmployee(form);
       setForm(emptyForm);
+      setShowForm(false);
       toast.success("Employee added successfully");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to add employee");
@@ -52,6 +75,13 @@ const ManageEmployees = () => {
   };
 
   const formatValue = (value) => value || "N/A";
+  const openEmployee = (employeeId) =>
+    navigate(
+      user?.role === "superadmin"
+        ? `/admin/employees/${employeeId}`
+        : `/hr/employees/${employeeId}`
+    );
+
   if (loading) return <CommonLoader text="Fetching employees..." />;
 
   return (
@@ -63,14 +93,43 @@ const ManageEmployees = () => {
             Add employees, create login access, and review documents.
           </p>
         </div>
-        <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-md">
-          Total Employees: {employees.length}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-sm border border-[#ffd8cf] bg-white p-1">
+            {[
+              ["list", "List View"],
+              ["card", "Card View"],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+                  viewMode === mode
+                    ? "bg-[#f84525] text-white"
+                    : "text-gray-600 hover:text-[#f84525]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
+            Total Employees: {employees.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowForm((prev) => !prev)}
+            className="bg-[#f84525] text-white px-4 py-2 rounded-sm text-sm"
+          >
+            {showForm ? "Close Form" : "Add Employee"}
+          </button>
+        </div>
       </div>
 
+      {showForm && (
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
+        className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
       >
         {[
           ["name", "Full Name"],
@@ -117,58 +176,96 @@ const ManageEmployees = () => {
           </select>
         </label>
 
+        <FileUploadField
+          label="Employee Photo"
+          accept=".jpg,.jpeg,.png,.webp"
+          hint="Upload JPG, PNG, WEBP"
+          onChange={(e) => handlePhoto(e.target.files?.[0])}
+          fileName={form.photo?.name}
+        />
+
         <button
           type="submit"
           disabled={saving}
-          className="md:col-span-3 bg-primary hover:bg-primary/80 text-white font-medium py-3 px-4 rounded-md transition-all"
+          className="md:col-span-3 bg-primary hover:bg-primary/80 text-white font-medium py-3 px-4 rounded-sm transition-all"
         >
           {saving ? "Adding..." : "Add Employee"}
         </button>
       </form>
+      )}
 
       {error && <p className="text-red-500">{error}</p>}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="hidden md:grid grid-cols-7 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
-          {["ID", "Name", "Email", "Mobile", "Department", "Designation", "Action"].map(
-            (item) => (
-              <div key={item} className="px-4 py-3">
-                {item}
+      {viewMode === "list" ? (
+        <div className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="hidden md:grid grid-cols-7 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
+            {["ID", "Name", "Email", "Mobile", "Department", "Designation", "Action"].map(
+              (item) => (
+                <div key={item} className="px-4 py-3">
+                  {item}
+                </div>
+              )
+            )}
+          </div>
+
+          {employees.length === 0 ? (
+            <p className="p-4 text-center text-gray-500">No employees found</p>
+          ) : (
+            employees.map((employee) => (
+              <div
+                key={employee._id}
+                className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm md:items-center"
+              >
+                <span className="font-medium">{employee.employeeId}</span>
+                <span>{employee.name}</span>
+                <span className="break-all">{employee.email}</span>
+                <span>{employee.mobile}</span>
+                <span>{formatValue(employee.department)}</span>
+                <span>{formatValue(employee.designation)}</span>
+                <Button text="View" className="text-xs" onClick={() => openEmployee(employee._id)} />
               </div>
-            )
+            ))
           )}
         </div>
-
-        {employees.length === 0 ? (
-          <p className="p-4 text-center text-gray-500">No employees found</p>
-        ) : (
-          employees.map((employee) => (
-            <div
+      ) : employees.length === 0 ? (
+        <div className="bg-white rounded-sm shadow p-8 text-center text-gray-500">
+          No employees found
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
+          {employees.map((employee) => (
+            <button
               key={employee._id}
-              className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm md:items-center"
+              type="button"
+              onClick={() => openEmployee(employee._id)}
+              className="bg-white rounded-sm shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden border border-[#f7a08f] group"
             >
-              <span className="font-medium">{employee.employeeId}</span>
-              <span>{employee.name}</span>
-              <span className="break-all">{employee.email}</span>
-              <span>{employee.mobile}</span>
-              <span>{formatValue(employee.department)}</span>
-              <span>{formatValue(employee.designation)}</span>
-              <button
-                onClick={() =>
-                  navigate(
-                    user?.role === "superadmin"
-                      ? `/admin/employees/${employee._id}`
-                      : `/hr/employees/${employee._id}`
-                  )
-                }
-                className="bg-[#f84525] text-white rounded-md px-3 py-2 text-xs"
-              >
-                View
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+              <div className="relative aspect-[4/3.4] bg-gradient-to-br from-[#2d2a33] via-[#3e3440] to-[#18171d] overflow-hidden">
+                {employee.documents?.photo?.url ? (
+                  <img
+                    src={employee.documents.photo.url}
+                    alt={employee.name}
+                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white">
+                    <div className="w-20 h-20 rounded-full border border-white/40 bg-white/10 flex items-center justify-center text-3xl font-semibold">
+                      {employee.name?.[0] || "E"}
+                    </div>
+                  </div>
+                )}
+                <div className="absolute inset-1 rounded-sm border border-[#f84525] pointer-events-none" />
+              </div>
+              <div className="p-2 text-center border-t border-[#f7a08f]">
+                <p className="font-semibold text-[13px] text-gray-900 truncate">{employee.name}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                  {employee.designation || employee.department || employee.employeeId}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
     </div>
   );

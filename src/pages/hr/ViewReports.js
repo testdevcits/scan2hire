@@ -522,12 +522,13 @@ const ViewReports = () => {
           <p className="p-4 text-center text-gray-500">No leave requests</p>
         ) : (
           leaves.map((leave) => (
-            <div key={leave._id} className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm md:items-center">
+            <div key={leave._id} className="grid grid-cols-1 md:grid-cols-8 gap-2 border-t px-4 py-3 text-sm md:items-center">
               <span>{leave.employee?.name || "N/A"}</span>
               <span>{leave.type.replace("_", " ")}</span>
+              <span>{leave.title || "Leave Request"}</span>
               <span>{new Date(leave.fromDate).toLocaleDateString()}</span>
               <span>{new Date(leave.toDate).toLocaleDateString()}</span>
-              <span>{leave.reason}</span>
+              <span>{leave.content || leave.reason}</span>
               <span className="font-medium">{leave.status}</span>
               <div className="flex gap-2">
                 <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={leaveUpdating === leave._id} disabled={leave.status !== "pending"} />

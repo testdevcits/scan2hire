@@ -122,22 +122,92 @@ const AdminDashboard = () => {
   );
 
   const recentHr = useMemo(() => hrs.slice(0, 4), [hrs]);
+  const actionItems = useMemo(
+    () => [
+      {
+        label: "Pending Leaves",
+        value: leaves.filter((item) => item.status === "pending").length,
+        note: "Open leave approvals waiting in reports",
+      },
+      {
+        label: "Interviews Running",
+        value: candidates.filter((item) => ["first_round", "second_round", "final"].includes(item.interviewStatus)).length,
+        note: "Candidates currently active in interview rounds",
+      },
+      {
+        label: "Inactive Employees",
+        value: employees.filter((item) => !item.isActive).length,
+        note: "Profiles that may need review or cleanup",
+      },
+    ],
+    [candidates, employees, leaves]
+  );
 
   if (pageLoading) return <CommonLoader text="Loading dashboard..." />;
 
   return (
     <div className="space-y-5">
-      <section className="bg-white rounded-sm shadow p-4 md:p-5">
-        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+      <section className="rounded-sm shadow p-5 md:p-6 bg-[radial-gradient(circle_at_top_left,_rgba(248,69,37,0.16),_transparent_28%),linear-gradient(135deg,#ffffff_0%,#fff7f4_100%)] border border-[#fde1d8]">
+        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#f84525]">Super Admin</p>
+            <h1 className="text-3xl font-bold text-gray-900 mt-2">Operations Dashboard</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Hiring, workforce, attendance, and leave visibility in one control surface.
+              Hiring, employees, attendance, and approvals with clearer daily visibility.
             </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <span className="px-3 py-1.5 rounded-sm bg-white text-gray-700 text-xs border border-[#f4d1c7]">
+                {employees.length} employees
+              </span>
+              <span className="px-3 py-1.5 rounded-sm bg-white text-gray-700 text-xs border border-[#f4d1c7]">
+                {candidates.length} candidates
+              </span>
+              <span className="px-3 py-1.5 rounded-sm bg-white text-gray-700 text-xs border border-[#f4d1c7]">
+                {leaves.filter((item) => item.status === "pending").length} leave approvals
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button text="Manage Candidates" onClick={() => navigate("/admin/candidates")} />
             <Button text="Open Reports" variant="secondary" onClick={() => navigate("/admin/reports")} />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {actionItems.map((item) => (
+            <div key={item.label} className="bg-white rounded-sm shadow p-4 border border-gray-100">
+              <p className="text-sm text-gray-500">{item.label}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{item.value}</p>
+              <p className="text-xs text-gray-500 mt-3">{item.note}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-sm shadow p-4 border border-gray-100">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-lg">Quick Actions</h2>
+              <p className="text-xs text-gray-500 mt-1">Jump to the screens that usually need attention first.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <button type="button" onClick={() => navigate("/admin/employees")} className="text-left border rounded-sm p-4 hover:border-[#f84525] hover:bg-[#fff8f6] transition-colors">
+              <p className="font-semibold text-gray-900">Manage Employees</p>
+              <p className="text-xs text-gray-500 mt-1">Review employee profiles, documents, and credentials.</p>
+            </button>
+            <button type="button" onClick={() => navigate("/admin/credentials")} className="text-left border rounded-sm p-4 hover:border-[#f84525] hover:bg-[#fff8f6] transition-colors">
+              <p className="font-semibold text-gray-900">Employee Credentials</p>
+              <p className="text-xs text-gray-500 mt-1">Select an employee and view saved account logins.</p>
+            </button>
+            <button type="button" onClick={() => navigate("/admin/hrs")} className="text-left border rounded-sm p-4 hover:border-[#f84525] hover:bg-[#fff8f6] transition-colors">
+              <p className="font-semibold text-gray-900">Manage HR</p>
+              <p className="text-xs text-gray-500 mt-1">Create, activate, and manage HR access.</p>
+            </button>
+            <button type="button" onClick={() => navigate("/admin/settings")} className="text-left border rounded-sm p-4 hover:border-[#f84525] hover:bg-[#fff8f6] transition-colors">
+              <p className="font-semibold text-gray-900">Admin Settings</p>
+              <p className="text-xs text-gray-500 mt-1">Control notifications, mail rules, and vault access.</p>
+            </button>
           </div>
         </div>
       </section>

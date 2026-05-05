@@ -31,6 +31,8 @@ import EmployeeForgotPassword from "./pages/EmployeeForgotPassword";
 import AdminSettings from "./pages/admin/AdminSettings";
 import ManageHR from "./pages/admin/ManageHR";
 import UserProfile from "./pages/UserProfile";
+import EmployeeSettings from "./pages/employee/EmployeeSettings";
+import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
 
 function App() {
   return (
@@ -63,7 +65,6 @@ function App() {
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="hrs" element={<ManageHR />} />
-          <Route path="profile" element={<UserProfile />} />
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="candidates" element={<Candidates />} />
@@ -103,7 +104,8 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<EmployeeDashboard section="all" />} />
-          <Route path="profile" element={<EmployeeDashboard section="profile" />} />
+          <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="candidates" element={<EmployeeDashboard section="candidates" />} />

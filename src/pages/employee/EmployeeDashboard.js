@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import FileUploadField from "../../components/common/FileUploadField";
 import { useToast } from "../../contexts/ToastContext";
 
 const docFields = [
@@ -30,6 +32,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [roundSaving, setRoundSaving] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [docs, setDocs] = useState({});
+  const [otpRequested, setOtpRequested] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -40,10 +43,23 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [breakType, setBreakType] = useState("lunch");
   const [leaveForm, setLeaveForm] = useState({
     type: "earned_leave",
+    title: "",
     fromDate: "",
     toDate: "",
-    reason: "",
+    content: "",
   });
+  const [showLeaveForm, setShowLeaveForm] = useState(false);
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [accountCredentials, setAccountCredentials] = useState([]);
+  const [credentialForm, setCredentialForm] = useState({
+    accountType: "Email",
+    title: "",
+    loginId: "",
+    password: "",
+    notes: "",
+  });
+  const [credentialSaving, setCredentialSaving] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState({});
   const [selected, setSelected] = useState(null);
   const [roundForm, setRoundForm] = useState({
     roundType: "technical",
@@ -58,12 +74,13 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, candidatesRes, attendanceRes, leavesRes, calendarRes] = await Promise.all([
+      const [profileRes, candidatesRes, attendanceRes, leavesRes, calendarRes, credentialsRes] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAssignedCandidates(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
         employeeApi.getCalendar(null, new Date().getFullYear()),
+        employeeApi.getMyAccountCredentials(),
       ]);
       setProfile(profileRes.data.data);
       setCandidates(candidatesRes.data.data || []);
@@ -71,6 +88,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
       setCalendar(calendarRes.data.data || []);
+      setAccountCredentials(credentialsRes.data.data || []);
     } finally {
       setPageLoading(false);
     }
@@ -103,6 +121,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       setProfile(res.data.data);
       setDocs({});
       setDocumentOtp("");
+      setOtpRequested(false);
       toast.success("Documents updated");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update documents");
@@ -115,6 +134,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
     setOtpSending(true);
     try {
       const res = await employeeApi.requestDocumentOtp();
+      setOtpRequested(true);
       toast.success(res.data.message || "OTP sent to HR");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to send OTP");
@@ -152,7 +172,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
         ...leaveForm,
         toDate: leaveForm.toDate || leaveForm.fromDate,
       });
-      setLeaveForm({ type: "earned_leave", fromDate: "", toDate: "", reason: "" });
+      setLeaveForm({ type: "earned_leave", title: "", fromDate: "", toDate: "", content: "" });
+      setShowLeaveForm(false);
       await fetchData();
       toast.success("Leave request submitted");
     } catch (err) {
@@ -192,6 +213,46 @@ const EmployeeDashboard = ({ section = "all" }) => {
       toast.error(err.response?.data?.message || "Unable to update password");
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const saveAccountCredential = async (e) => {
+    e.preventDefault();
+    setCredentialSaving(true);
+    try {
+      await employeeApi.createMyAccountCredential(credentialForm);
+      setCredentialForm({
+        accountType: "Email",
+        title: "",
+        loginId: "",
+        password: "",
+        notes: "",
+      });
+      await fetchData();
+      toast.success("Credential saved");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to save credential");
+    } finally {
+      setCredentialSaving(false);
+    }
+  };
+
+  const deleteAccountCredential = async (credentialId) => {
+    try {
+      await employeeApi.deleteMyAccountCredential(credentialId);
+      await fetchData();
+      toast.success("Credential deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete credential");
+    }
+  };
+
+  const copyValue = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error("Unable to copy");
     }
   };
 
@@ -235,6 +296,11 @@ const EmployeeDashboard = ({ section = "all" }) => {
     () => calendar.filter((item) => ["notice", "event"].includes(item.type)),
     [calendar]
   );
+  const filteredAttendance = useMemo(() => {
+    if (!attendanceDate) return attendance.slice(0, 8);
+    const matched = attendance.filter((item) => item.dateKey === attendanceDate);
+    return matched.length ? matched : attendance.filter((item) => item.dateKey === new Date().toISOString().slice(0, 10));
+  }, [attendance, attendanceDate]);
   const missingDocuments = useMemo(() => {
     const required = ["photo", "aadhaarCard", "panCard", "passbook", "degree", "resume"];
     return required.filter((key) => !profile?.documents?.[key]?.url);
@@ -244,6 +310,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   return (
     <div className="space-y-5">
+        {missingDocuments.length > 0 && (
+          <section className="bg-[#fff5f3] border border-[#ffd8cf] rounded-sm p-4">
+            <h2 className="font-semibold text-[#f84525]">Documents Pending</h2>
+            <p className="text-sm text-gray-700 mt-1">
+              Please upload all required documents. Missing: {missingDocuments.join(", ")}.
+            </p>
+          </section>
+        )}
         {isDashboard && (
           <section className="space-y-4">
             <div className="bg-white rounded-sm shadow p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -301,14 +375,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
         {(show("attendance") || isDashboard) && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {missingDocuments.length > 0 && (
-            <div className="bg-[#fff5f3] border border-[#ffd8cf] rounded-sm p-4 lg:col-span-3">
-              <h2 className="font-semibold text-[#f84525]">Documents Pending</h2>
-              <p className="text-sm text-gray-700 mt-1">
-                Please upload all required documents. Missing: {missingDocuments.join(", ")}.
-              </p>
-            </div>
-          )}
           <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
             <h2 className="font-semibold mb-3">My Profile</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[15px]">
@@ -383,21 +449,16 @@ const EmployeeDashboard = ({ section = "all" }) => {
           <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <h2 className="font-semibold md:col-span-2">Documents</h2>
             {docFields.map(([name, label]) => (
-              <label key={name} className="text-sm font-medium text-gray-700">
-                {label}
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleDocumentFile(name, e.target.files?.[0])}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-                />
-                {docs[name]?.name && <span className="text-xs text-gray-500">{docs[name].name}</span>}
-                {profile?.documents?.[name]?.url && (
-                  <a href={profile.documents[name].url} target="_blank" rel="noreferrer" className="block text-xs text-[#f84525] underline mt-1">
-                    View uploaded
-                  </a>
-                )}
-              </label>
+              <FileUploadField
+                key={name}
+                label={label}
+                accept=".pdf,.jpg,.jpeg,.png"
+                hint="Upload JPG, PNG, PDF"
+                onChange={(e) => handleDocumentFile(name, e.target.files?.[0])}
+                fileName={docs[name]?.name}
+                previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
+                onPreview={profile?.documents?.[name]?.url ? () => window.open(profile.documents[name].url, "_blank", "noopener,noreferrer") : undefined}
+              />
             ))}
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               OTP from HR
@@ -416,7 +477,85 @@ const EmployeeDashboard = ({ section = "all" }) => {
               onClick={requestDocumentOtp}
               loading={otpSending}
             />
-            <Button text="Save Documents" type="submit" loading={documentSaving} />
+            <Button
+              text="Save Documents"
+              type="submit"
+              loading={documentSaving}
+              disabled={!otpRequested || !documentOtp || Object.keys(docs).length === 0}
+            />
+          </form>
+          )}
+
+          {show("profile") && (
+          <form onSubmit={saveAccountCredential} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2 flex items-center justify-between">
+              <h2 className="font-semibold">Saved Account Credentials</h2>
+              <FiPlus className="text-[#f84525]" />
+            </div>
+            <label className="text-sm font-medium text-gray-700">
+              Account Type
+              <select
+                value={credentialForm.accountType}
+                onChange={(e) => setCredentialForm((prev) => ({ ...prev, accountType: e.target.value }))}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+              >
+                <option>Email</option>
+                <option>Hosting</option>
+                <option>Social</option>
+                <option>Client Panel</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              Title
+              <input value={credentialForm.title} onChange={(e) => setCredentialForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              Login / Email
+              <input value={credentialForm.loginId} onChange={(e) => setCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              Password
+              <input type="password" value={credentialForm.password} onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              Notes
+              <textarea value={credentialForm.notes} onChange={(e) => setCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
+            </label>
+            <Button text="Save Credential" type="submit" loading={credentialSaving} className="md:col-span-2" />
+            <div className="md:col-span-2 space-y-2">
+              {accountCredentials.length === 0 ? (
+                <p className="text-sm text-gray-500">No saved credentials yet.</p>
+              ) : (
+                accountCredentials.map((item) => (
+                  <div key={item._id} className="border rounded-sm p-3 flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900">{item.title}</p>
+                      <p className="text-xs text-gray-500">{item.accountType}</p>
+                      <p className="text-sm break-all mt-1">{item.loginId}</p>
+                      <p className="text-sm mt-1">
+                        {revealedPasswords[item._id] ? item.password : "••••••••"}
+                      </p>
+                      {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))} className="border rounded-sm px-3 py-2 text-sm">
+                        {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
+                      </button>
+                      <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm">
+                        <FiCopy />
+                      </button>
+                      <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm">
+                        <FiCopy />
+                      </button>
+                      <button type="button" onClick={() => deleteAccountCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </form>
           )}
 
@@ -448,8 +587,16 @@ const EmployeeDashboard = ({ section = "all" }) => {
           )}
 
           {show("leaves") && (
-          <form onSubmit={applyLeave} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <h2 className="font-semibold md:col-span-2">Apply Leave</h2>
+          <div className="bg-white rounded-sm shadow p-4 grid grid-cols-1 gap-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">Apply Leave</h2>
+                <p className="text-sm text-gray-500 mt-1">Open the form only when you want to send a leave mail and request.</p>
+              </div>
+              <Button text={showLeaveForm ? "Close Form" : "Open Leave Form"} type="button" onClick={() => setShowLeaveForm((prev) => !prev)} />
+            </div>
+            {showLeaveForm && (
+          <form onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="text-sm font-medium">
               Leave Type
               <select
@@ -465,6 +612,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
               </select>
             </label>
             <label className="text-sm font-medium">
+              Mail Subject / Title
+              <input value={leaveForm.title} onChange={(e) => setLeaveForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium">
               From Date
               <input type="date" value={leaveForm.fromDate} onChange={(e) => setLeaveForm((prev) => ({ ...prev, fromDate: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
@@ -473,12 +624,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
               <input type="date" value={leaveForm.toDate} onChange={(e) => setLeaveForm((prev) => ({ ...prev, toDate: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" />
             </label>
             <label className="text-sm font-medium md:col-span-2">
-              Reason
-              <textarea value={leaveForm.reason} onChange={(e) => setLeaveForm((prev) => ({ ...prev, reason: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
+              Mail Content
+              <textarea value={leaveForm.content} onChange={(e) => setLeaveForm((prev) => ({ ...prev, content: e.target.value }))} className="mt-1 w-full border rounded-md px-3 py-2" required />
             </label>
             <Button text="View Calendar" type="button" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="md:col-span-2" />
             <Button text="Submit Leave" type="submit" loading={leaveSaving} className="md:col-span-2" />
           </form>
+            )}
+          </div>
           )}
         </section>
         )}
@@ -487,8 +640,11 @@ const EmployeeDashboard = ({ section = "all" }) => {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {show("attendance") && (
           <div className="bg-white rounded-sm shadow overflow-hidden">
-            <div className="p-4 border-b"><h2 className="font-semibold">Attendance History</h2></div>
-            {attendance.slice(0, 8).map((item) => (
+            <div className="p-4 border-b flex items-center justify-between gap-3">
+              <h2 className="font-semibold">Attendance History</h2>
+              <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="border rounded-sm px-3 py-2 text-sm" />
+            </div>
+            {filteredAttendance.slice(0, 8).map((item) => (
               <div key={item._id} className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm">
                 <span>{item.dateKey}</span>
                 <span>{item.status}</span>
@@ -504,7 +660,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <div className="p-4 border-b"><h2 className="font-semibold">My Leaves</h2></div>
             {leaves.length === 0 ? <p className="p-4 text-sm text-gray-500">No leaves applied</p> : leaves.slice(0, 8).map((leave) => (
               <div key={leave._id} className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm">
-                <span>{leave.type.replace("_", " ")}</span>
+                <span>{leave.title || leave.type.replace("_", " ")}</span>
                 <span>{new Date(leave.fromDate).toLocaleDateString()}</span>
                 <span>{leave.status}</span>
                 <span>{leave.hrComment || "-"}</span>

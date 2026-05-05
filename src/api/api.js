@@ -6,6 +6,7 @@ export const authApi = {
   requestSignupOtp: (payload) => API.post("/users/signup/request-otp", payload),
   verifySignupOtp: (payload) => API.post("/users/signup/verify-otp", payload),
   getProfile: () => API.get("/users/me"),
+  updateProfile: (payload) => API.put("/users/me", payload),
   getSettings: () => API.get("/users/settings"),
   updateSettings: (payload) => API.put("/users/settings", payload),
   verifyVaultPassword: (payload) => API.post("/users/settings/verify-vault", payload),
@@ -43,6 +44,8 @@ export const hrApi = {
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
+  getEmployeeAccountCredentials: (employeeId) =>
+    API.get(`/hr/employees/${employeeId}/account-credentials`),
   deactivateEmployee: (employeeId) =>
     API.patch(`/hr/employees/${employeeId}/deactivate`),
   activateEmployee: (employeeId) =>
@@ -62,6 +65,10 @@ export const hrApi = {
 
 export const employeeApi = {
   getProfile: () => API.get("/employees/me"),
+  updateProfileImage: (payload) => API.patch("/employees/me/profile-image", payload),
+  getMyAccountCredentials: () => API.get("/employees/me/account-credentials"),
+  createMyAccountCredential: (payload) => API.post("/employees/me/account-credentials", payload),
+  deleteMyAccountCredential: (credentialId) => API.delete(`/employees/me/account-credentials/${credentialId}`),
   requestDocumentOtp: () => API.post("/employees/me/documents/otp"),
   updateDocuments: (payload) => API.patch("/employees/me/documents", payload),
   getAttendance: () => API.get("/employees/attendance"),

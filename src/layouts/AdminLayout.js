@@ -5,7 +5,6 @@ const AdminLayout = () => {
   const navItems = [
     { label: "Dashboard", path: "/admin/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Manage HR", path: "/admin/hrs", icon: <FiBriefcase /> },
-    { label: "Profile", path: "/admin/profile", icon: <FiSettings /> },
     { label: "Employees", path: "/admin/employees", icon: <FiUsers /> },
     { label: "Candidates", path: "/admin/candidates", icon: <FiUserCheck /> },
     { label: "Reports", path: "/admin/reports", icon: <FiBarChart2 /> },

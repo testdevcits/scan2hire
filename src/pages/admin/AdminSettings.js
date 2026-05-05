@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
+import FileUploadField from "../../components/common/FileUploadField";
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -17,12 +18,27 @@ const AdminSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasVaultPassword, setHasVaultPassword] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: "",
+    mobile: "",
+    photo: null,
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const fileToDataUri = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   useEffect(() => {
-    authApi
-      .getSettings()
-      .then((res) => {
-        const data = res.data.data || {};
+    Promise.all([authApi.getSettings(), authApi.getProfile()])
+      .then(([settingsRes, profileRes]) => {
+        const data = settingsRes.data.data || {};
+        const profile = profileRes.data.data || {};
         setForm((prev) => ({
           ...prev,
           mailEnabled: Boolean(data.mailEnabled),
@@ -31,10 +47,37 @@ const AdminSettings = () => {
           adminApprovalEmail: data.adminApprovalEmail || "",
         }));
         setHasVaultPassword(Boolean(data.hasEmployeeVaultPassword));
+        setProfileForm({
+          name: profile.name || "",
+          email: profile.email || "",
+          mobile: profile.mobile || "",
+          photo: null,
+        });
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load settings"))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    try {
+      const res = await authApi.updateProfile(profileForm);
+      const profile = res.data.data || {};
+      setProfileForm((prev) => ({
+        ...prev,
+        name: profile.name || prev.name,
+        email: profile.email || prev.email,
+        mobile: profile.mobile || prev.mobile,
+        photo: null,
+      }));
+      toast.success(res.data.message || "Profile updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update profile");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const saveSettings = async (e) => {
     e.preventDefault();
@@ -62,7 +105,44 @@ const AdminSettings = () => {
         <p className="text-sm text-gray-500">Control mails, notifications, approval email and employee vault access.</p>
       </div>
 
-      <form onSubmit={saveSettings} className="space-y-4 max-w-3xl">
+      <div className="space-y-4 max-w-3xl">
+        <form onSubmit={saveProfile} className="bg-white rounded-sm shadow p-4 space-y-3">
+          <h2 className="font-semibold">Admin Profile</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="text-sm font-medium">
+              Name
+              <input type="text" value={profileForm.name} onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium">
+              Mobile
+              <input type="text" value={profileForm.mobile} onChange={(e) => setProfileForm((prev) => ({ ...prev, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+            </label>
+            <label className="text-sm font-medium md:col-span-2">
+              Email
+              <input type="email" value={profileForm.email} className="mt-1 w-full border rounded-sm px-3 py-2 bg-gray-50" disabled />
+            </label>
+            <div className="md:col-span-2">
+              <FileUploadField
+                label="Profile Image"
+                accept=".jpg,.jpeg,.png,.webp"
+                hint="Upload JPG, PNG, WEBP"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const dataUri = await fileToDataUri(file);
+                  setProfileForm((prev) => ({
+                    ...prev,
+                    photo: { dataUri, name: file.name, type: file.type },
+                  }));
+                }}
+                fileName={profileForm.photo?.name}
+              />
+            </div>
+            <Button text={profileSaving ? "Saving..." : "Save Profile"} loading={profileSaving} type="submit" className="md:col-span-2" />
+          </div>
+        </form>
+
+        <form onSubmit={saveSettings} className="space-y-4">
         <section className="bg-white rounded-sm shadow p-4">
           <h2 className="font-semibold mb-3">Appearance</h2>
           <div className="flex items-center justify-between border rounded-sm p-3">
@@ -120,7 +200,8 @@ const AdminSettings = () => {
         </section>
 
         <Button text={saving ? "Saving..." : "Save Settings"} loading={saving} type="submit" />
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

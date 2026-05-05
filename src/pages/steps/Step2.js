@@ -1,5 +1,6 @@
 import InputField from "../../components/common/InputField";
 import SelectField from "../../components/common/SelectField";
+import FileUploadField from "../../components/common/FileUploadField";
 
 const Step2 = ({
   formData,
@@ -113,34 +114,24 @@ const Step2 = ({
           required
         />
       )}
-      <label className="flex flex-col text-sm font-medium text-gray-700">
-        Resume Upload <span className="text-red-500">*</span>
-        <input
-          type="file"
-          name="resume"
-          accept=".pdf,.doc,.docx"
-          onChange={handleChange}
-          className="mt-1 w-full min-w-0 text-xs sm:text-sm border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          required
-        />
-        {formData.resumeName && (
-          <span className="text-xs text-gray-500 mt-1">{formData.resumeName}</span>
-        )}
-        {errors.resume && <span className="text-red-500 text-sm mt-1">{errors.resume}</span>}
-      </label>
-      <label className="flex flex-col text-sm font-medium text-gray-700">
-        Certificate Upload (Optional)
-        <input
-          type="file"
-          name="certificate"
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={handleChange}
-          className="mt-1 w-full min-w-0 text-xs sm:text-sm border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-        />
-        {formData.certificateName && (
-          <span className="text-xs text-gray-500 mt-1">{formData.certificateName}</span>
-        )}
-      </label>
+      <FileUploadField
+        label="Resume Upload"
+        name="resume"
+        accept=".pdf,.doc,.docx"
+        hint="Upload PDF, DOC, DOCX"
+        required
+        onChange={(e) => handleChange(e)}
+        fileName={formData.resumeName}
+        error={errors.resume}
+      />
+      <FileUploadField
+        label="Certificate Upload (Optional)"
+        name="certificate"
+        accept=".pdf,.jpg,.jpeg,.png"
+        hint="Upload JPG, PNG, PDF"
+        onChange={(e) => handleChange(e)}
+        fileName={formData.certificateName}
+      />
       <InputField
         label="Reference Name"
         name="referenceName"

@@ -1,8 +1,10 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { FiCopy, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
+import FileUploadField from "../../../components/common/FileUploadField";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useModal } from "../../../contexts/ModalContext";
 import { useToast } from "../../../contexts/ToastContext";
@@ -20,6 +22,7 @@ const EmployeeDetail = () => {
   const [attendance, setAttendance] = useState([]);
   const [summary, setSummary] = useState(null);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportDate, setReportDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -33,14 +36,20 @@ const EmployeeDetail = () => {
     employeeType: "Permanent",
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [accountCredentials, setAccountCredentials] = useState([]);
+  const [revealedPasswords, setRevealedPasswords] = useState({});
 
   const loadEmployee = async () => {
     setLoading(true);
     try {
-      const [employeeRes, reportRes] = await Promise.all([
+      const requests = [
         hrApi.getEmployee(employeeId),
         hrApi.getEmployeeMonthlyReport(employeeId, month),
-      ]);
+      ];
+      if (user?.role === "superadmin") {
+        requests.push(hrApi.getEmployeeAccountCredentials(employeeId));
+      }
+      const [employeeRes, reportRes, credentialsRes] = await Promise.all(requests);
       const employeeData = employeeRes.data.data;
       setEmployee(employeeData);
       setEditForm({
@@ -55,6 +64,7 @@ const EmployeeDetail = () => {
       });
       setAttendance(reportRes.data.data?.records || []);
       setSummary(reportRes.data.data?.summary || null);
+      setAccountCredentials(credentialsRes?.data?.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load employee");
     } finally {
@@ -127,8 +137,39 @@ const EmployeeDetail = () => {
     }
   };
 
+  const fileToDataUri = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handlePhoto = async (file) => {
+    if (!file) return;
+    const dataUri = await fileToDataUri(file);
+    setEditForm((prev) => ({
+      ...prev,
+      photo: { dataUri, name: file.name, type: file.type },
+    }));
+  };
+
+  const copyValue = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error("Unable to copy");
+    }
+  };
+
+  const filteredAttendance = useMemo(() => {
+    if (!reportDate) return attendance;
+    return attendance.filter((item) => item.dateKey === reportDate);
+  }, [attendance, reportDate]);
+
   const downloadEmployeeReport = () => {
-    const rows = attendance
+    const rows = filteredAttendance
       .map(
         (item) => `
           <tr>
@@ -159,7 +200,7 @@ const EmployeeDetail = () => {
         </head>
         <body>
           <h1>${employee.name} - Monthly Report</h1>
-          <p>${employee.employeeId || ""} | ${employee.designation || ""} | ${month}</p>
+          <p>${employee.employeeId || ""} | ${employee.designation || ""} | ${reportDate || month}</p>
           <div class="summary">
             <div class="box">Days: ${summary?.days || 0}</div>
             <div class="box">Present: ${summary?.present || 0}</div>
@@ -190,15 +231,24 @@ const EmployeeDetail = () => {
             {employee.employeeId} • {employee.designation || "No designation"} • {employee.isActive ? "Active" : "Inactive"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             className="border rounded-sm px-3 py-2"
           />
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => {
+              setReportDate(e.target.value);
+              if (e.target.value) setMonth(e.target.value.slice(0, 7));
+            }}
+            className="border rounded-sm px-3 py-2"
+          />
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
-          <Button text="Download PDF" onClick={downloadEmployeeReport} />
+          <Button text={reportDate ? "Download Day Report" : "Download PDF"} onClick={downloadEmployeeReport} />
           {employee.isActive ? (
             <Button text="Deactivate" variant="danger" onClick={deactivateEmployee} />
           ) : (
@@ -292,8 +342,49 @@ const EmployeeDetail = () => {
             <option>Intern</option>
           </select>
         </label>
+        <FileUploadField
+          label="Update Photo"
+          accept=".jpg,.jpeg,.png,.webp"
+          hint="Upload JPG, PNG, WEBP"
+          onChange={(e) => handlePhoto(e.target.files?.[0])}
+          fileName={editForm.photo?.name}
+        />
         <Button text={savingProfile ? "Saving..." : "Save Employee"} loading={savingProfile} type="submit" className="md:col-span-4" />
       </form>
+
+      {user?.role === "superadmin" && (
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold">Employee Saved Credentials</h2>
+          </div>
+          {accountCredentials.length === 0 ? (
+            <p className="p-4 text-sm text-gray-500">No saved credentials found.</p>
+          ) : (
+            accountCredentials.map((item) => (
+              <div key={item._id} className="border-t px-4 py-3 flex flex-col md:flex-row md:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.accountType}</p>
+                  <p className="text-sm break-all mt-1">{item.loginId}</p>
+                  <p className="text-sm mt-1">{revealedPasswords[item._id] ? item.password : "••••••••"}</p>
+                  {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))} className="border rounded-sm px-3 py-2 text-sm">
+                    {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                  <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm">
+                    <FiCopy />
+                  </button>
+                  <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm">
+                    <FiCopy />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
@@ -328,10 +419,10 @@ const EmployeeDetail = () => {
             <p><b>Break:</b> {minutesToHours(summary.breakMinutes)}</p>
           </div>
         )}
-        {attendance.length === 0 ? (
+        {filteredAttendance.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">No attendance found.</p>
         ) : (
-          attendance.map((item) => (
+          filteredAttendance.map((item) => (
             <div key={item._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm">
               <span>{item.dateKey}</span>
               <span>{item.status}</span>

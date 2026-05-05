@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { authApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
+import FileUploadField from "../components/common/FileUploadField";
 import { useToast } from "../contexts/ToastContext";
 
 const docFields = [
@@ -85,25 +86,15 @@ const UserProfile = () => {
       <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <h2 className="font-semibold md:col-span-2">Documents</h2>
         {docFields.map(([name, label]) => (
-          <label key={name} className="text-sm font-medium text-gray-700">
-            {label}
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => handleFile(name, e.target.files?.[0])}
-              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-            />
-            {docs[name]?.name && <span className="block text-xs text-gray-500 mt-1">{docs[name].name}</span>}
-            {profile?.documents?.[name]?.url && (
-              <button
-                type="button"
-                onClick={() => setPreview({ title: label, url: profile.documents[name].url })}
-                className="block text-xs text-[#f84525] underline mt-1"
-              >
-                View uploaded
-              </button>
-            )}
-          </label>
+          <FileUploadField
+            key={name}
+            label={label}
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => handleFile(name, e.target.files?.[0])}
+            fileName={docs[name]?.name}
+            previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
+            onPreview={profile?.documents?.[name]?.url ? () => setPreview({ title: label, url: profile.documents[name].url }) : undefined}
+          />
         ))}
         <Button text="Save Documents" type="submit" loading={saving} className="md:col-span-2" />
       </form>
