@@ -9,6 +9,11 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
   const [status, setStatus] = useState(candidate?.interviewStatus || "");
   const [hrStatus, setHrStatus] = useState(candidate?.hrReview?.hrStatus || "");
   const [assignedTo, setAssignedTo] = useState(candidate?.assignedTo?._id || "");
+  const [assignedRoundType, setAssignedRoundType] = useState(
+    candidate?.currentRoundType || "technical"
+  );
+  const [reviewRoundType, setReviewRoundType] = useState("hr");
+  const [reviewComments, setReviewComments] = useState("");
   const [remarks, setRemarks] = useState("");
   const [score, setScore] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,15 +21,22 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
   const handleUpdate = async () => {
     try {
       setLoading(true);
-
-      await hrApi.updateCandidateStatus(candidate._id, {
+      const payload = {
         interviewStatus: status,
-        hrStatus: hrStatus,
-        assignedTo: assignedTo,
-        remarks: remarks,
-        score,
-        round: status,
-      });
+        hrStatus,
+        assignedTo,
+        assignedRoundType,
+        remarks,
+      };
+
+      if (score !== "" || reviewComments.trim()) {
+        payload.score = score;
+        payload.comments = reviewComments;
+        payload.round = candidate?.interviewStatus || status;
+        payload.roundType = reviewRoundType;
+      }
+
+      await hrApi.updateCandidateStatus(candidate._id, payload);
 
       toast.success("Status updated");
       refresh();
@@ -79,7 +91,7 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
 
         <div className="mb-3">
           <label className="block text-sm mb-1">
-            Assign Interviewer (Second Round)
+            Assign Interviewer
           </label>
           <select
             className="w-full border p-2 rounded"
@@ -96,23 +108,68 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
         </div>
 
         <div className="mb-3">
-          <label className="block text-sm mb-1">Score</label>
-          <input
-            type="number"
-            min="0"
-            max="100"
+          <label className="block text-sm mb-1">Assigned Round Type</label>
+          <select
             className="w-full border p-2 rounded"
-            placeholder="0-100"
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
+            value={assignedRoundType}
+            onChange={(e) => setAssignedRoundType(e.target.value)}
+          >
+            <option value="technical">Technical Round</option>
+            <option value="machine_test">Machine Test</option>
+            <option value="ui_ux">UI/UX Review</option>
+            <option value="testing">Testing Round</option>
+            <option value="hr">HR Round</option>
+            <option value="project_coordinator">Project Coordinator</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block text-sm">
+            HR Review Type
+            <select
+              className="mt-1 w-full border p-2 rounded"
+              value={reviewRoundType}
+              onChange={(e) => setReviewRoundType(e.target.value)}
+            >
+              <option value="hr">HR Round</option>
+              <option value="technical">Technical Round</option>
+              <option value="machine_test">Machine Test</option>
+              <option value="ui_ux">UI/UX Review</option>
+              <option value="testing">Testing Round</option>
+              <option value="project_coordinator">Project Coordinator</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            Score /10
+            <input
+              type="number"
+              min="0"
+              max="10"
+              className="mt-1 w-full border p-2 rounded"
+              placeholder="0-10"
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="mb-3">
+          <label className="block text-sm mb-1">HR Review Comments</label>
+          <textarea
+            className="w-full border p-2 rounded"
+            placeholder="Add HR review only when completing a round..."
+            value={reviewComments}
+            onChange={(e) => setReviewComments(e.target.value)}
           />
         </div>
 
         <div className="mb-3">
-          <label className="block text-sm mb-1">Remarks</label>
+          <label className="block text-sm mb-1">Remarks / Assignment Notes</label>
           <textarea
             className="w-full border p-2 rounded"
-            placeholder="Add notes..."
+            placeholder="Add assignment notes..."
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
           />

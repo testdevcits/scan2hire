@@ -46,6 +46,16 @@ const formatChartDate = (dateKey) =>
     month: "short",
   });
 
+const getMyCurrentRoundReview = (candidate, employeeId) =>
+  candidate.interviewRounds?.find(
+    (round) =>
+      round.round === candidate.interviewStatus &&
+      String(round.interviewerEmployee || "") === String(employeeId || "")
+  );
+
+const canEmployeeEditReview = (round) =>
+  !round?.date || toDateKey(new Date(round.date)) === toDateKey();
+
 const calculateLiveAttendance = (attendanceRecord, currentTime = new Date()) => {
   if (!attendanceRecord?.loginAt) {
     return { totalSeconds: 0, workSeconds: 0, breakSeconds: 0 };
@@ -114,7 +124,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [selected, setSelected] = useState(null);
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [roundForm, setRoundForm] = useState({
-    roundType: "technical",
     score: "",
     comments: "",
   });
@@ -236,6 +245,21 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }
   };
 
+  const openReview = (candidate) => {
+    const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
+
+    if (existingRound && !canEmployeeEditReview(existingRound)) {
+      toast.error("Review can be edited only on the same day. Contact HR or Admin.");
+      return;
+    }
+
+    setRoundForm({
+      score: existingRound?.score ?? "",
+      comments: existingRound?.comments || "",
+    });
+    setSelected(candidate);
+  };
+
   const changePassword = async (e) => {
     e.preventDefault();
     setPasswordSaving(true);
@@ -333,10 +357,12 @@ const EmployeeDashboard = ({ section = "all" }) => {
       candidates.filter(
         (candidate) =>
           !candidate.interviewRounds?.some(
-            (round) => round.round === candidate.interviewStatus
+            (round) =>
+              round.round === candidate.interviewStatus &&
+              String(round.interviewerEmployee || "") === String(profile?._id || "")
           )
       ),
-    [candidates]
+    [candidates, profile?._id]
   );
 
   const monthlyChartData = useMemo(
@@ -1176,28 +1202,39 @@ const EmployeeDashboard = ({ section = "all" }) => {
               No assigned candidates
             </p>
           ) : (
-            candidates.map((candidate) => (
-              <div
-                key={candidate._id}
-                className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center"
-              >
-                <span className="font-medium">{candidate.name}</span>
-                <span className="break-all">{candidate.email}</span>
-                <span>{candidate.jobRole}</span>
-                <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] rounded-sm font-semibold w-fit">
-                  {candidate.interviewStatus}
-                </span>
-                <span>
-                  {candidate.experienceType === "fresher"
-                    ? "Fresher"
-                    : `${candidate.experience || 0} yrs`}
-                </span>
-                <Button
-                  text="Add Review"
-                  onClick={() => setSelected(candidate)}
-                />
-              </div>
-            ))
+            candidates.map((candidate) => {
+                const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
+                const canEdit = canEmployeeEditReview(existingRound);
+
+                return (
+                  <div
+                    key={candidate._id}
+                    className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center"
+                  >
+                    <span className="font-medium">{candidate.name}</span>
+                    <span className="break-all">{candidate.email}</span>
+                    <span>{candidate.jobRole}</span>
+                    <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] rounded-sm font-semibold w-fit">
+                      {candidate.interviewStatus}
+                    </span>
+                    <span>
+                      {existingRound
+                        ? canEdit
+                          ? "Submitted today"
+                          : "Review locked"
+                        : candidate.experienceType === "fresher"
+                        ? "Fresher"
+                        : `${candidate.experience || 0} yrs`}
+                    </span>
+                    <Button
+                      text={existingRound ? (canEdit ? "Edit Review" : "Locked") : "Add Review"}
+                      disabled={Boolean(existingRound && !canEdit)}
+                      onClick={() => openReview(candidate)}
+                    />
+                  </div>
+                );
+              }
+            )
           )}
         </section>
         <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -1236,36 +1273,20 @@ const EmployeeDashboard = ({ section = "all" }) => {
               </button>
             </div>
             <div className="text-sm bg-gray-50 rounded-sm p-3">
-              Current assigned round: <b>{selected.interviewStatus}</b>. HR will
-              move this candidate to the next round after reviewing your report.
+              Current assigned round: <b>{selected.interviewStatus}</b>
+              {selected.currentRoundType
+                ? ` (${selected.currentRoundType.replace("_", " ")})`
+                : ""}
+              . HR will move this candidate to the next round after reviewing
+              your report.
             </div>
             <label className="block text-sm font-medium">
-              Round Type
-              <select
-                value={roundForm.roundType}
-                onChange={(e) =>
-                  setRoundForm((prev) => ({
-                    ...prev,
-                    roundType: e.target.value,
-                  }))
-                }
-                className="mt-1 w-full border rounded-md px-3 py-2"
-              >
-                <option value="technical">Technical Round</option>
-                <option value="machine_test">Machine Test</option>
-                <option value="ui_ux">UI/UX Review</option>
-                <option value="testing">Testing Round</option>
-                <option value="hr">HR Round</option>
-                <option value="project_coordinator">Project Coordinator</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label className="block text-sm font-medium">
-              Score
+              Score /10
               <input
                 type="number"
                 min="0"
                 max="10"
+                step="0.1"
                 value={roundForm.score}
                 onChange={(e) =>
                   setRoundForm((prev) => ({ ...prev, score: e.target.value }))
@@ -1275,7 +1296,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               />
             </label>
             <label className="block text-sm font-medium">
-              Comments
+              Decision / Comments
               <textarea
                 value={roundForm.comments}
                 onChange={(e) =>
