@@ -92,5 +92,13 @@ export const employeeApi = {
 };
 
 export const qrApi = {
-  generate: () => API.post("/qr-ids"),
+  generate: () =>
+    API.post(
+      "/qr-ids",
+      {},
+      {
+        skipAuth: true,
+        withCredentials: false,
+      }
+    ),
 };
