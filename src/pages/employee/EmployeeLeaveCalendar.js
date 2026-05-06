@@ -8,6 +8,7 @@ const EmployeeLeaveCalendar = () => {
   const [calendar, setCalendar] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,13 @@ const EmployeeLeaveCalendar = () => {
     }));
   }, [buildMonthDays]);
 
+  const formatType = (type = "") => type.replace(/_/g, " ");
+
+  const openCalendarDetails = (item) => {
+    if (!item) return;
+    setSelectedCalendarItem(item);
+  };
+
   if (loading) return <CommonLoader text="Loading leave calendar..." />;
 
   return (
@@ -127,9 +135,11 @@ const EmployeeLeaveCalendar = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {noticeItems.map((item) => (
-                  <div
+                  <button
+                    type="button"
                     key={item._id || item.dateKey}
-                    className="border rounded-sm p-3 bg-[#fff5f3]"
+                    onClick={() => openCalendarDetails(item)}
+                    className="text-left border rounded-sm p-3 bg-[#fff5f3] hover:border-[#f84525] transition-colors"
                   >
                     <p className="text-xs text-[#f84525] font-semibold uppercase">
                       {item.type}
@@ -139,7 +149,7 @@ const EmployeeLeaveCalendar = () => {
                     <p className="text-sm text-gray-700 mt-2">
                       {item.description || "No description"}
                     </p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -197,13 +207,18 @@ const EmployeeLeaveCalendar = () => {
                         ? "bg-blue-50 border-blue-200 text-gray-950"
                         : "bg-white dark:bg-gray-950 dark:border-gray-800 dark:text-white text-gray-950";
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={day.dateKey}
-                        className={`min-h-12 border rounded-sm p-1 text-left text-[11px] ${className}`}
+                        onClick={() => openCalendarDetails(saved)}
+                        disabled={!saved}
+                        className={`min-h-12 border rounded-sm p-1 text-left text-[11px] transition-colors ${
+                          saved ? "cursor-pointer hover:ring-2 hover:ring-[#f84525]" : "cursor-default"
+                        } ${className}`}
                         title={saved?.title || day.dateKey}
                       >
                         <span className="font-bold">{day.dayNumber}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -228,9 +243,11 @@ const EmployeeLeaveCalendar = () => {
               </p>
             ) : (
               hrLeaveItems.map((item) => (
-                <div
+                <button
+                  type="button"
                   key={item._id || item.dateKey}
-                  className="border-b dark:border-gray-800 px-4 py-3"
+                  onClick={() => openCalendarDetails(item)}
+                  className="w-full text-left border-b dark:border-gray-800 px-4 py-3 hover:bg-[#fff8f6] dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -248,12 +265,68 @@ const EmployeeLeaveCalendar = () => {
                   <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
                     {item.description || "No description"}
                   </p>
-                </div>
+                </button>
               ))
             )}
           </div>
         </section>
       </div>
+
+      {selectedCalendarItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-sm shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="p-4 border-b dark:border-gray-800 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase text-[#f84525]">
+                  {formatType(selectedCalendarItem.type)}
+                </p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+                  {selectedCalendarItem.title || "Calendar Detail"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCalendarItem(null)}
+                className="text-gray-500 hover:text-[#f84525] text-lg px-2"
+                aria-label="Close calendar detail"
+              >
+                x
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="border dark:border-gray-800 rounded-sm p-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
+                  <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                    {selectedCalendarItem.dateKey}
+                  </p>
+                </div>
+                <div className="border dark:border-gray-800 rounded-sm p-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Day</p>
+                  <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                    {selectedCalendarItem.day ||
+                      new Date(`${selectedCalendarItem.dateKey}T00:00:00`).toLocaleDateString("en-US", {
+                        weekday: "long",
+                      })}
+                  </p>
+                </div>
+                <div className="border dark:border-gray-800 rounded-sm p-3 sm:col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+                  <p className="font-semibold capitalize text-gray-900 dark:text-white mt-1">
+                    {formatType(selectedCalendarItem.type)}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Description</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-wrap">
+                  {selectedCalendarItem.description || "No description added."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

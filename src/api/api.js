@@ -11,6 +11,9 @@ export const authApi = {
   updateSettings: (payload) => API.put("/users/settings", payload),
   verifyVaultPassword: (payload) => API.post("/users/settings/verify-vault", payload),
   updateMyDocuments: (payload) => API.patch("/users/me/documents", payload),
+  getMyAccountCredentials: () => API.get("/users/me/account-credentials"),
+  createMyAccountCredential: (payload) => API.post("/users/me/account-credentials", payload),
+  deleteMyAccountCredential: (credentialId) => API.delete(`/users/me/account-credentials/${credentialId}`),
   getHrs: () => API.get("/users/hrs"),
   createHr: (payload) => API.post("/users/hrs", payload),
   deactivateUser: (userId) => API.patch(`/users/${userId}/deactivate`),
@@ -80,6 +83,7 @@ export const employeeApi = {
   applyLeave: (payload) => API.post("/employees/leaves", payload),
   getCalendar: (month, year) => API.get("/employees/calendar", { params: { month, year } }),
   getAssignedCandidates: () => API.get("/employees/candidates"),
+  getInterviewLogs: () => API.get("/employees/interview-logs"),
   updateRound: (candidateId, payload) =>
     API.put(`/employees/candidates/${candidateId}/round`, payload),
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),

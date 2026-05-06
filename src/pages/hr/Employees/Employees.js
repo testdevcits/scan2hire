@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
 import CommonTable from "../CommonTable";
 import CommonLoader from "../../components/common/CommonLoader";
+import FilePreviewModal from "../../components/common/FilePreviewModal";
 
 function Employees() {
   const { employees, loading, error, fetchEmployees } = useEmployee();
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -128,37 +130,56 @@ function Employees() {
                 {selectedEmployee.documents?.photo && (
                   <div>
                     <strong>Photo:</strong>
-                    <img
-                      src={selectedEmployee.documents.photo.url}
-                      alt="Employee Photo"
-                      className="mt-1 w-24 h-24 object-cover rounded"
-                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreview({
+                          title: `${selectedEmployee.name || "Employee"} Photo`,
+                          url: selectedEmployee.documents.photo.url,
+                        })
+                      }
+                      className="block mt-1 w-24 h-24 rounded overflow-hidden border border-gray-200"
+                    >
+                      <img
+                        src={selectedEmployee.documents.photo.url}
+                        alt="Employee Photo"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
                   </div>
                 )}
                 {selectedEmployee.documents?.aadhaarCard && (
                   <p>
                     <strong>Aadhaar Card:</strong>{" "}
-                    <a
-                      href={selectedEmployee.documents.aadhaarCard.url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreview({
+                          title: "Aadhaar Card",
+                          url: selectedEmployee.documents.aadhaarCard.url,
+                        })
+                      }
                       className="text-blue-500 underline"
                     >
                       View
-                    </a>
+                    </button>
                   </p>
                 )}
                 {selectedEmployee.documents?.panCard && (
                   <p>
                     <strong>PAN Card:</strong>{" "}
-                    <a
-                      href={selectedEmployee.documents.panCard.url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreview({
+                          title: "PAN Card",
+                          url: selectedEmployee.documents.panCard.url,
+                        })
+                      }
                       className="text-blue-500 underline"
                     >
                       View
-                    </a>
+                    </button>
                   </p>
                 )}
                 {selectedEmployee.documents?.salarySlips?.length > 0 && (
@@ -168,14 +189,18 @@ function Employees() {
                       {selectedEmployee.documents.salarySlips.map(
                         (slip, idx) => (
                           <li key={idx}>
-                            <a
-                              href={slip.url}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreview({
+                                  title: `Salary Slip ${idx + 1}`,
+                                  url: slip.url,
+                                })
+                              }
                               className="text-blue-500 underline"
                             >
                               Slip {idx + 1}
-                            </a>
+                            </button>
                           </li>
                         )
                       )}
@@ -186,6 +211,14 @@ function Employees() {
             </div>
           </div>
         </div>
+      )}
+
+      {preview && (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
       )}
     </div>
   );

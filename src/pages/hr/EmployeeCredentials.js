@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FiCopy, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -16,6 +16,30 @@ const EmployeeCredentials = () => {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [accountLoading, setAccountLoading] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [myCredentials, setMyCredentials] = useState([]);
+  const [myCredentialForm, setMyCredentialForm] = useState({
+    accountType: "Email",
+    title: "",
+    loginId: "",
+    password: "",
+    notes: "",
+  });
+  const [myCredentialSaving, setMyCredentialSaving] = useState(false);
+  const [showMyCredentialForm, setShowMyCredentialForm] = useState(false);
+
+  useEffect(() => {
+    loadMyCredentials();
+    // eslint-disable-next-line
+  }, []);
+
+  const loadMyCredentials = async () => {
+    try {
+      const res = await authApi.getMyAccountCredentials();
+      setMyCredentials(res.data.data || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to load your credentials");
+    }
+  };
 
   const unlockVault = async (e) => {
     e.preventDefault();
@@ -91,6 +115,32 @@ const EmployeeCredentials = () => {
     }
   };
 
+  const saveMyCredential = async (e) => {
+    e.preventDefault();
+    setMyCredentialSaving(true);
+    try {
+      await authApi.createMyAccountCredential(myCredentialForm);
+      setMyCredentialForm({ accountType: "Email", title: "", loginId: "", password: "", notes: "" });
+      setShowMyCredentialForm(false);
+      await loadMyCredentials();
+      toast.success("Credential saved");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to save credential");
+    } finally {
+      setMyCredentialSaving(false);
+    }
+  };
+
+  const deleteMyCredential = async (credentialId) => {
+    try {
+      await authApi.deleteMyAccountCredential(credentialId);
+      await loadMyCredentials();
+      toast.success("Credential deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete credential");
+    }
+  };
+
   if (loading && !unlocked) return <CommonLoader text="Opening credentials vault..." />;
 
   return (
@@ -99,6 +149,57 @@ const EmployeeCredentials = () => {
         <h1 className="text-2xl font-bold">Employee Credentials</h1>
         <p className="text-sm text-gray-500">Protected employee login records for HR and super admin use.</p>
       </div>
+
+      <section className="bg-white rounded-sm shadow overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">My Saved Credentials</h2>
+            <p className="text-sm text-gray-500 mt-1">Save your own HR/admin account logins.</p>
+          </div>
+          <button type="button" onClick={() => setShowMyCredentialForm((prev) => !prev)} className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center" aria-label="Add my credential">
+            <FiPlus />
+          </button>
+        </div>
+        {showMyCredentialForm && (
+          <form onSubmit={saveMyCredential} className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="text-sm font-medium">
+              Account Type
+              <select value={myCredentialForm.accountType} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, accountType: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                <option>Email</option>
+                <option>Hosting</option>
+                <option>Social</option>
+                <option>Client Panel</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">Title<input value={myCredentialForm.title} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
+            <label className="text-sm font-medium">Login / Email<input value={myCredentialForm.loginId} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
+            <label className="text-sm font-medium">Password<input type="password" value={myCredentialForm.password} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, password: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
+            <label className="text-sm font-medium md:col-span-2">Notes<textarea value={myCredentialForm.notes} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" /></label>
+            <Button text="Save Credential" type="submit" loading={myCredentialSaving} className="md:col-span-2 justify-self-start" />
+          </form>
+        )}
+        {myCredentials.length === 0 ? (
+          <p className="p-4 text-sm text-gray-500">No saved credentials yet.</p>
+        ) : (
+          myCredentials.map((item) => (
+            <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-xs text-gray-500">{item.accountType}</p>
+                <p className="text-sm break-all mt-1">{item.loginId}</p>
+                <p className="text-sm mt-1">{revealedPasswords[`my-${item._id}`] ? item.password : "••••••••"}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [`my-${item._id}`]: !prev[`my-${item._id}`] }))} className="border rounded-sm px-3 py-2 text-sm">{revealedPasswords[`my-${item._id}`] ? <FiEyeOff /> : <FiEye />}</button>
+                <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
+                <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
+                <button type="button" onClick={() => deleteMyCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">Delete</button>
+              </div>
+            </div>
+          ))
+        )}
+      </section>
 
       {!unlocked ? (
         <form onSubmit={unlockVault} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">

@@ -9,6 +9,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,11 +19,63 @@ import {
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 
+const secondsToClock = (seconds = 0) => {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = String(Math.floor(safeSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((safeSeconds % 3600) / 60)).padStart(2, "0");
+  const remainingSeconds = String(safeSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${remainingSeconds}`;
+};
+
+const toDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const addDays = (date, days) => {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
+
+const formatChartDate = (dateKey) =>
+  new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+
+const calculateLiveAttendance = (attendanceRecord, currentTime = new Date()) => {
+  if (!attendanceRecord?.loginAt) {
+    return { totalSeconds: 0, workSeconds: 0, breakSeconds: 0 };
+  }
+
+  const endTime = attendanceRecord.logoutAt
+    ? new Date(attendanceRecord.logoutAt)
+    : currentTime;
+  const loginTime = new Date(attendanceRecord.loginAt);
+  const totalSeconds = Math.max(0, Math.floor((endTime - loginTime) / 1000));
+  const breakSeconds = (attendanceRecord.breaks || []).reduce((sum, item) => {
+    if (!item.startAt) return sum;
+    const breakStart = new Date(item.startAt);
+    const breakEnd = item.endAt ? new Date(item.endAt) : endTime;
+    return sum + Math.max(0, Math.floor((breakEnd - breakStart) / 1000));
+  }, 0);
+
+  return {
+    totalSeconds,
+    breakSeconds,
+    workSeconds: Math.max(0, totalSeconds - breakSeconds),
+  };
+};
+
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [candidates, setCandidates] = useState([]);
+  const [interviewLogs, setInterviewLogs] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
@@ -44,9 +97,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
     content: "",
   });
   const [showLeaveForm, setShowLeaveForm] = useState(false);
-  const [attendanceDate, setAttendanceDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const todayKey = toDateKey();
+  const yesterdayKey = toDateKey(addDays(new Date(), -1));
+  const currentMonthKey = todayKey.slice(0, 7);
+  const [attendanceDate, setAttendanceDate] = useState(yesterdayKey);
   const [accountCredentials, setAccountCredentials] = useState([]);
   const [credentialForm, setCredentialForm] = useState({
     accountType: "Email",
@@ -58,25 +112,40 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [credentialSaving, setCredentialSaving] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [selected, setSelected] = useState(null);
+  const [selectedLeave, setSelectedLeave] = useState(null);
   const [roundForm, setRoundForm] = useState({
     roundType: "technical",
     score: "",
     comments: "",
   });
+  const [clockNow, setClockNow] = useState(new Date());
 
   const todayAttendance = useMemo(
     () =>
       attendance.find(
-        (item) => item.dateKey === new Date().toISOString().slice(0, 10)
+        (item) => item.dateKey === todayKey
       ),
-    [attendance]
+    [attendance, todayKey]
   );
+  const dayStarted = Boolean(todayAttendance?.loginAt);
+  const dayEnded = Boolean(todayAttendance?.logoutAt);
+  const runningBreak = todayAttendance?.breaks?.some((item) => !item.endAt);
+  const liveAttendance = useMemo(
+    () => calculateLiveAttendance(todayAttendance, clockNow),
+    [clockNow, todayAttendance]
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => setClockNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
       const [
         profileRes,
         candidatesRes,
+        interviewLogsRes,
         attendanceRes,
         leavesRes,
         ,
@@ -84,6 +153,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       ] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAssignedCandidates(),
+        employeeApi.getInterviewLogs(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
         employeeApi.getCalendar(null, new Date().getFullYear()),
@@ -91,6 +161,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       ]);
       setProfile(profileRes.data.data);
       setCandidates(candidatesRes.data.data || []);
+      setInterviewLogs(interviewLogsRes.data.data?.logs || []);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
@@ -238,18 +309,24 @@ const EmployeeDashboard = ({ section = "all" }) => {
     return items.sort((a, b) => new Date(a.time) - new Date(b.time));
   }, [todayAttendance]);
 
+  const currentMonthAttendance = useMemo(
+    () => attendance.filter((item) => item.dateKey?.startsWith(currentMonthKey)),
+    [attendance, currentMonthKey]
+  );
+
   const monthlySummary = useMemo(() => {
-    return attendance.reduce(
+    return currentMonthAttendance.reduce(
       (acc, item) => {
         acc.work += item.totalWorkMinutes || 0;
         acc.breaks += item.totalBreakMinutes || 0;
         acc.present += item.status === "present" ? 1 : 0;
         acc.halfDay += item.status === "half_day" ? 1 : 0;
+        acc.running += item.status === "running" ? 1 : 0;
         return acc;
       },
-      { work: 0, breaks: 0, present: 0, halfDay: 0 }
+      { work: 0, breaks: 0, present: 0, halfDay: 0, running: 0 }
     );
-  }, [attendance]);
+  }, [currentMonthAttendance]);
 
   const pendingInterviews = useMemo(
     () =>
@@ -263,24 +340,23 @@ const EmployeeDashboard = ({ section = "all" }) => {
   );
 
   const monthlyChartData = useMemo(
-    () => [
-      { name: "Work", value: Math.round(monthlySummary.work / 60) },
-      { name: "Break", value: Math.round(monthlySummary.breaks / 60) },
-      { name: "Present", value: monthlySummary.present },
-      { name: "Half Day", value: monthlySummary.halfDay },
-    ],
-    [monthlySummary]
+    () =>
+      currentMonthAttendance
+        .slice()
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+        .map((item) => ({
+          date: formatChartDate(item.dateKey),
+          workHours: Number(((item.totalWorkMinutes || 0) / 60).toFixed(1)),
+          breakHours: Number(((item.totalBreakMinutes || 0) / 60).toFixed(1)),
+        })),
+    [currentMonthAttendance]
   );
   const filteredAttendance = useMemo(() => {
     if (!attendanceDate) return attendance.slice(0, 8);
     const matched = attendance.filter(
       (item) => item.dateKey === attendanceDate
     );
-    return matched.length
-      ? matched
-      : attendance.filter(
-          (item) => item.dateKey === new Date().toISOString().slice(0, 10)
-        );
+    return matched;
   }, [attendance, attendanceDate]);
   const missingDocuments = useMemo(() => {
     const required = [
@@ -345,30 +421,55 @@ const EmployeeDashboard = ({ section = "all" }) => {
               </div>
             ))}
             <div className="bg-white rounded-sm shadow p-4 lg:col-span-4">
-              <h2 className="font-semibold mb-3">Monthly Report Chart</h2>
+              <div className="mb-3">
+                <h2 className="font-semibold">Monthly Work & Break Hours</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Daily hours for {currentMonthKey}. Orange is work time, gray is break time.
+                </p>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4 items-center">
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyChartData} barCategoryGap={28}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#f6e8e0"
-                      />
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                      <YAxis
-                        allowDecimals={false}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip />
-                      <Bar
-                        dataKey="value"
-                        radius={[4, 4, 0, 0]}
-                        fill="#f84525"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {monthlyChartData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center rounded-sm border border-dashed text-sm text-gray-500">
+                      No attendance recorded this month.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyChartData} barCategoryGap={18}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="#f1ece9"
+                        />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                        <YAxis
+                          allowDecimals={false}
+                          tickLine={false}
+                          axisLine={false}
+                          label={{
+                            value: "Hours",
+                            angle: -90,
+                            position: "insideLeft",
+                            style: { textAnchor: "middle" },
+                          }}
+                        />
+                        <Tooltip formatter={(value, name) => [`${value}h`, name]} />
+                        <Legend />
+                        <Bar
+                          name="Work Hours"
+                          dataKey="workHours"
+                          radius={[4, 4, 0, 0]}
+                          fill="#f84525"
+                        />
+                        <Bar
+                          name="Break Hours"
+                          dataKey="breakHours"
+                          radius={[4, 4, 0, 0]}
+                          fill="#6b7280"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <div className="bg-[#fff5f3] rounded-sm p-3">
@@ -387,7 +488,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     <p className="text-xs text-gray-500">Attendance Mix</p>
                     <p className="text-sm text-gray-700 mt-1">
                       Present {monthlySummary.present} | Half Day{" "}
-                      {monthlySummary.halfDay}
+                      {monthlySummary.halfDay} | Running {monthlySummary.running}
                     </p>
                   </div>
                 </div>
@@ -398,6 +499,47 @@ const EmployeeDashboard = ({ section = "all" }) => {
       )}
 
       {(show("attendance") || isDashboard) && (
+        <>
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Attendance Timer</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Live counter for today's total time, work time, and break time.
+              </p>
+            </div>
+            <span className={`px-3 py-2 rounded-sm text-xs font-semibold capitalize w-fit ${
+              runningBreak
+                ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                : dayStarted && !dayEnded
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : dayEnded
+                ? "bg-gray-100 text-gray-700 border border-gray-200"
+                : "bg-[#fff5f3] text-[#f84525] border border-[#ffd8cf]"
+            }`}>
+              {runningBreak
+                ? "On Break"
+                : dayStarted && !dayEnded
+                ? "Working"
+                : dayEnded
+                ? "Work Ended"
+                : "Not Started"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4">
+            {[
+              ["Total Time", secondsToClock(liveAttendance.totalSeconds), "Login to now/end"],
+              ["Work Time", secondsToClock(liveAttendance.workSeconds), "Total minus breaks"],
+              ["Break Time", secondsToClock(liveAttendance.breakSeconds), runningBreak ? "Break running now" : "Total break used"],
+            ].map(([label, value, hint]) => (
+              <div key={label} className="border border-gray-100 rounded-sm p-4 bg-white">
+                <p className="text-xs font-semibold uppercase text-gray-500">{label}</p>
+                <p className="text-3xl font-bold text-[#f84525] mt-2 tabular-nums">{value}</p>
+                <p className="text-xs text-gray-500 mt-1">{hint}</p>
+              </div>
+            ))}
+          </div>
+        </section>
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
             <h2 className="font-semibold mb-3">My Profile</h2>
@@ -433,33 +575,35 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </p>
             <p className="text-sm">
               <b>Work:</b>{" "}
-              {minutesToHours(todayAttendance?.totalWorkMinutes || 0)}
+              {secondsToClock(liveAttendance.workSeconds)}
             </p>
             <p className="text-sm">
               <b>Break:</b>{" "}
-              {minutesToHours(todayAttendance?.totalBreakMinutes || 0)}
+              {secondsToClock(liveAttendance.breakSeconds)}
             </p>
             <div className="grid grid-cols-2 gap-2 mt-4">
               <Button
-                text="Start Day"
+                text="Start Work"
                 loading={actionLoading === "start"}
+                disabled={dayStarted}
                 onClick={() =>
                   runAttendanceAction(
                     employeeApi.startDay,
-                    "Day started",
+                    "Work started",
                     undefined,
                     "start"
                   )
                 }
               />
               <Button
-                text="End Day"
+                text="End Work"
                 variant="danger"
                 loading={actionLoading === "end"}
+                disabled={!dayStarted || dayEnded}
                 onClick={() =>
                   runAttendanceAction(
                     employeeApi.endDay,
-                    "Day ended",
+                    "Work ended",
                     undefined,
                     "end"
                   )
@@ -470,6 +614,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               <select
                 value={breakType}
                 onChange={(e) => setBreakType(e.target.value)}
+                disabled={!dayStarted || dayEnded || runningBreak}
                 className="flex-1 border rounded-md px-3 py-2 text-sm"
               >
                 <option value="lunch">Lunch</option>
@@ -482,6 +627,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 text="Start Break"
                 variant="secondary"
                 loading={actionLoading === "breakStart"}
+                disabled={!dayStarted || dayEnded || runningBreak}
                 onClick={() =>
                   runAttendanceAction(
                     employeeApi.startBreak,
@@ -492,9 +638,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 }
               />
               <Button
-                text="End"
+                text="End Break"
                 variant="success"
                 loading={actionLoading === "breakEnd"}
+                disabled={!runningBreak}
                 onClick={() =>
                   runAttendanceAction(
                     employeeApi.endBreak,
@@ -525,6 +672,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </div>
           </div>
         </section>
+        </>
       )}
 
       {(show("profile") || show("leaves")) && (
@@ -908,26 +1056,67 @@ const EmployeeDashboard = ({ section = "all" }) => {
           )}
           {show("attendance") && (
             <div className="bg-white rounded-sm shadow overflow-hidden">
-              <div className="p-4 border-b flex items-center justify-between gap-3">
-                <h2 className="font-semibold">Attendance History</h2>
-                <input
-                  type="date"
-                  value={attendanceDate}
-                  onChange={(e) => setAttendanceDate(e.target.value)}
-                  className="border rounded-sm px-3 py-2 text-sm"
-                />
-              </div>
-              {filteredAttendance.slice(0, 8).map((item) => (
-                <div
-                  key={item._id}
-                  className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm"
-                >
-                  <span>{item.dateKey}</span>
-                  <span>{item.status}</span>
-                  <span>{minutesToHours(item.totalWorkMinutes)}</span>
-                  <span>{minutesToHours(item.totalBreakMinutes)}</span>
+              <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold">Attendance History</h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Default view shows yesterday's attendance.
+                  </p>
                 </div>
-              ))}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceDate(yesterdayKey)}
+                    className={`px-3 py-2 rounded-sm border text-sm ${
+                      attendanceDate === yesterdayKey
+                        ? "bg-[#f84525] text-white border-[#f84525]"
+                        : "bg-white text-gray-700 border-gray-300"
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceDate(todayKey)}
+                    className={`px-3 py-2 rounded-sm border text-sm ${
+                      attendanceDate === todayKey
+                        ? "bg-[#f84525] text-white border-[#f84525]"
+                        : "bg-white text-gray-700 border-gray-300"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="border rounded-sm px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2 px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50">
+                <span>Date</span>
+                <span>Status</span>
+                <span>Work</span>
+                <span>Break</span>
+              </div>
+              {filteredAttendance.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">
+                  No attendance found for {attendanceDate || "selected date"}.
+                </p>
+              ) : (
+                filteredAttendance.slice(0, 8).map((item) => (
+                  <div
+                    key={item._id}
+                    className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm"
+                  >
+                    <span>{item.dateKey}</span>
+                    <span className="capitalize">{item.status?.replace("_", " ")}</span>
+                    <span>{minutesToHours(item.totalWorkMinutes)}</span>
+                    <span>{minutesToHours(item.totalBreakMinutes)}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -940,15 +1129,17 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <p className="p-4 text-sm text-gray-500">No leaves applied</p>
               ) : (
                 leaves.slice(0, 8).map((leave) => (
-                  <div
+                  <button
+                    type="button"
                     key={leave._id}
-                    className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm"
+                    onClick={() => setSelectedLeave(leave)}
+                    className="w-full text-left grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm hover:bg-[#fff8f6] transition-colors"
                   >
                     <span>{leave.title || leave.type.replace("_", " ")}</span>
                     <span>{new Date(leave.fromDate).toLocaleDateString()}</span>
                     <span>{leave.status}</span>
                     <span>{leave.hrComment || "-"}</span>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -957,6 +1148,21 @@ const EmployeeDashboard = ({ section = "all" }) => {
       )}
 
       {show("candidates") && (
+        <section className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-white rounded-sm shadow p-4">
+            <p className="text-sm text-gray-500">Interviews Taken</p>
+            <p className="text-2xl font-bold text-[#f84525] mt-1">{interviewLogs.length}</p>
+          </div>
+          <div className="bg-white rounded-sm shadow p-4">
+            <p className="text-sm text-gray-500">Pending Interviews</p>
+            <p className="text-2xl font-bold text-[#f84525] mt-1">{pendingInterviews.length}</p>
+          </div>
+          <div className="bg-white rounded-sm shadow p-4">
+            <p className="text-sm text-gray-500">Assigned Candidates</p>
+            <p className="text-2xl font-bold text-[#f84525] mt-1">{candidates.length}</p>
+          </div>
+        </div>
         <section className="bg-white rounded-sm shadow overflow-hidden">
           <div className="p-4 border-b bg-gray-50">
             <h2 className="font-semibold">Assigned Interviews</h2>
@@ -993,6 +1199,27 @@ const EmployeeDashboard = ({ section = "all" }) => {
               </div>
             ))
           )}
+        </section>
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b bg-gray-50">
+            <h2 className="font-semibold">Interview Logs</h2>
+            <p className="text-xs text-gray-500 mt-1">Completed interview reports submitted by you.</p>
+          </div>
+          {interviewLogs.length === 0 ? (
+            <p className="p-4 text-center text-gray-500">No interview logs yet</p>
+          ) : (
+            interviewLogs.slice(0, 12).map((item) => (
+              <div key={item._id} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center">
+                <span className="font-medium">{item.candidateName}</span>
+                <span>{item.jobRole || "-"}</span>
+                <span className="capitalize">{item.round?.replace("_", " ")}</span>
+                <span className="capitalize">{item.roundType?.replace("_", " ")}</span>
+                <span>Score {item.score}/10</span>
+                <span>{item.date ? new Date(item.date).toLocaleDateString() : "-"}</span>
+              </div>
+            ))
+          )}
+        </section>
         </section>
       )}
 
@@ -1068,6 +1295,61 @@ const EmployeeDashboard = ({ section = "all" }) => {
               className="justify-self-start"
             />
           </form>
+        </div>
+      )}
+
+      {selectedLeave && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-sm shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="p-4 border-b flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase text-[#f84525]">
+                  {selectedLeave.type?.replace("_", " ")}
+                </p>
+                <h2 className="text-xl font-bold text-gray-900 mt-1">
+                  {selectedLeave.title || "Leave Request"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLeave(null)}
+                className="text-gray-500 hover:text-[#f84525] text-lg px-2"
+                aria-label="Close leave detail"
+              >
+                x
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="border rounded-sm p-3">
+                  <p className="text-xs text-gray-500">From</p>
+                  <p className="font-semibold mt-1">
+                    {new Date(selectedLeave.fromDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="border rounded-sm p-3">
+                  <p className="text-xs text-gray-500">To</p>
+                  <p className="font-semibold mt-1">
+                    {new Date(selectedLeave.toDate || selectedLeave.fromDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="border rounded-sm p-3">
+                  <p className="text-xs text-gray-500">Status</p>
+                  <p className="font-semibold capitalize mt-1">{selectedLeave.status}</p>
+                </div>
+                <div className="border rounded-sm p-3">
+                  <p className="text-xs text-gray-500">HR Comment</p>
+                  <p className="font-semibold mt-1">{selectedLeave.hrComment || "-"}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Reason / Content</p>
+                <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                  {selectedLeave.content || selectedLeave.reason || "No reason added."}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

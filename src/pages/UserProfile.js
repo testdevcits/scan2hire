@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { authApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
+import FilePreviewModal from "../components/common/FilePreviewModal";
 import FileUploadField from "../components/common/FileUploadField";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
@@ -119,15 +120,11 @@ const UserProfile = ({ title = "My Profile" }) => {
       </section>
 
       {preview && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-sm shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold">{preview.title}</h2>
-              <button onClick={() => setPreview(null)} className="text-gray-500">x</button>
-            </div>
-            <iframe title={preview.title} src={preview.url} className="w-full h-[70vh]" />
-          </div>
-        </div>
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
       )}
     </div>
   );

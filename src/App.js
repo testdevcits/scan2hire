@@ -91,6 +91,7 @@ function App() {
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="credentials" element={<EmployeeCredentials />} />
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="documents" element={<UserProfile title="Documents" />} />

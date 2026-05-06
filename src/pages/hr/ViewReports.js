@@ -13,6 +13,10 @@ const ViewReports = () => {
   const { user } = useContext(AuthContext);
   const { mode } = useContext(ThemeContext);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportView, setReportView] = useState("employee");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [search, setSearch] = useState("");
   const [calendarYear, setCalendarYear] = useState(String(new Date().getFullYear()));
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
@@ -144,6 +148,35 @@ const ViewReports = () => {
     );
   }, [attendance, employees, leaves, month]);
 
+  const filteredEmployeeSummary = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return employeeMonthlySummary.filter((item) => {
+      const employee = item.employee || {};
+      const matchesEmployee = !selectedEmployeeId || employee._id === selectedEmployeeId;
+      const matchesSearch =
+        !term ||
+        [employee.name, employee.employeeId, employee.email, employee.department, employee.designation]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      return matchesEmployee && matchesSearch;
+    });
+  }, [employeeMonthlySummary, search, selectedEmployeeId]);
+
+  const filteredAttendance = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return attendance.filter((item) => {
+      const employee = item.employee || {};
+      const matchesEmployee = !selectedEmployeeId || employee._id === selectedEmployeeId;
+      const matchesDate = reportView !== "day" || !selectedDate || item.dateKey === selectedDate;
+      const matchesSearch =
+        !term ||
+        [employee.name, employee.employeeId, employee.email, item.status, item.dateKey]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      return matchesEmployee && matchesDate && matchesSearch;
+    });
+  }, [attendance, reportView, search, selectedDate, selectedEmployeeId]);
+
   const reviewLeave = async (leaveId, status) => {
     setLeaveUpdating(leaveId);
     try {
@@ -238,7 +271,7 @@ const ViewReports = () => {
   };
 
   const downloadMonthlyPdf = () => {
-    const summaryRows = employeeMonthlySummary
+    const summaryRows = filteredEmployeeSummary
       .map(
         (item) => `
           <tr>
@@ -254,7 +287,7 @@ const ViewReports = () => {
         `
       )
       .join("");
-    const rows = attendance
+    const rows = filteredAttendance
       .map(
         (item) => `
           <tr>
@@ -308,6 +341,69 @@ const ViewReports = () => {
     win.document.close();
   };
 
+  const downloadEmployeeMonthlyPdf = async () => {
+    if (!selectedEmployeeId) {
+      toast.error("Select an employee first");
+      return;
+    }
+    try {
+      const res = await hrApi.getEmployeeMonthlyReport(selectedEmployeeId, month);
+      const data = res.data.data || {};
+      const employee = data.employee || employees.find((item) => item._id === selectedEmployeeId) || {};
+      const records = data.records || [];
+      const summaryData = data.summary || {};
+      const rows = records
+        .map(
+          (item) => `
+            <tr>
+              <td>${item.dateKey}</td>
+              <td>${item.loginAt ? new Date(item.loginAt).toLocaleTimeString() : "-"}</td>
+              <td>${item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "-"}</td>
+              <td>${minutesToHours(item.totalWorkMinutes)}</td>
+              <td>${minutesToHours(item.totalBreakMinutes)}</td>
+              <td>${item.status}</td>
+            </tr>
+          `
+        )
+        .join("");
+      const win = window.open("", "_blank");
+      win.document.write(`
+        <html>
+          <head>
+            <title>${employee.name || "Employee"} Attendance ${month}</title>
+            <style>
+              body{font-family:Arial,sans-serif;padding:24px;color:#111}
+              table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+              th,td{border:1px solid #ddd;padding:8px;text-align:left}
+              th{background:#f5f5f5}
+              .summary{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+              .box{border:1px solid #ddd;padding:10px}
+            </style>
+          </head>
+          <body>
+            <h1>${employee.name || "Employee"} - Monthly Attendance</h1>
+            <p>${employee.employeeId || ""} | ${employee.department || ""} | ${month}</p>
+            <div class="summary">
+              <div class="box">Days: ${summaryData.days || 0}</div>
+              <div class="box">Present: ${summaryData.present || 0}</div>
+              <div class="box">Half Day: ${summaryData.halfDay || 0}</div>
+              <div class="box">Work: ${minutesToHours(summaryData.workMinutes || 0)}</div>
+              <div class="box">Break: ${minutesToHours(summaryData.breakMinutes || 0)}</div>
+            </div>
+            <table>
+              <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
+              <tbody>${rows || "<tr><td colspan='6'>No attendance found</td></tr>"}</tbody>
+            </table>
+            <script>window.onload = () => window.print();</script>
+          </body>
+        </html>
+      `);
+      win.document.close();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to download employee report");
+    }
+  };
+
   if (pageLoading) return <CommonLoader text="Loading reports..." />;
 
   return (
@@ -317,17 +413,50 @@ const ViewReports = () => {
           <h1 className="text-xl font-bold">Attendance & Leave Reports</h1>
           <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and leave approvals.</p>
         </div>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
-        <Button text="Download Monthly PDF" onClick={downloadMonthlyPdf} />
-        <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} />
+        <div className="flex flex-wrap gap-2">
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
+          <Button text="Download View" onClick={downloadMonthlyPdf} />
+          <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} />
+          <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} />
+        </div>
       </div>
+
+      <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <label className="text-sm font-medium">
+          View
+          <select value={reportView} onChange={(e) => setReportView(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+            <option value="employee">Employee View</option>
+            <option value="day">Day View</option>
+            <option value="records">All Records</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium md:col-span-2">
+          Employee
+          <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+            <option value="">All employees</option>
+            {employees.map((employee) => (
+              <option key={employee._id} value={employee._id}>
+                {employee.employeeId || "-"} - {employee.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-medium">
+          Day
+          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} disabled={reportView !== "day"} className="mt-1 w-full border rounded-sm px-3 py-2 disabled:bg-gray-50" />
+        </label>
+        <label className="text-sm font-medium">
+          Search
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID, status" className="mt-1 w-full border rounded-sm px-3 py-2" />
+        </label>
+      </section>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["Records", summary.total],
-          ["Present", summary.present],
-          ["Half Day", summary.halfDay],
-          ["Running", summary.running],
+          ["Employees", filteredEmployeeSummary.length],
+          ["Records", filteredAttendance.length],
+          ["Present", filteredAttendance.filter((item) => item.status === "present").length],
+          ["Half Day", filteredAttendance.filter((item) => item.status === "half_day").length],
         ].map(([label, value]) => (
           <div key={label} className="bg-white rounded-sm shadow p-4">
             <p className="text-sm text-gray-500">{label}</p>
@@ -346,10 +475,10 @@ const ViewReports = () => {
             <div key={item} className="px-4 py-3">{item}</div>
           ))}
         </div>
-        {employeeMonthlySummary.length === 0 ? (
+        {filteredEmployeeSummary.length === 0 ? (
           <p className="p-4 text-center text-gray-500">No employee data found</p>
         ) : (
-          employeeMonthlySummary.map((item) => (
+          filteredEmployeeSummary.map((item) => (
             <div key={item.employee?._id || item.employee?.email} className="grid grid-cols-2 md:grid-cols-8 gap-2 border-t px-4 py-3 text-sm">
               <span>{item.employee?.employeeId || "-"}</span>
               <span className="font-medium">{item.employee?.name || "N/A"}</span>
@@ -373,10 +502,10 @@ const ViewReports = () => {
             <div key={item} className="px-4 py-3">{item}</div>
           ))}
         </div>
-        {attendance.length === 0 ? (
+        {filteredAttendance.length === 0 ? (
           <p className="p-4 text-center text-gray-500">No attendance found</p>
         ) : (
-          attendance.map((item) => (
+          filteredAttendance.map((item) => (
             <div key={item._id} className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm">
               <span>{item.dateKey}</span>
               <span>{item.employee?.name || "N/A"}</span>

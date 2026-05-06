@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from "react";
+import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
 import FileUploadField from "../../components/common/FileUploadField";
@@ -25,6 +26,17 @@ const AdminSettings = () => {
     photo: null,
   });
   const [profileSaving, setProfileSaving] = useState(false);
+  const [credentials, setCredentials] = useState([]);
+  const [credentialForm, setCredentialForm] = useState({
+    accountType: "Email",
+    title: "",
+    loginId: "",
+    password: "",
+    notes: "",
+  });
+  const [credentialSaving, setCredentialSaving] = useState(false);
+  const [showCredentialForm, setShowCredentialForm] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState({});
 
   const fileToDataUri = (file) =>
     new Promise((resolve, reject) => {
@@ -35,8 +47,8 @@ const AdminSettings = () => {
     });
 
   useEffect(() => {
-    Promise.all([authApi.getSettings(), authApi.getProfile()])
-      .then(([settingsRes, profileRes]) => {
+    Promise.all([authApi.getSettings(), authApi.getProfile(), authApi.getMyAccountCredentials()])
+      .then(([settingsRes, profileRes, credentialsRes]) => {
         const data = settingsRes.data.data || {};
         const profile = profileRes.data.data || {};
         setForm((prev) => ({
@@ -53,6 +65,7 @@ const AdminSettings = () => {
           mobile: profile.mobile || "",
           photo: null,
         });
+        setCredentials(credentialsRes.data.data || []);
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load settings"))
       .finally(() => setLoading(false));
@@ -91,6 +104,46 @@ const AdminSettings = () => {
       toast.error(err.response?.data?.message || "Unable to update settings");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadCredentials = async () => {
+    const res = await authApi.getMyAccountCredentials();
+    setCredentials(res.data.data || []);
+  };
+
+  const saveCredential = async (e) => {
+    e.preventDefault();
+    setCredentialSaving(true);
+    try {
+      await authApi.createMyAccountCredential(credentialForm);
+      setCredentialForm({ accountType: "Email", title: "", loginId: "", password: "", notes: "" });
+      setShowCredentialForm(false);
+      await loadCredentials();
+      toast.success("Credential saved");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to save credential");
+    } finally {
+      setCredentialSaving(false);
+    }
+  };
+
+  const deleteCredential = async (credentialId) => {
+    try {
+      await authApi.deleteMyAccountCredential(credentialId);
+      await loadCredentials();
+      toast.success("Credential deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete credential");
+    }
+  };
+
+  const copyValue = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error("Unable to copy");
     }
   };
 
@@ -141,6 +194,77 @@ const AdminSettings = () => {
             <Button text={profileSaving ? "Saving..." : "Save Profile"} loading={profileSaving} type="submit" className="md:col-span-2" />
           </div>
         </form>
+
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">My Saved Credentials</h2>
+              <p className="text-sm text-gray-500 mt-1">Save your own admin logins and passwords.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCredentialForm((prev) => !prev)}
+              className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center"
+              aria-label="Add credential"
+            >
+              <FiPlus />
+            </button>
+          </div>
+          {showCredentialForm && (
+            <form onSubmit={saveCredential} className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="text-sm font-medium">
+                Account Type
+                <select value={credentialForm.accountType} onChange={(e) => setCredentialForm((prev) => ({ ...prev, accountType: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                  <option>Email</option>
+                  <option>Hosting</option>
+                  <option>Social</option>
+                  <option>Client Panel</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label className="text-sm font-medium">
+                Title
+                <input value={credentialForm.title} onChange={(e) => setCredentialForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+              </label>
+              <label className="text-sm font-medium">
+                Login / Email
+                <input value={credentialForm.loginId} onChange={(e) => setCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+              </label>
+              <label className="text-sm font-medium">
+                Password
+                <input type="password" value={credentialForm.password} onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+              </label>
+              <label className="text-sm font-medium md:col-span-2">
+                Notes
+                <textarea value={credentialForm.notes} onChange={(e) => setCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
+              </label>
+              <Button text="Save Credential" type="submit" loading={credentialSaving} className="md:col-span-2 justify-self-start" />
+            </form>
+          )}
+          {credentials.length === 0 ? (
+            <p className="p-4 text-sm text-gray-500">No saved credentials yet.</p>
+          ) : (
+            credentials.map((item) => (
+              <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.accountType}</p>
+                  <p className="text-sm break-all mt-1">{item.loginId}</p>
+                  <p className="text-sm mt-1">{revealedPasswords[item._id] ? item.password : "••••••••"}</p>
+                  {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))} className="border rounded-sm px-3 py-2 text-sm">
+                    {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                  <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
+                  <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
+                  <button type="button" onClick={() => deleteCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">Delete</button>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
 
         <form onSubmit={saveSettings} className="space-y-4">
         <section className="bg-white rounded-sm shadow p-4">
