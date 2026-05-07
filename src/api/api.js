@@ -57,17 +57,26 @@ export const hrApi = {
   getAttendance: (month) => API.get("/hr/attendance", { params: { month } }),
   getEmployeeMonthlyReport: (employeeId, month) =>
     API.get(`/hr/attendance/employees/${employeeId}/monthly`, { params: { month } }),
-  getLeaves: () => API.get("/hr/leaves"),
+  getLeaves: (params) => API.get("/hr/leaves", { params }),
   reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload),
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
   deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),
   getEmployeeCredentials: (vaultPassword) =>
     API.get("/hr/employee-credentials", { params: { vaultPassword } }),
+  getEmployeeAccess: () => API.get("/hr/employee-access"),
+  updateEmployeeAccess: (employeeId, payload) =>
+    API.put(`/hr/employee-access/${employeeId}`, payload),
+  getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
+  createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
+  updateSystemAllotment: (allotmentId, payload) =>
+    API.put(`/hr/system-allotments/${allotmentId}`, payload),
+  deleteSystemAllotment: (allotmentId) => API.delete(`/hr/system-allotments/${allotmentId}`),
 };
 
 export const employeeApi = {
   getProfile: () => API.get("/employees/me"),
+  getMyAccess: () => API.get("/employees/me/access"),
   updateProfileImage: (payload) => API.patch("/employees/me/profile-image", payload),
   getMyAccountCredentials: () => API.get("/employees/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/employees/me/account-credentials", payload),
@@ -86,6 +95,12 @@ export const employeeApi = {
   getInterviewLogs: () => API.get("/employees/interview-logs"),
   updateRound: (candidateId, payload) =>
     API.put(`/employees/candidates/${candidateId}/round`, payload),
+  getSystemAllotments: (params) => API.get("/employees/system-allotments", { params }),
+  getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
+  createSystemAllotment: (payload) => API.post("/employees/system-allotments", payload),
+  updateSystemAllotment: (allotmentId, payload) =>
+    API.put(`/employees/system-allotments/${allotmentId}`, payload),
+  deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),

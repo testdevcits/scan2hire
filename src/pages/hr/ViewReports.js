@@ -26,7 +26,6 @@ const ViewReports = () => {
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
-  const [leaveUpdating, setLeaveUpdating] = useState("");
   const [holidayForm, setHolidayForm] = useState({
     date: "",
     title: "",
@@ -39,7 +38,7 @@ const ViewReports = () => {
     try {
       const [attendanceRes, leavesRes, calendarRes, employeesRes] = await Promise.all([
         hrApi.getAttendance(month),
-        hrApi.getLeaves(),
+        hrApi.getLeaves({ month, status: "approved" }),
         hrApi.getCalendar(null, calendarYear),
         hrApi.getEmployees(),
       ]);
@@ -176,19 +175,6 @@ const ViewReports = () => {
       return matchesEmployee && matchesDate && matchesSearch;
     });
   }, [attendance, reportView, search, selectedDate, selectedEmployeeId]);
-
-  const reviewLeave = async (leaveId, status) => {
-    setLeaveUpdating(leaveId);
-    try {
-      await hrApi.reviewLeave(leaveId, { status });
-      await loadReports();
-      toast.success(`Leave ${status}`);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update leave");
-    } finally {
-      setLeaveUpdating("");
-    }
-  };
 
   const saveCalendar = async (e) => {
     e.preventDefault();
@@ -410,8 +396,8 @@ const ViewReports = () => {
     <div className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Attendance & Leave Reports</h1>
-          <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and leave approvals.</p>
+          <h1 className="text-xl font-bold">Attendance Reports</h1>
+          <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and approved leave totals.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
@@ -643,30 +629,6 @@ const ViewReports = () => {
       </div>
       )}
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold">Leave Requests</h2>
-        </div>
-        {leaves.length === 0 ? (
-          <p className="p-4 text-center text-gray-500">No leave requests</p>
-        ) : (
-          leaves.map((leave) => (
-            <div key={leave._id} className="grid grid-cols-1 md:grid-cols-8 gap-2 border-t px-4 py-3 text-sm md:items-center">
-              <span>{leave.employee?.name || "N/A"}</span>
-              <span>{leave.type.replace("_", " ")}</span>
-              <span>{leave.title || "Leave Request"}</span>
-              <span>{new Date(leave.fromDate).toLocaleDateString()}</span>
-              <span>{new Date(leave.toDate).toLocaleDateString()}</span>
-              <span>{leave.content || leave.reason}</span>
-              <span className="font-medium">{leave.status}</span>
-              <div className="flex gap-2">
-                <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={leaveUpdating === leave._id} disabled={leave.status !== "pending"} />
-                <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={leaveUpdating === leave._id} disabled={leave.status !== "pending"} />
-              </div>
-            </div>
-          ))
-        )}
-      </section>
     </div>
   );
 };

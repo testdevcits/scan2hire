@@ -21,6 +21,7 @@ import EmployeeLayout from "./layouts/EmployeeLayout";
 import HRDashboard from "./pages/hr/HRDashboard";
 import ManageEmployees from "./pages/hr/ManageEmployees";
 import ViewReports from "./pages/hr/ViewReports";
+import LeaveReports from "./pages/hr/LeaveReports";
 import ThankYouPage from "./pages/ThankYouPage";
 import Candidates from "./pages/hr/Candidates/Candidates";
 import CandidateDetail from "./pages/hr/Candidates/CandidateDetail";
@@ -30,6 +31,8 @@ import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeForgotPassword from "./pages/EmployeeForgotPassword";
 import AdminSettings from "./pages/admin/AdminSettings";
 import ManageHR from "./pages/admin/ManageHR";
+import EmployeeAccessControl from "./pages/admin/EmployeeAccessControl";
+import SystemAllotments from "./pages/SystemAllotments";
 import UserProfile from "./pages/UserProfile";
 import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
@@ -72,7 +75,10 @@ function App() {
           <Route path="candidates" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
+          <Route path="access-control" element={<EmployeeAccessControl />} />
+          <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
 
@@ -91,7 +97,9 @@ function App() {
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
+          <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="documents" element={<UserProfile title="Documents" />} />
@@ -115,6 +123,7 @@ function App() {
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
           <Route path="candidates" element={<EmployeeDashboard section="candidates" />} />
+          <Route path="system-allotments" element={<SystemAllotments />} />
         </Route>
 
         {/* Unauthorized route */}
