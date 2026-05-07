@@ -1,7 +1,10 @@
+import { useContext } from "react";
 import SidebarLayout from "./SidebarLayout";
 import { FiBarChart2, FiCalendar, FiClock, FiFileText, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
+import { AuthContext } from "../contexts/AuthContext";
 
 const EmployeeLayout = () => {
+  const { user } = useContext(AuthContext);
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
@@ -14,7 +17,7 @@ const EmployeeLayout = () => {
     { label: "Settings", path: "/employee/settings", icon: <FiSettings /> },
   ];
 
-  return <SidebarLayout title="Employee Panel" navItems={navItems} />;
+  return <SidebarLayout title={user?.role === "teamlead" ? "Team Lead Panel" : "Employee Panel"} navItems={navItems} />;
 };
 
 export default EmployeeLayout;

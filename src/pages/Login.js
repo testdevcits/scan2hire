@@ -20,7 +20,7 @@ const Login = () => {
     if (res.success) {
       if (res.data.role === "superadmin") {
         navigate("/admin");
-      } else if (res.data.role === "hr") {
+      } else if (res.data.role === "hr" || res.data.role === "teamlead") {
         navigate("/hr");
       } else if (res.data.role === "employee") {
         navigate("/employee/dashboard");

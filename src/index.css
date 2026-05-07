@@ -98,3 +98,12 @@ body {
   color: #f84525 !important;
   opacity: 0.85 !important;
 }
+
+.sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}

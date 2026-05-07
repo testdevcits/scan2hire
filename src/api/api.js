@@ -14,8 +14,9 @@ export const authApi = {
   getMyAccountCredentials: () => API.get("/users/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/users/me/account-credentials", payload),
   deleteMyAccountCredential: (credentialId) => API.delete(`/users/me/account-credentials/${credentialId}`),
-  getHrs: () => API.get("/users/hrs"),
+  getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
   createHr: (payload) => API.post("/users/hrs", payload),
+  updateUser: (userId, payload) => API.put(`/users/${userId}`, payload),
   deactivateUser: (userId) => API.patch(`/users/${userId}/deactivate`),
   activateUser: (userId) => API.patch(`/users/${userId}/activate`),
   deleteUser: (userId) => API.delete(`/users/${userId}`),
@@ -69,6 +70,7 @@ export const hrApi = {
     API.put(`/hr/employee-access/${employeeId}`, payload),
   getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
   createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
+  importSystemAllotments: (rows) => API.post("/hr/system-allotments/import", { rows }),
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/hr/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/hr/system-allotments/${allotmentId}`),
@@ -98,6 +100,7 @@ export const employeeApi = {
   getSystemAllotments: (params) => API.get("/employees/system-allotments", { params }),
   getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
   createSystemAllotment: (payload) => API.post("/employees/system-allotments", payload),
+  importSystemAllotments: (rows) => API.post("/employees/system-allotments/import", { rows }),
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/employees/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),

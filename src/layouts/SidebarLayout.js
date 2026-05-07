@@ -109,56 +109,58 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
 
   const isAdmin = variant === "admin";
   const asideClass = isAdmin
-    ? "bg-[#111827] text-white"
+    ? "bg-[#0b1220] text-white border-r-4 border-[#f84525]"
     : mode === "dark"
-    ? "bg-gray-900 text-white border-r border-gray-800"
-    : "bg-white";
-  const activeClass = isAdmin ? "bg-[#f84525] text-white" : "bg-header text-white";
+    ? "bg-gray-900 text-white border-r-2 border-gray-700"
+    : "bg-white border-r-2 border-gray-200";
+  const activeClass = isAdmin
+    ? "bg-[#f84525] text-white border border-[#ff896f] shadow-sm"
+    : "bg-header text-white border border-header";
   const inactiveClass = isAdmin
-    ? "text-gray-300 hover:bg-gray-800 hover:text-white"
+    ? "text-gray-200 border border-white/10 hover:bg-[#162036] hover:text-white hover:border-white/20"
     : mode === "dark"
-    ? "text-gray-300 hover:bg-gray-800 hover:text-white"
-    : "text-gray-700 hover:bg-red-50 hover:text-[#f84525]";
+    ? "text-gray-300 border border-gray-800 hover:bg-gray-800 hover:text-white hover:border-gray-700"
+    : "text-gray-700 border border-transparent hover:bg-red-50 hover:text-[#f84525] hover:border-red-100";
 
   return (
     <div className={`flex h-screen font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}>
       <aside
-        className={`fixed top-0 left-0 h-full w-64 ${asideClass} shadow-lg p-4 flex flex-col justify-between transform transition-transform duration-300 z-40 ${
+        className={`fixed top-0 left-0 h-full w-64 ${asideClass} shadow-xl p-4 flex flex-col transform transition-transform duration-300 z-40 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 md:relative`}
       >
-        <div>
-          <div className="flex items-center gap-2 mb-5">
+        <div className="shrink-0">
+          <div className={`flex items-center gap-2 mb-5 pb-4 border-b ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
             <img src={logo} alt="Scan2Hire" className="w-7 h-7" />
             <div>
               <h1 className={`text-lg font-bold ${isAdmin ? "text-white" : "text-header"}`}>{title}</h1>
               <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>{user?.role}</p>
             </div>
           </div>
-
-          <nav className="flex flex-col gap-1.5">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.end}
-                onClick={closeMobileSidebar}
-                className={({ isActive }) =>
-                  `px-3 py-2.5 rounded-sm text-[15px] font-semibold transition-colors ${
-                    isActive ? activeClass : inactiveClass
-                  }`
-                }
-              >
-                <span className="flex items-center gap-2">
-                  {item.icon}
-                  {item.label}
-                </span>
-              </NavLink>
-            ))}
-          </nav>
         </div>
 
-        <div className="space-y-2">
+        <nav className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5 sidebar-scroll">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end}
+              onClick={closeMobileSidebar}
+              className={({ isActive }) =>
+                `px-3 py-2.5 rounded-sm text-[15px] font-semibold transition-colors shrink-0 ${
+                  isActive ? activeClass : inactiveClass
+                }`
+              }
+            >
+              <span className="flex items-center gap-2">
+                {item.icon}
+                {item.label}
+              </span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className={`shrink-0 space-y-2 pt-3 mt-3 border-t ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
           <button
             onClick={toggleMode}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm ${
@@ -263,7 +265,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                             <p className="text-gray-600 mt-1">{item.message}</p>
                             <p className="text-xs text-gray-400 mt-2">{new Date(item.createdAt).toLocaleString()}</p>
                           </div>
-                          {["hr", "superadmin"].includes(user?.role) && (
+                          {["hr", "superadmin", "teamlead"].includes(user?.role) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

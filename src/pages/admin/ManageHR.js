@@ -12,9 +12,11 @@ const ManageHR = () => {
   const { confirm } = useModal();
   const [hrs, setHrs] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const roleLabel = "HR";
 
   const loadHrs = useCallback(async () => {
     setLoading(true);
@@ -22,13 +24,16 @@ const ManageHR = () => {
       const res = await authApi.getHrs();
       setHrs(res.data.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load HR users");
+      toast.error(err.response?.data?.message || `Unable to load ${roleLabel} users`);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [roleLabel, toast]);
 
   useEffect(() => {
+    setForm(emptyForm);
+    setEditingId("");
+    setShowForm(false);
     loadHrs();
   }, [loadHrs]);
 
@@ -38,46 +43,73 @@ const ManageHR = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const createHr = async (e) => {
+  const saveHr = async (e) => {
     e.preventDefault();
+    const ok = await confirm({
+      title: editingId ? `Update ${roleLabel}` : `Create ${roleLabel}`,
+      message: editingId
+        ? `Are you sure you want to update this ${roleLabel} account?`
+        : `Are you sure you want to create this ${roleLabel} account?`,
+      confirmText: editingId ? "Update" : "Create",
+    });
+    if (!ok) return;
     setSaving(true);
     try {
-      await authApi.createHr({ ...form, role: "hr" });
+      if (editingId) {
+        const payload = { ...form };
+        if (!payload.password) delete payload.password;
+        await authApi.updateUser(editingId, payload);
+      } else {
+        await authApi.createHr({ ...form, role: "hr" });
+      }
       setForm(emptyForm);
+      setEditingId("");
       setShowForm(false);
-      toast.success("HR account created");
+      toast.success(`${roleLabel} account ${editingId ? "updated" : "created"}`);
       await loadHrs();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to add HR");
+      toast.error(err.response?.data?.message || `Unable to save ${roleLabel}`);
     } finally {
       setSaving(false);
     }
   };
 
+  const editHr = async (hr) => {
+    const ok = await confirm({
+      title: `Edit ${roleLabel}`,
+      message: `Are you sure you want to edit ${hr.name}?`,
+      confirmText: "Edit",
+    });
+    if (!ok) return;
+    setEditingId(hr._id);
+    setForm({ name: hr.name || "", email: hr.email || "", mobile: hr.mobile || "", password: "" });
+    setShowForm(true);
+  };
+
   const toggleHr = async (hr) => {
     const action = hr.isActive ? "deactivate" : "activate";
-    if (hr.isActive) {
-      const ok = await confirm({
-        title: "Deactivate HR",
-        message: `${hr.name} will not be able to login.`,
-        confirmText: "Deactivate",
-        tone: "danger",
-      });
-      if (!ok) return;
-    }
+    const ok = await confirm({
+      title: `${hr.isActive ? "Deactivate" : "Activate"} ${roleLabel}`,
+      message: hr.isActive
+        ? `${hr.name} will not be able to login. Are you sure?`
+        : `${hr.name} will be able to login again. Are you sure?`,
+      confirmText: hr.isActive ? "Deactivate" : "Activate",
+      tone: hr.isActive ? "danger" : "primary",
+    });
+    if (!ok) return;
     try {
       if (hr.isActive) await authApi.deactivateUser(hr._id);
       else await authApi.activateUser(hr._id);
-      toast.success(`HR ${action}d`);
+      toast.success(`${roleLabel} ${action}d`);
       await loadHrs();
     } catch (err) {
-      toast.error(err.response?.data?.message || `Unable to ${action} HR`);
+      toast.error(err.response?.data?.message || `Unable to ${action} ${roleLabel}`);
     }
   };
 
   const deleteHr = async (hr) => {
     const ok = await confirm({
-      title: "Delete HR",
+      title: `Delete ${roleLabel}`,
       message: `${hr.name} will be permanently deleted.`,
       confirmText: "Delete",
       tone: "danger",
@@ -85,35 +117,39 @@ const ManageHR = () => {
     if (!ok) return;
     try {
       await authApi.deleteUser(hr._id);
-      toast.success("HR deleted");
+      toast.success(`${roleLabel} deleted`);
       await loadHrs();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to delete HR");
+      toast.error(err.response?.data?.message || `Unable to delete ${roleLabel}`);
     }
   };
 
-  if (loading) return <CommonLoader text="Loading HR accounts..." />;
+  if (loading) return <CommonLoader text={`Loading ${roleLabel} accounts...`} />;
 
   return (
     <div className="space-y-5">
       <section className="bg-white rounded-sm shadow p-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage HR</h1>
-            <p className="text-sm text-gray-500 mt-1">Create, activate, deactivate, and delete HR accounts.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Manage {roleLabel}</h1>
+            <p className="text-sm text-gray-500 mt-1">Create, view, update, activate, deactivate, and delete {roleLabel} accounts.</p>
           </div>
           <Button
-            text={showForm ? "Close Form" : "Add New HR"}
+            text={showForm ? "Close Form" : `Add New ${roleLabel}`}
             variant={showForm ? "secondary" : "primary"}
-            onClick={() => setShowForm((prev) => !prev)}
+            onClick={() => {
+              setShowForm((prev) => !prev);
+              setEditingId("");
+              setForm(emptyForm);
+            }}
           />
         </div>
       </section>
 
       {showForm && (
       <section className="bg-white rounded-sm shadow p-4">
-        <h2 className="font-semibold mb-3">Create HR Login</h2>
-        <form onSubmit={createHr} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <h2 className="font-semibold mb-3">{editingId ? "Update" : "Create"} {roleLabel} Login</h2>
+        <form onSubmit={saveHr} className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {[
             ["name", "Full Name"],
             ["email", "Email"],
@@ -128,11 +164,11 @@ const ManageHR = () => {
                 value={form[name]}
                 onChange={handleChange}
                 className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-                required
+                required={name !== "password" || !editingId}
               />
             </label>
           ))}
-          <Button text="Create HR" type="submit" loading={saving} className="md:col-span-4" />
+          <Button text={editingId ? `Update ${roleLabel}` : `Create ${roleLabel}`} type="submit" loading={saving} className="md:col-span-4" />
         </form>
       </section>
       )}
@@ -150,6 +186,9 @@ const ManageHR = () => {
               {hr.isActive ? "Active" : "Inactive"}
             </span>
             <span className="flex gap-2 flex-wrap">
+              <button onClick={() => editHr(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-blue-600">
+                Edit
+              </button>
               <button onClick={() => toggleHr(hr)} className={`px-3 py-1.5 rounded-sm text-xs text-white ${hr.isActive ? "bg-gray-900" : "bg-green-600"}`}>
                 {hr.isActive ? "Deactivate" : "Activate"}
               </button>
