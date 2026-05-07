@@ -71,6 +71,7 @@ export const hrApi = {
   getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
   createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/hr/system-allotments/import", { rows }),
+  bulkDeleteSystemAllotments: (rows) => API.post("/hr/system-allotments/bulk-delete", { rows }),
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/hr/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/hr/system-allotments/${allotmentId}`),
@@ -101,6 +102,7 @@ export const employeeApi = {
   getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
   createSystemAllotment: (payload) => API.post("/employees/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/employees/system-allotments/import", { rows }),
+  bulkDeleteSystemAllotments: (rows) => API.post("/employees/system-allotments/bulk-delete", { rows }),
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/employees/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),
