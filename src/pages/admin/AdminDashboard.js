@@ -93,10 +93,10 @@ const AdminDashboard = () => {
 
   const candidateMix = useMemo(
     () => [
-      { name: "First", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE },
-      { name: "Second", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: ORANGE_SOFT },
-      { name: "Final", value: candidates.filter((item) => item.interviewStatus === "final").length, color: SLATE },
-      { name: "Selected", value: candidates.filter((item) => item.interviewStatus === "selected").length, color: "#fb923c" },
+      { name: "HR", value: candidates.filter((item) => item.interviewStatus === "hr_round").length, color: ORANGE },
+      { name: "Technical", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE_SOFT },
+      { name: "Machine Test", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: "#fb923c" },
+      { name: "Selected", value: candidates.filter((item) => item.interviewStatus === "selected").length, color: "#f97316" },
       { name: "Rejected", value: candidates.filter((item) => item.interviewStatus === "rejected").length, color: RED },
     ],
     [candidates]
@@ -131,7 +131,7 @@ const AdminDashboard = () => {
       },
       {
         label: "Interviews Running",
-        value: candidates.filter((item) => ["first_round", "second_round", "final"].includes(item.interviewStatus)).length,
+        value: candidates.filter((item) => ["hr_round", "first_round", "second_round"].includes(item.interviewStatus)).length,
         note: "Candidates currently active in interview rounds",
       },
       {

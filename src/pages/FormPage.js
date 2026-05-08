@@ -1,6 +1,6 @@
 // src/pages/FormPage.js
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/common/Button";
@@ -11,13 +11,11 @@ import Step2 from "./steps/Step2";
 import Step3 from "./steps/Step3";
 
 const FormPage = () => {
-  const { qrId: paramQrId } = useParams(); // Get QR ID from URL
   const navigate = useNavigate();
   const toast = useToast();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [qrId] = useState(paramQrId || ""); // QR ID state
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     name: "",
@@ -122,11 +120,6 @@ const FormPage = () => {
 
   // Submit form
   const handleSubmit = async () => {
-    if (!qrId) {
-      toast.error("QR ID missing. Please scan the QR code.");
-      return;
-    }
-
     if (!formData.name || !formData.email || !formData.mobile) {
       toast.error("Name, Email, and Mobile are required.");
       return;
@@ -137,7 +130,6 @@ const FormPage = () => {
     setLoading(true);
     try {
       const payload = {
-        qrId,
         ...formData,
         qualification:
           formData.qualification === "Other"
@@ -163,10 +155,17 @@ const FormPage = () => {
         return;
       }
 
+      const candidateId = saveData.data?.candidateId;
+
+      if (!candidateId) {
+        toast.error("Candidate ID was not generated. Please try again.");
+        return;
+      }
+
       // Send OTP
       const { data: otpData } = await candidateApi.sendOtp({
         email: formData.email,
-        qrId,
+        candidateId,
       });
 
       if (!otpData.success) {
@@ -177,7 +176,7 @@ const FormPage = () => {
       // Save candidate info for OTP page
       localStorage.setItem(
         "candidateForm",
-        JSON.stringify({ email: formData.email, qrId })
+        JSON.stringify({ email: formData.email, candidateId })
       );
 
       // Redirect to OTP page automatically
@@ -191,17 +190,6 @@ const FormPage = () => {
       setLoading(false);
     }
   };
-
-  // If QR ID missing in URL
-  if (!qrId) {
-    return (
-      <div className="flex flex-col min-h-screen justify-center items-center">
-        <p className="text-red-500">
-          QR ID missing. Please scan the QR code to open the form.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen font-montserrat bg-[#f7f8fb] dark:bg-dark">
@@ -276,7 +264,6 @@ const FormPage = () => {
               {step === 3 && (
                 <Step3
                   formData={formData}
-                  qrId={qrId}
                   onBack={prevStep}
                   onSubmit={handleSubmit}
                   loading={loading}

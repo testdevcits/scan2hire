@@ -14,12 +14,11 @@ const formatValue = (value) => {
   return value;
 };
 
-const roundOrder = ["first_round", "second_round", "third_round", "final", "selected"];
+const roundOrder = ["hr_round", "first_round", "second_round"];
 const roundLabels = {
-  first_round: "First Round",
-  second_round: "Second Round",
-  third_round: "Third Round",
-  final: "Final",
+  hr_round: "HR Round",
+  first_round: "Technical Round",
+  second_round: "Machine Test",
   selected: "Selected",
   rejected: "Rejected",
 };
@@ -30,9 +29,9 @@ const getAllowedStatuses = (candidate) => {
       .filter((round) => round.status === "completed")
       .map((round) => round.round)
   );
-  const allowed = ["rejected"];
+  const allowed = ["selected", "rejected"];
   for (const status of roundOrder) {
-    if (status === "first_round") {
+    if (status === "hr_round") {
       allowed.push(status);
       if (!completed.has(status)) break;
       continue;
@@ -40,10 +39,24 @@ const getAllowedStatuses = (candidate) => {
     const previous = roundOrder[roundOrder.indexOf(status) - 1];
     if (!completed.has(previous)) break;
     allowed.push(status);
-    if (status !== "selected" && !completed.has(status)) break;
+    if (!completed.has(status)) break;
   }
+
   return allowed;
 };
+
+const getDefaultRoundType = (status) => {
+  if (status === "hr_round") return "hr";
+  if (status === "second_round") return "machine_test";
+  return "technical";
+};
+
+const getCompletedRounds = (candidate) =>
+  new Set(
+    (candidate?.interviewRounds || [])
+      .filter((round) => round.status === "completed")
+      .map((round) => round.round)
+  );
 
 const salaryText = (amount, period) =>
   amount ? `${amount} / ${period === "monthly" ? "month" : "annum"}` : "N/A";
@@ -58,11 +71,13 @@ const CandidateDetail = () => {
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusForm, setStatusForm] = useState({
-    interviewStatus: "first_round",
-    roundType: "technical",
+    interviewStatus: "hr_round",
+    roundType: "hr",
     hrStatus: "pending",
     assignedTo: "",
     remarks: "",
+    score: "",
+    comments: "",
   });
 
   const loadCandidate = async () => {
@@ -75,11 +90,13 @@ const CandidateDetail = () => {
       const data = candidateRes.data.data;
       setCandidate(data);
       setStatusForm({
-        interviewStatus: data.interviewStatus || "first_round",
-        roundType: "technical",
+        interviewStatus: data.interviewStatus || "hr_round",
+        roundType: data.currentRoundType || (data.interviewStatus === "hr_round" ? "hr" : "technical"),
         hrStatus: data.hrReview?.hrStatus || "pending",
         assignedTo: data.assignedTo?._id || "",
         remarks: data.remarks || "",
+        score: "",
+        comments: "",
       });
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load candidate");
@@ -95,15 +112,41 @@ const CandidateDetail = () => {
 
   const updateAssignment = async (e) => {
     e.preventDefault();
+    const completingHrRound =
+      candidate.interviewStatus === "hr_round" &&
+      statusForm.interviewStatus === "hr_round" &&
+      (statusForm.score !== "" || statusForm.comments.trim());
+
+    if (completingHrRound && statusForm.score === "") {
+      toast.error("Please add score to complete HR Round.");
+      return;
+    }
+
+    if (["first_round", "second_round"].includes(statusForm.interviewStatus) && !statusForm.assignedTo) {
+      toast.error(`${roundLabels[statusForm.interviewStatus]} must be assigned to an employee.`);
+      return;
+    }
+
     if (statusForm.interviewStatus === "rejected" && !statusForm.remarks.trim()) {
       toast.error("Please add HR reply in remarks before rejecting.");
       return;
     }
     try {
-      await hrApi.updateCandidateStatus(candidateId, {
+      const payload = {
         ...statusForm,
-      });
-      toast.success("Candidate updated. Assigned employee will receive email.");
+        assignedRoundType: getDefaultRoundType(statusForm.interviewStatus),
+      };
+
+      if (completingHrRound) {
+        payload.round = "hr_round";
+        payload.roundType = "hr";
+      } else {
+        delete payload.score;
+        delete payload.comments;
+      }
+
+      await hrApi.updateCandidateStatus(candidateId, payload);
+      toast.success("Candidate updated");
       await loadCandidate();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update candidate");
@@ -200,6 +243,7 @@ const CandidateDetail = () => {
   if (loading) return <CommonLoader text="Loading candidate..." />;
   if (!candidate) return <p className="text-red-500">Candidate not found</p>;
   const allowedStatuses = getAllowedStatuses(candidate);
+  const completedRounds = getCompletedRounds(candidate);
 
   return (
     <div className="space-y-4">
@@ -207,7 +251,7 @@ const CandidateDetail = () => {
         <div>
           <h1 className="text-2xl font-bold">{candidate.name}</h1>
           <p className="text-sm text-gray-500">
-            {candidate.candidateId} • {candidate.jobRole || "No role"} • {candidate.interviewStatus}
+            {candidate.candidateId} • {candidate.jobRole || "No role"} • {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -222,6 +266,29 @@ const CandidateDetail = () => {
           )}
         </div>
       </div>
+
+      <section className="bg-white rounded-sm shadow p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {roundOrder.map((status, index) => {
+            const completed = completedRounds.has(status);
+            const active = candidate.interviewStatus === status && !completed;
+            return (
+              <div key={status} className="relative">
+                <div className={`h-2 rounded-sm mb-2 ${completed ? "bg-green-500" : active ? "bg-[#f84525]" : "bg-gray-200"}`} />
+                <p className={`text-sm font-semibold ${completed ? "text-green-700" : active ? "text-[#f84525]" : "text-gray-500"}`}>
+                  {index + 1}. {roundLabels[status]}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {completed ? "Completed" : active ? "Current" : "Pending"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-gray-500 mt-3">
+          Round flow follows HR Round, Technical Round, then Machine Test. Selected/Rejected can be marked anytime.
+        </p>
+      </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
@@ -252,10 +319,17 @@ const CandidateDetail = () => {
             Interview Status
             <select
               value={statusForm.interviewStatus}
-              onChange={(e) => setStatusForm((prev) => ({ ...prev, interviewStatus: e.target.value }))}
+              onChange={(e) =>
+                setStatusForm((prev) => ({
+                  ...prev,
+                  interviewStatus: e.target.value,
+                  roundType: getDefaultRoundType(e.target.value),
+                  assignedTo: e.target.value === "hr_round" ? "" : prev.assignedTo,
+                }))
+              }
               className="mt-1 w-full border rounded-sm px-3 py-2"
             >
-              {["first_round", "second_round", "third_round", "final", "selected", "rejected"].map((status) => (
+              {["hr_round", "first_round", "second_round", "selected", "rejected"].map((status) => (
                 <option key={status} value={status} disabled={!allowedStatuses.includes(status)}>
                   {roundLabels[status]}
                 </option>
@@ -268,6 +342,7 @@ const CandidateDetail = () => {
               value={statusForm.roundType}
               onChange={(e) => setStatusForm((prev) => ({ ...prev, roundType: e.target.value }))}
               className="mt-1 w-full border rounded-sm px-3 py-2"
+              disabled
             >
               <option value="technical">Technical Round</option>
               <option value="machine_test">Machine Test</option>
@@ -284,8 +359,9 @@ const CandidateDetail = () => {
               value={statusForm.assignedTo}
               onChange={(e) => setStatusForm((prev) => ({ ...prev, assignedTo: e.target.value }))}
               className="mt-1 w-full border rounded-sm px-3 py-2"
+              disabled={statusForm.interviewStatus === "hr_round" || ["selected", "rejected"].includes(statusForm.interviewStatus)}
             >
-              <option value="">Unassigned</option>
+              <option value="">{statusForm.interviewStatus === "hr_round" ? "HR will complete this round" : "Unassigned"}</option>
               {employees.map((employee) => (
                 <option key={employee._id} value={employee._id}>
                   {employee.name} - {employee.designation || employee.employeeId}
@@ -293,6 +369,32 @@ const CandidateDetail = () => {
               ))}
             </select>
           </label>
+          {candidate.interviewStatus === "hr_round" && !completedRounds.has("hr_round") && (
+            <div className="grid grid-cols-1 gap-3 border-t pt-3">
+              <label className="block text-sm font-medium">
+                HR Round Score /10
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={statusForm.score}
+                  onChange={(e) => setStatusForm((prev) => ({ ...prev, score: e.target.value }))}
+                  className="mt-1 w-full border rounded-sm px-3 py-2"
+                  placeholder="Add score to complete HR Round"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                HR Round Comments
+                <textarea
+                  value={statusForm.comments}
+                  onChange={(e) => setStatusForm((prev) => ({ ...prev, comments: e.target.value }))}
+                  className="mt-1 w-full border rounded-sm px-3 py-2"
+                  placeholder="HR screening notes"
+                />
+              </label>
+            </div>
+          )}
           <label className="block text-sm font-medium">
             HR Status
             <select
@@ -314,6 +416,9 @@ const CandidateDetail = () => {
             />
           </label>
           <Button text="Save Assignment" type="submit" className="w-full" />
+          <p className="text-xs text-gray-500">
+            Selected/Rejected can be marked anytime; round movement still follows the process bar order.
+          </p>
           {candidate.interviewStatus === "selected" && !candidate.convertedEmployee && (
             <Button text="Add as Employee" variant="success" onClick={convertToEmployee} className="w-full" />
           )}
@@ -327,8 +432,8 @@ const CandidateDetail = () => {
         {candidate.interviewRounds?.length ? (
           candidate.interviewRounds.map((round, index) => (
             <div key={`${round.round}-${index}`} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm">
-              <span>{round.round}</span>
-              <span>{round.roundType || "technical"}</span>
+              <span>{roundLabels[round.round] || round.round}</span>
+              <span>{round.roundType?.replace("_", " ") || "technical"}</span>
               <span>{round.interviewer || "N/A"}</span>
               <span>Score: {round.score || 0}</span>
               <span>{round.status}</span>

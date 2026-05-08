@@ -10,7 +10,7 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
   const [hrStatus, setHrStatus] = useState(candidate?.hrReview?.hrStatus || "");
   const [assignedTo, setAssignedTo] = useState(candidate?.assignedTo?._id || "");
   const [assignedRoundType, setAssignedRoundType] = useState(
-    candidate?.currentRoundType || "technical"
+    candidate?.currentRoundType || (candidate?.interviewStatus === "hr_round" ? "hr" : "technical")
   );
   const [reviewRoundType, setReviewRoundType] = useState("hr");
   const [reviewComments, setReviewComments] = useState("");
@@ -66,10 +66,9 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="">Select</option>
-            <option value="first_round">First Round</option>
-            <option value="second_round">Second Round</option>
-            <option value="third_round">Third Round</option>
-            <option value="final">Final Round</option>
+            <option value="hr_round">HR Round</option>
+            <option value="first_round">Technical Round</option>
+            <option value="second_round">Machine Test</option>
             <option value="rejected">Rejected</option>
             <option value="selected">Selected</option>
           </select>

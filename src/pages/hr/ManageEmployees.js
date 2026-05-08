@@ -17,6 +17,13 @@ const emptyForm = {
   dateOfJoining: "",
   reportingManager: "",
   employeeType: "Permanent",
+  address: {
+    street: "",
+    city: "",
+    state: "",
+    country: "",
+    pincode: "",
+  },
   photo: null,
 };
 
@@ -40,6 +47,18 @@ const ManageEmployees = () => {
     const { name, value } = e.target;
     if (name === "mobile" && !/^\d{0,10}$/.test(value)) return;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "pincode" && !/^\d{0,6}$/.test(value)) return;
+    setForm((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [name]: value,
+      },
+    }));
   };
 
   const fileToDataUri = (file) =>
@@ -183,6 +202,27 @@ const ManageEmployees = () => {
           onChange={(e) => handlePhoto(e.target.files?.[0])}
           fileName={form.photo?.name}
         />
+
+        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-5 gap-3 border-t pt-3">
+          {[
+            ["street", "Address"],
+            ["city", "City"],
+            ["state", "State"],
+            ["country", "Country"],
+            ["pincode", "Pincode"],
+          ].map(([name, label]) => (
+            <label key={name} className="text-sm font-medium text-gray-700">
+              {label}
+              <input
+                type="text"
+                name={name}
+                value={form.address[name]}
+                onChange={handleAddressChange}
+                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+              />
+            </label>
+          ))}
+        </div>
 
         <button
           type="submit"

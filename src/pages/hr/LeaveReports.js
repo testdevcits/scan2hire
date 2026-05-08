@@ -159,44 +159,84 @@ const LeaveReports = () => {
       </section>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="hidden md:grid grid-cols-9 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
-          {["ID", "Employee", "Type", "Title", "From", "To", "Reason", "Status", "Actions"].map((item) => (
-            <div key={item} className="px-4 py-3">{item}</div>
-          ))}
-        </div>
         {leaves.length === 0 ? (
           <p className="p-6 text-center text-gray-500">No leave requests found for selected date.</p>
         ) : (
-          leaves.map((leave) => (
-            <div key={leave._id} className="grid grid-cols-1 md:grid-cols-9 gap-2 border-t px-4 py-3 text-sm md:items-center">
-              <span>{leave.employee?.employeeId || "-"}</span>
-              <span className="font-medium">{leave.employee?.name || "N/A"}</span>
-              <span className="capitalize">{labelize(leave.type)}</span>
-              <span>{leave.title || "Leave Request"}</span>
-              <span>{formatDate(leave.fromDate)}</span>
-              <span>{formatDate(leave.toDate)}</span>
-              <span className="break-words">{leave.content || leave.reason || "-"}</span>
-              <span className="font-semibold capitalize">{leave.status}</span>
-              <span className="flex gap-2 flex-wrap">
-                <Button
-                  text="Approve"
-                  variant="success"
-                  onClick={() => reviewLeave(leave._id, "approved")}
-                  loading={updatingId === leave._id}
-                  disabled={leave.status !== "pending"}
-                  className="text-xs px-3 py-1.5"
-                />
-                <Button
-                  text="Reject"
-                  variant="danger"
-                  onClick={() => reviewLeave(leave._id, "rejected")}
-                  loading={updatingId === leave._id}
-                  disabled={leave.status !== "pending"}
-                  className="text-xs px-3 py-1.5"
-                />
-              </span>
+          <>
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="min-w-[1100px] w-full text-sm">
+                <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                  <tr>
+                    {["ID", "Employee", "Type", "Title", "From", "To", "Content", "Attachment", "Status", "Actions"].map((item) => (
+                      <th key={item} className="px-4 py-3 text-left font-semibold">{item}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaves.map((leave) => (
+                    <tr key={leave._id} className="border-t align-top">
+                      <td className="px-4 py-3 whitespace-nowrap">{leave.employee?.employeeId || "-"}</td>
+                      <td className="px-4 py-3 min-w-[150px] font-medium">{leave.employee?.name || "N/A"}</td>
+                      <td className="px-4 py-3 capitalize whitespace-nowrap">{labelize(leave.type)}</td>
+                      <td className="px-4 py-3 max-w-[180px] break-words">{leave.title || "Leave Request"}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDate(leave.fromDate)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDate(leave.toDate)}</td>
+                      <td className="px-4 py-3 max-w-[280px]">
+                        <p className="line-clamp-4 break-words">{leave.content || leave.reason || "-"}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {leave.attachment?.url ? (
+                          <a href={leave.attachment.url} target="_blank" rel="noopener noreferrer" className="text-[#f84525] underline">
+                            View
+                          </a>
+                        ) : "-"}
+                      </td>
+                      <td className="px-4 py-3 font-semibold capitalize whitespace-nowrap">{leave.status}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2 flex-wrap min-w-[150px]">
+                          <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                          <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))
+
+            <div className="lg:hidden divide-y">
+              {leaves.map((leave) => (
+                <article key={leave._id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900">{leave.employee?.name || "N/A"}</p>
+                      <p className="text-xs text-gray-500">{leave.employee?.employeeId || "-"} • {labelize(leave.type)}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold capitalize bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm">
+                      {leave.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <span><b>From:</b> {formatDate(leave.fromDate)}</span>
+                    <span><b>To:</b> {formatDate(leave.toDate)}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium break-words">{leave.title || "Leave Request"}</p>
+                    <p className="text-sm text-gray-600 mt-1 break-words">{leave.content || leave.reason || "-"}</p>
+                  </div>
+                  {leave.attachment?.url && (
+                    <a href={leave.attachment.url} target="_blank" rel="noopener noreferrer" className="text-sm text-[#f84525] underline">
+                      View attachment
+                    </a>
+                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                    <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

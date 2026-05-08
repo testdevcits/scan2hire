@@ -40,11 +40,30 @@ const addDays = (date, days) => {
   return copy;
 };
 
+const fileToDataUri = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 const formatChartDate = (dateKey) =>
   new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
   });
+
+const roundLabels = {
+  hr_round: "HR Round",
+  first_round: "Technical Round",
+  second_round: "Machine Test",
+  final: "Final Round",
+  selected: "Selected",
+  rejected: "Rejected",
+};
+
+const formatRound = (round) => roundLabels[round] || String(round || "").replace("_", " ");
 
 const getMyCurrentRoundReview = (candidate, employeeId) =>
   candidate.interviewRounds?.find(
@@ -105,6 +124,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
     fromDate: "",
     toDate: "",
     content: "",
+    attachment: null,
   });
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const todayKey = toDateKey();
@@ -215,6 +235,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         fromDate: "",
         toDate: "",
         content: "",
+        attachment: null,
       });
       setShowLeaveForm(false);
       await fetchData();
@@ -224,6 +245,22 @@ const EmployeeDashboard = ({ section = "all" }) => {
     } finally {
       setLeaveSaving(false);
     }
+  };
+
+  const handleLeaveAttachment = async (file) => {
+    if (!file) {
+      setLeaveForm((prev) => ({ ...prev, attachment: null }));
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    const dataUri = await fileToDataUri(file);
+    setLeaveForm((prev) => ({
+      ...prev,
+      attachment: { dataUri, name: file.name, type: file.type },
+    }));
   };
 
   const updateRound = async (e) => {
@@ -1049,6 +1086,20 @@ const EmployeeDashboard = ({ section = "all" }) => {
                       required
                     />
                   </label>
+                  <label className="text-sm font-medium md:col-span-2">
+                    Attachment Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleLeaveAttachment(e.target.files?.[0])}
+                      className="mt-1 w-full border rounded-md px-3 py-2"
+                    />
+                    {leaveForm.attachment?.name && (
+                      <span className="mt-1 block text-xs text-gray-500">
+                        Selected: {leaveForm.attachment.name}
+                      </span>
+                    )}
+                  </label>
                   <Button
                     text="Submit Leave"
                     type="submit"
@@ -1215,7 +1266,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     <span className="break-all">{candidate.email}</span>
                     <span>{candidate.jobRole}</span>
                     <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] rounded-sm font-semibold w-fit">
-                      {candidate.interviewStatus}
+                      {formatRound(candidate.interviewStatus)}
                     </span>
                     <span>
                       {existingRound
@@ -1249,7 +1300,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               <div key={item._id} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center">
                 <span className="font-medium">{item.candidateName}</span>
                 <span>{item.jobRole || "-"}</span>
-                <span className="capitalize">{item.round?.replace("_", " ")}</span>
+                <span>{formatRound(item.round)}</span>
                 <span className="capitalize">{item.roundType?.replace("_", " ")}</span>
                 <span>Score {item.score}/10</span>
                 <span>{item.date ? new Date(item.date).toLocaleDateString() : "-"}</span>
@@ -1273,7 +1324,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               </button>
             </div>
             <div className="text-sm bg-gray-50 rounded-sm p-3">
-              Current assigned round: <b>{selected.interviewStatus}</b>
+              Current assigned round: <b>{formatRound(selected.interviewStatus)}</b>
               {selected.currentRoundType
                 ? ` (${selected.currentRoundType.replace("_", " ")})`
                 : ""}

@@ -74,11 +74,11 @@ const HRDashboard = () => {
 
   const interviewStageData = useMemo(
     () => [
-      { name: "First", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE },
-      { name: "Second", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: ORANGE_SOFT },
-      { name: "Third", value: candidates.filter((item) => item.interviewStatus === "third_round").length, color: "#fb923c" },
-      { name: "Final", value: candidates.filter((item) => item.interviewStatus === "final").length, color: SLATE },
+      { name: "HR", value: candidates.filter((item) => item.interviewStatus === "hr_round").length, color: ORANGE },
+      { name: "Technical", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE_SOFT },
+      { name: "Machine Test", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: "#fb923c" },
       { name: "Rejected", value: candidates.filter((item) => item.interviewStatus === "rejected").length, color: RED },
+      { name: "Selected", value: candidates.filter((item) => item.interviewStatus === "selected").length, color: SLATE },
     ],
     [candidates]
   );

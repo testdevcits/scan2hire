@@ -1,6 +1,6 @@
 import Button from "../../components/common/Button";
 
-const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
+const Step3 = ({ formData, onBack, onSubmit, loading }) => {
   const display = (value) => value || "-";
   const has = (value) => (Array.isArray(value) ? value.length > 0 : Boolean(value));
   const salary = (amount, period) =>
@@ -113,13 +113,6 @@ const Step3 = ({ formData, qrId, onBack, onSubmit, loading }) => {
         )}
       </div>
       )}
-
-      <div className="bg-gray-50 p-3 sm:p-4 rounded-sm space-y-1 md:col-span-2 break-words">
-        <h3 className="font-semibold text-base sm:text-lg mb-2">System Info</h3>
-        <p>
-          <b>QR ID:</b> {display(qrId)}
-        </p>
-      </div>
 
       <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t md:border-t-0 py-3 flex flex-col md:flex-row gap-2 md:col-span-2 mt-2 sm:mt-4">
         <Button text="Back" onClick={onBack} className="md:flex-1" />

@@ -47,7 +47,8 @@ function App() {
         <Route path="/" element={<Home />} />
 
         {/* Public QR form page */}
-        <Route path="/form/:qrId" element={<FormPage />} />
+        <Route path="/form" element={<FormPage />} />
+        <Route path="/form/:qrId" element={<Navigate to="/form" replace />} />
 
         {/* OTP verification page */}
         <Route path="/otp" element={<OtpPage />} />

@@ -1,47 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useMemo } from "react";
 import QRCode from "react-qr-code";
-import { FiRefreshCw } from "react-icons/fi";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { generateQrId } from "../api/index";
 
 const Home = () => {
-  const [formUrl, setFormUrl] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetched = useRef(false);
-
-  const fetchQr = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await generateQrId();
-
-      const qrId = res?.data?.qrId;
-
-      if (!res.success || !qrId) {
-        throw new Error(res.message || "Failed to generate QR ID");
-      }
-
-      const baseUrl = window.location.origin;
-
-      setFormUrl(`${baseUrl}/form/${qrId}`);
-    } catch (err) {
-      console.error("QR Generation Error:", err);
-      setError("Failed to generate QR. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (fetched.current) return;
-    fetched.current = true;
-
-    fetchQr();
-  }, []);
+  const formUrl = useMemo(() => `${window.location.origin}/form`, []);
 
   return (
     <div className="flex flex-col min-h-screen font-montserrat bg-light dark:bg-dark text-systemText">
@@ -57,38 +20,18 @@ const Home = () => {
           interview form.
         </p>
 
-        {loading && (
-          <p className="text-gray-500 animate-pulse">Generating QR code...</p>
-        )}
+        <div className="bg-white p-6 rounded-xl shadow-md animate-slide-fade-in">
+          <QRCode value={formUrl} size={150} />
+        </div>
 
-        {error && <p className="text-red-500">{error}</p>}
-
-        {!loading && !error && formUrl && (
-          <>
-            <div className="bg-white p-6 rounded-xl shadow-md animate-slide-fade-in">
-              <QRCode value={formUrl} size={150} />
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center justify-center space-y-3 md:space-y-0 md:space-x-4 mt-4">
-              <button
-                onClick={fetchQr}
-                className="flex items-center space-x-2 bg-primary hover:bg-primary/80 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 w-full md:w-auto justify-center"
-              >
-                <FiRefreshCw size={20} />
-                <span>Regenerate QR</span>
-              </button>
-
-              <a
-                href={formUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-primary hover:bg-primary/80 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 w-full md:w-auto text-center"
-              >
-                Fill the Form
-              </a>
-            </div>
-          </>
-        )}
+        <a
+          href={formUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-primary hover:bg-primary/80 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 w-full md:w-auto text-center"
+        >
+          Fill the Form
+        </a>
       </main>
 
       <Footer />

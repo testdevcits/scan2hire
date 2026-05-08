@@ -61,7 +61,7 @@ const OtpPage = () => {
 
       const { data } = await candidateApi.verifyOtp({
         email: storedData.email,
-        qrId: storedData.qrId,
+        candidateId: storedData.candidateId,
         otp,
       });
 
@@ -89,7 +89,7 @@ const OtpPage = () => {
 
       const { data } = await candidateApi.resendOtp({
         email: storedData.email,
-        qrId: storedData.qrId,
+        candidateId: storedData.candidateId,
       });
 
       if (data.success) {

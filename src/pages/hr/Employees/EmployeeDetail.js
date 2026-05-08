@@ -35,6 +35,13 @@ const EmployeeDetail = () => {
     dateOfJoining: "",
     reportingManager: "",
     employeeType: "Permanent",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      country: "",
+      pincode: "",
+    },
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [accountCredentials, setAccountCredentials] = useState([]);
@@ -62,6 +69,13 @@ const EmployeeDetail = () => {
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         reportingManager: employeeData.reportingManager || "",
         employeeType: employeeData.employeeType || "Permanent",
+        address: {
+          street: employeeData.address?.street || "",
+          city: employeeData.address?.city || "",
+          state: employeeData.address?.state || "",
+          country: employeeData.address?.country || "",
+          pincode: employeeData.address?.pincode || "",
+        },
       });
       setAttendance(reportRes.data.data?.records || []);
       setSummary(reportRes.data.data?.summary || null);
@@ -152,6 +166,17 @@ const EmployeeDetail = () => {
     setEditForm((prev) => ({
       ...prev,
       photo: { dataUri, name: file.name, type: file.type },
+    }));
+  };
+
+  const handleAddressChange = (field, value) => {
+    if (field === "pincode" && !/^\d{0,6}$/.test(value)) return;
+    setEditForm((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [field]: value,
+      },
     }));
   };
 
@@ -273,6 +298,16 @@ const EmployeeDetail = () => {
             <p><b>Reporting Manager:</b> {employee.reportingManager || "N/A"}</p>
             <p><b>Type:</b> {employee.employeeType || "N/A"}</p>
             <p><b>Created By:</b> {employee.createdBy?.name || "N/A"}</p>
+            <p className="md:col-span-2">
+              <b>Address:</b>{" "}
+              {[
+                employee.address?.street,
+                employee.address?.city,
+                employee.address?.state,
+                employee.address?.country,
+                employee.address?.pincode,
+              ].filter(Boolean).join(", ") || "N/A"}
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-sm shadow p-4">
@@ -350,6 +385,25 @@ const EmployeeDetail = () => {
           onChange={(e) => handlePhoto(e.target.files?.[0])}
           fileName={editForm.photo?.name}
         />
+        <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-5 gap-3 border-t pt-3">
+          {[
+            ["street", "Address"],
+            ["city", "City"],
+            ["state", "State"],
+            ["country", "Country"],
+            ["pincode", "Pincode"],
+          ].map(([field, label]) => (
+            <label key={field} className="text-sm font-medium text-gray-700">
+              {label}
+              <input
+                type="text"
+                value={editForm.address[field]}
+                onChange={(e) => handleAddressChange(field, e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+              />
+            </label>
+          ))}
+        </div>
         <Button text={savingProfile ? "Saving..." : "Save Employee"} loading={savingProfile} type="submit" className="md:col-span-4" />
       </form>
 

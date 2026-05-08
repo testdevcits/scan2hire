@@ -24,7 +24,7 @@ const ThankYouPage = () => {
             Your email has been verified successfully.
           </p>
           <p className="text-gray-700 dark:text-gray-300 text-lg">
-            Your Candidate ID: <strong>{state.qrId}</strong>
+            Your Candidate ID: <strong>{state.candidateId}</strong>
           </p>
         </div>
       </main>

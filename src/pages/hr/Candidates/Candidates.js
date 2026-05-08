@@ -13,6 +13,14 @@ function Candidates() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const [viewMode, setViewMode] = useState("day");
+  const roundLabels = {
+    hr_round: "HR Round",
+    first_round: "Technical Round",
+    second_round: "Machine Test",
+    final: "Final",
+    selected: "Selected",
+    rejected: "Rejected",
+  };
 
   useEffect(() => {
     fetchCandidates();
@@ -57,7 +65,7 @@ function Candidates() {
       accessor: "interviewStatus",
       render: (value) => (
         <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-700">
-          {value}
+          {roundLabels[value] || value}
         </span>
       ),
     },

@@ -110,15 +110,3 @@ export const employeeApi = {
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),
 };
-
-export const qrApi = {
-  generate: () =>
-    API.post(
-      "/qr-ids",
-      {},
-      {
-        skipAuth: true,
-        withCredentials: false,
-      }
-    ),
-};
