@@ -68,6 +68,8 @@ export const hrApi = {
   getEmployeeAccess: () => API.get("/hr/employee-access"),
   updateEmployeeAccess: (employeeId, payload) =>
     API.put(`/hr/employee-access/${employeeId}`, payload),
+  assignTeamLeadEmployees: (teamLeadId, payload) =>
+    API.put(`/hr/employee-access/team-leads/${teamLeadId}/assign`, payload),
   getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
   createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/hr/system-allotments/import", { rows }),

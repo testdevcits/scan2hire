@@ -10,8 +10,9 @@ const EmployeeAccessControl = () => {
   const { confirm } = useModal();
   const [rows, setRows] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [selectedTeamLeadId, setSelectedTeamLeadId] = useState("");
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState([]);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -21,7 +22,7 @@ const EmployeeAccessControl = () => {
       const res = await hrApi.getEmployeeAccess();
       setRows(res.data.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load access");
+      toast.error(err.response?.data?.message || "Unable to load Team Lead data");
     } finally {
       setLoading(false);
     }
@@ -31,53 +32,93 @@ const EmployeeAccessControl = () => {
     loadAccess();
   }, [loadAccess]);
 
-  const selectedRow = rows.find((row) => row.employee?._id === selectedEmployeeId);
-  const filteredRows = useMemo(() => {
+  const teamLeads = useMemo(() => rows.filter((row) => row.isTeamLead), [rows]);
+  const employees = useMemo(() => rows.filter((row) => !row.isTeamLead), [rows]);
+  const selectedEmployee = rows.find((row) => row.employee?._id === selectedEmployeeId);
+  const selectedTeamLead = teamLeads.find((row) => row.employee?._id === selectedTeamLeadId);
+
+  useEffect(() => {
+    if (!selectedTeamLeadId) {
+      setAssignedEmployeeIds([]);
+      return;
+    }
+    setAssignedEmployeeIds(
+      employees
+        .filter((row) => String(row.teamLead?._id || row.teamLead) === selectedTeamLeadId)
+        .map((row) => row.employee?._id)
+        .filter(Boolean)
+    );
+  }, [employees, selectedTeamLeadId]);
+
+  const filteredEmployees = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (roleFilter === "tl" && !row.isTeamLead) return false;
-      if (roleFilter === "system" && !row.modules?.systemAllotment) return false;
-      if (roleFilter === "employee" && (row.isTeamLead || row.modules?.systemAllotment)) return false;
+    return employees.filter((row) => {
       if (!term) return true;
-      return [row.employee?.name, row.employee?.employeeId, row.employee?.email, row.employee?.department, row.employee?.designation]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(term));
+      return [
+        row.employee?.name,
+        row.employee?.employeeId,
+        row.employee?.email,
+        row.employee?.department,
+        row.employee?.designation,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [roleFilter, rows, search]);
+  }, [employees, search]);
 
   const stats = useMemo(
     () => ({
       total: rows.length,
-      teamLeads: rows.filter((row) => row.isTeamLead).length,
-      systemAccess: rows.filter((row) => row.modules?.systemAllotment).length,
-      employees: rows.filter((row) => !row.isTeamLead && !row.modules?.systemAllotment).length,
+      teamLeads: teamLeads.length,
+      assigned: employees.filter((row) => row.teamLead).length,
+      unassigned: employees.filter((row) => !row.teamLead).length,
     }),
-    [rows]
+    [employees, rows.length, teamLeads.length]
   );
 
-  const selectedName = selectedRow?.employee?.name || "Selected employee";
+  const toggleEmployee = (employeeId) => {
+    setAssignedEmployeeIds((current) =>
+      current.includes(employeeId)
+        ? current.filter((id) => id !== employeeId)
+        : [...current, employeeId]
+    );
+  };
 
-  const setSystemAccess = async (allowed) => {
-    if (!selectedEmployeeId) {
-      toast.error("Select an employee first");
+  const selectVisible = () => {
+    const visibleIds = filteredEmployees.map((row) => row.employee?._id).filter(Boolean);
+    setAssignedEmployeeIds((current) => [...new Set([...current, ...visibleIds])]);
+  };
+
+  const clearVisible = () => {
+    const visibleIds = new Set(filteredEmployees.map((row) => row.employee?._id).filter(Boolean));
+    setAssignedEmployeeIds((current) => current.filter((id) => !visibleIds.has(id)));
+  };
+
+  const saveAssignments = async () => {
+    if (!selectedTeamLeadId) {
+      toast.error("Select Team Lead first");
       return;
     }
+
     const ok = await confirm({
-      title: allowed ? "Allow System Access" : "Remove System Access",
-      message: `Are you sure you want to ${allowed ? "allow" : "remove"} system allotment access for ${selectedRow?.employee?.name || "this employee"}?`,
-      confirmText: allowed ? "Allow" : "Remove",
-      tone: allowed ? "primary" : "danger",
+      title: "Assign Employees",
+      message: `Assign ${assignedEmployeeIds.length} employee(s) to ${
+        selectedTeamLead?.employee?.name || "this Team Lead"
+      }? Existing employees under this TL will be replaced by this selected list.`,
+      confirmText: "Assign",
+      tone: "primary",
     });
     if (!ok) return;
+
     setSaving(true);
     try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
-        modules: { systemAllotment: allowed },
+      await hrApi.assignTeamLeadEmployees(selectedTeamLeadId, {
+        employeeIds: assignedEmployeeIds,
       });
-      toast.success(allowed ? "System allotment access allowed" : "System allotment access removed");
+      toast.success("Employees assigned to Team Lead");
       await loadAccess();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update access");
+      toast.error(err.response?.data?.message || "Unable to assign employees");
     } finally {
       setSaving(false);
     }
@@ -85,24 +126,31 @@ const EmployeeAccessControl = () => {
 
   const setTeamLead = async (allowed) => {
     if (!selectedEmployeeId) {
-      toast.error("Select an employee first");
+      toast.error("Select employee first");
       return;
     }
+
     const ok = await confirm({
       title: allowed ? "Make Team Lead" : "Remove Team Lead",
-      message: `Are you sure you want to ${allowed ? "make" : "remove"} ${selectedRow?.employee?.name || "this employee"} ${allowed ? "a Team Lead" : "from Team Lead"}?`,
+      message: `Are you sure you want to ${allowed ? "make" : "remove"} ${
+        selectedEmployee?.employee?.name || "this employee"
+      } ${allowed ? "a Team Lead" : "from Team Lead"}?`,
       confirmText: allowed ? "Make TL" : "Remove TL",
       tone: allowed ? "primary" : "danger",
     });
     if (!ok) return;
+
     setSaving(true);
     try {
       await hrApi.updateEmployeeAccess(selectedEmployeeId, {
         isTeamLead: allowed,
-        modules: { systemAllotment: allowed || Boolean(selectedRow?.modules?.systemAllotment) },
+        modules: { systemAllotment: allowed || Boolean(selectedEmployee?.modules?.systemAllotment) },
       });
       toast.success(allowed ? "Employee is now Team Lead" : "Team Lead access removed");
       await loadAccess();
+      if (!allowed && selectedTeamLeadId === selectedEmployeeId) {
+        setSelectedTeamLeadId("");
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update Team Lead access");
     } finally {
@@ -110,7 +158,7 @@ const EmployeeAccessControl = () => {
     }
   };
 
-  if (loading) return <CommonLoader text="Loading Team Lead access..." />;
+  if (loading) return <CommonLoader text="Loading Team Lead assignments..." />;
 
   return (
     <div className="space-y-5">
@@ -118,14 +166,16 @@ const EmployeeAccessControl = () => {
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Manage TL</h1>
-            <p className="text-sm text-gray-500 mt-1">Make any employee a Team Lead, or give only system allotment access without making them TL.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Select a Team Lead, then select employees to assign under that TL.
+            </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
-              ["Employees", stats.total, "bg-gray-900 text-white"],
+              ["Staff", stats.total, "bg-gray-900 text-white"],
               ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border border-blue-200"],
-              ["System Access", stats.systemAccess, "bg-green-50 text-green-700 border border-green-200"],
-              ["Normal", stats.employees, "bg-gray-100 text-gray-700 border border-gray-200"],
+              ["Assigned", stats.assigned, "bg-green-50 text-green-700 border border-green-200"],
+              ["Unassigned", stats.unassigned, "bg-gray-100 text-gray-700 border border-gray-200"],
             ].map(([label, value, className]) => (
               <div key={label} className={`px-3 py-2 rounded-sm text-sm font-semibold ${className}`}>
                 <span className="block text-xs opacity-80">{label}</span>
@@ -136,172 +186,156 @@ const EmployeeAccessControl = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
-        <div className="bg-white rounded-sm shadow p-4 space-y-4">
+      <section className="bg-white rounded-sm shadow p-4 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 lg:items-end">
           <label className="text-sm font-medium text-gray-700">
-            Select Employee
+            Select Team Lead
             <select
-              value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              value={selectedTeamLeadId}
+              onChange={(e) => setSelectedTeamLeadId(e.target.value)}
               className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
             >
-              <option value="">Select employee</option>
-              {rows.map((row) => (
+              <option value="">Select TL</option>
+              {teamLeads.map((row) => (
                 <option key={row.employee?._id} value={row.employee?._id}>
                   {row.employee?.employeeId || "-"} - {row.employee?.name}
                 </option>
               ))}
             </select>
           </label>
-
-          <div className="border border-gray-200 rounded-sm p-4 bg-gray-50 min-h-[142px]">
-            {selectedRow ? (
-              <div className="space-y-3">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{selectedName}</h2>
-                    <p className="text-sm text-gray-500">{selectedRow.employee?.employeeId || "-"} | {selectedRow.employee?.email || "-"}</p>
-                    <p className="text-xs text-gray-500 mt-1">{selectedRow.employee?.department || "No department"} | {selectedRow.employee?.designation || "No designation"}</p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <span className={`px-2.5 py-1 rounded-sm text-xs font-semibold border ${selectedRow.isTeamLead ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                      {selectedRow.isTeamLead ? "Team Lead" : "Employee"}
-                    </span>
-                    <span className={`px-2.5 py-1 rounded-sm text-xs font-semibold border ${selectedRow.modules?.systemAllotment ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-                      System {selectedRow.modules?.systemAllotment ? "Allowed" : "Blocked"}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {selectedRow.isTeamLead
-                    ? "This employee can use the Team Lead panel with HR-style access."
-                    : selectedRow.modules?.systemAllotment
-                    ? "This employee can access system allotments only."
-                    : "This employee has normal employee access."}
-                </p>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col justify-center">
-                <h2 className="font-semibold text-gray-900">No employee selected</h2>
-                <p className="text-sm text-gray-500 mt-1">Choose an employee from dropdown or click a row from the list.</p>
-              </div>
-            )}
-          </div>
+          <Button
+            text={`Assign ${assignedEmployeeIds.length} Employee${assignedEmployeeIds.length === 1 ? "" : "s"}`}
+            onClick={saveAssignments}
+            loading={saving}
+            disabled={!selectedTeamLeadId}
+            className="w-full lg:w-auto"
+          />
         </div>
 
-        <div className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Actions</h2>
-            <p className="text-xs text-gray-500 mt-1">TL access is full. System access is only for allotment work.</p>
+        {selectedTeamLead && (
+          <div className="border border-blue-100 bg-blue-50 rounded-sm p-3 text-sm text-blue-800">
+            <b>{selectedTeamLead.employee?.name}</b> currently has {assignedEmployeeIds.length} selected employee(s).
           </div>
-          <div className="p-4 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Team Lead Access</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  text="Make TL"
-                  onClick={() => setTeamLead(true)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || selectedRow?.isTeamLead}
-                  className="w-full"
-                />
-                <Button
-                  text="Remove TL"
-                  variant="secondary"
-                  onClick={() => setTeamLead(false)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || !selectedRow?.isTeamLead}
-                  className="w-full"
-                />
-              </div>
-            </div>
-            <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">System Allotment Access</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  text="Allow System"
-                  onClick={() => setSystemAccess(true)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || selectedRow?.modules?.systemAllotment}
-                  className="w-full"
-                />
-                <Button
-                  text="Remove System"
-                  variant="secondary"
-                  onClick={() => setSystemAccess(false)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || !selectedRow?.modules?.systemAllotment || selectedRow?.isTeamLead}
-                  className="w-full"
-                />
-              </div>
-              {selectedRow?.isTeamLead && (
-                <p className="text-xs text-gray-500 mt-2">System access stays enabled while employee is Team Lead.</p>
-              )}
-            </div>
-          </div>
-        </div>
+        )}
       </section>
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search employee by name, ID, email"
-            className="w-full border border-gray-300 rounded-sm px-3 py-2"
-          />
-          <div className="grid grid-cols-4 gap-1 bg-white border border-gray-200 p-1 rounded-sm">
-            {[
-              ["all", "All"],
-              ["tl", "TL"],
-              ["system", "System"],
-              ["employee", "Normal"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setRoleFilter(value)}
-                className={`px-3 py-2 text-xs font-semibold rounded-sm ${roleFilter === value ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
+        <div className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="p-4 border-b bg-gray-50 grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search employees by name, ID, email, department"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2"
+            />
+            <Button text="Select Visible" variant="secondary" onClick={selectVisible} disabled={!selectedTeamLeadId} />
+            <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
+          </div>
+
+          <div className="hidden lg:grid grid-cols-[52px_120px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-gray-100 px-4 py-3 text-xs uppercase font-semibold text-gray-600">
+            <span />
+            <span>ID</span>
+            <span>Employee</span>
+            <span>Department</span>
+            <span>Current TL</span>
+          </div>
+
+          {filteredEmployees.length === 0 ? (
+            <p className="p-6 text-center text-sm text-gray-500">No employees found.</p>
+          ) : (
+            filteredEmployees.map((row) => {
+              const employeeId = row.employee?._id;
+              const checked = assignedEmployeeIds.includes(employeeId);
+              return (
+                <label
+                  key={employeeId}
+                  className={`grid grid-cols-[32px_minmax(0,1fr)] lg:grid-cols-[52px_120px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-t px-4 py-3 text-sm lg:items-center cursor-pointer hover:bg-gray-50 ${
+                    checked ? "bg-[#fff5f3]" : "bg-white"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleEmployee(employeeId)}
+                    disabled={!selectedTeamLeadId}
+                    className="mt-1 lg:mt-0 h-4 w-4"
+                  />
+                  <span className="hidden lg:block">{row.employee?.employeeId || "-"}</span>
+                  <span>
+                    <span className="block font-medium">{row.employee?.name || "N/A"}</span>
+                    <span className="block text-xs text-gray-500 break-all">
+                      <span className="lg:hidden">{row.employee?.employeeId || "-"} | </span>
+                      {row.employee?.email || "-"}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="block">{row.employee?.department || "-"}</span>
+                    <span className="block text-xs text-gray-500">{row.employee?.designation || "-"}</span>
+                  </span>
+                  <span className="text-gray-600">
+                    {row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
+                  </span>
+                </label>
+              );
+            })
+          )}
+        </div>
+
+        <div className="bg-white rounded-sm shadow overflow-hidden h-fit">
+          <div className="px-4 py-3 border-b bg-gray-50">
+            <h2 className="font-semibold text-gray-900">Create / Remove TL</h2>
+            <p className="text-xs text-gray-500 mt-1">First make an employee TL, then assign employees from the left panel.</p>
+          </div>
+          <div className="p-4 space-y-3">
+            <label className="text-sm font-medium text-gray-700">
+              Employee
+              <select
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
               >
-                {label}
-              </button>
-            ))}
+                <option value="">Select employee</option>
+                {rows.map((row) => (
+                  <option key={row.employee?._id} value={row.employee?._id}>
+                    {row.employee?.employeeId || "-"} - {row.employee?.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedEmployee && (
+              <div className="border border-gray-200 bg-gray-50 rounded-sm p-3">
+                <p className="font-semibold text-gray-900">{selectedEmployee.employee?.name}</p>
+                <p className="text-xs text-gray-500 break-all">{selectedEmployee.employee?.email || "-"}</p>
+                <span className={`inline-block mt-2 px-2 py-1 text-xs font-semibold rounded-sm border ${
+                  selectedEmployee.isTeamLead
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-gray-100 text-gray-600 border-gray-200"
+                }`}>
+                  {selectedEmployee.isTeamLead ? "Team Lead" : "Employee"}
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                text="Make TL"
+                onClick={() => setTeamLead(true)}
+                loading={saving}
+                disabled={!selectedEmployeeId || selectedEmployee?.isTeamLead}
+                className="w-full"
+              />
+              <Button
+                text="Remove TL"
+                variant="secondary"
+                onClick={() => setTeamLead(false)}
+                loading={saving}
+                disabled={!selectedEmployeeId || !selectedEmployee?.isTeamLead}
+                className="w-full"
+              />
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[120px_minmax(0,1.4fr)_minmax(0,1fr)_220px_160px] gap-2 bg-gray-100 px-4 py-3 text-xs uppercase font-semibold text-gray-600">
-          <span>ID</span><span>Employee</span><span>Department</span><span>Access</span><span>Updated</span>
-        </div>
-        {filteredRows.length === 0 ? (
-          <p className="p-6 text-center text-sm text-gray-500">No employees found.</p>
-        ) : filteredRows.map((row) => (
-          <button
-            type="button"
-            key={row.employee?._id}
-            onClick={() => setSelectedEmployeeId(row.employee?._id)}
-            className={`grid grid-cols-1 lg:grid-cols-[120px_minmax(0,1.4fr)_minmax(0,1fr)_220px_160px] gap-2 border-t px-4 py-3 text-sm text-left lg:items-center hover:bg-gray-50 ${
-              selectedEmployeeId === row.employee?._id ? "bg-[#fff5f3]" : "bg-white"
-            }`}
-          >
-            <span>{row.employee?.employeeId || "-"}</span>
-            <span>
-              <span className="block font-medium">{row.employee?.name || "N/A"}</span>
-              <span className="block text-xs text-gray-500 break-all">{row.employee?.email || "-"}</span>
-            </span>
-            <span>
-              <span className="block">{row.employee?.department || "-"}</span>
-              <span className="block text-xs text-gray-500">{row.employee?.designation || "-"}</span>
-            </span>
-            <span className="flex gap-2 flex-wrap">
-              <span className={`px-2.5 py-1 rounded-sm text-xs font-semibold border ${row.isTeamLead ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                {row.isTeamLead ? "TL" : "Employee"}
-              </span>
-              <span className={`px-2.5 py-1 rounded-sm text-xs font-semibold border ${row.modules?.systemAllotment ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-                System {row.modules?.systemAllotment ? "Allowed" : "Blocked"}
-              </span>
-            </span>
-            <span>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "-"}</span>
-          </button>
-        ))}
       </section>
     </div>
   );
