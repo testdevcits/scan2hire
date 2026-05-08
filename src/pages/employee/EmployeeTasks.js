@@ -82,14 +82,16 @@ const EmployeeTasks = () => {
         </section>
       ) : (
         <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {tasks.map((task) => (
-            <article key={task._id} className="bg-white rounded-sm shadow p-4 space-y-3">
+          {tasks.map((task) => {
+            const important = ["important", "urgent"].includes(task.priority);
+            return (
+            <article key={task._id} className={`bg-white rounded-sm shadow p-4 space-y-3 border ${important ? "border-red-300 bg-red-50/60" : "border-transparent"}`}>
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <div>
                   <p className="text-xs text-gray-500">{task.project || "No Project"} | {task.phase || "No Phase"}</p>
                   <h2 className="font-semibold text-gray-900 mt-1">{task.title}</h2>
                 </div>
-                <span className="text-xs font-semibold capitalize bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm">
+                <span className={`text-xs font-semibold capitalize px-2 py-1 rounded-sm ${important ? "bg-red-600 text-white" : "bg-[#fff5f3] text-[#f84525]"}`}>
                   {task.priority}
                 </span>
               </div>
@@ -163,7 +165,8 @@ const EmployeeTasks = () => {
                 }
               />
             </article>
-          ))}
+            );
+          })}
         </section>
       )}
     </div>

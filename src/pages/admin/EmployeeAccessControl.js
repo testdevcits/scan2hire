@@ -36,6 +36,10 @@ const EmployeeAccessControl = () => {
   const employees = useMemo(() => rows.filter((row) => !row.isTeamLead), [rows]);
   const selectedEmployee = rows.find((row) => row.employee?._id === selectedEmployeeId);
   const selectedTeamLead = teamLeads.find((row) => row.employee?._id === selectedTeamLeadId);
+  const assignmentRows = useMemo(() => {
+    if (!selectedTeamLeadId || !selectedTeamLead) return employees;
+    return [selectedTeamLead, ...employees];
+  }, [employees, selectedTeamLead, selectedTeamLeadId]);
 
   useEffect(() => {
     if (!selectedTeamLeadId) {
@@ -52,7 +56,7 @@ const EmployeeAccessControl = () => {
 
   const filteredEmployees = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return employees.filter((row) => {
+    return assignmentRows.filter((row) => {
       if (!term) return true;
       return [
         row.employee?.name,
@@ -64,7 +68,7 @@ const EmployeeAccessControl = () => {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [employees, search]);
+  }, [assignmentRows, search]);
 
   const stats = useMemo(
     () => ({
@@ -85,12 +89,18 @@ const EmployeeAccessControl = () => {
   };
 
   const selectVisible = () => {
-    const visibleIds = filteredEmployees.map((row) => row.employee?._id).filter(Boolean);
+    const visibleIds = filteredEmployees
+      .map((row) => row.employee?._id)
+      .filter((employeeId) => employeeId && employeeId !== selectedTeamLeadId);
     setAssignedEmployeeIds((current) => [...new Set([...current, ...visibleIds])]);
   };
 
   const clearVisible = () => {
-    const visibleIds = new Set(filteredEmployees.map((row) => row.employee?._id).filter(Boolean));
+    const visibleIds = new Set(
+      filteredEmployees
+        .map((row) => row.employee?._id)
+        .filter((employeeId) => employeeId && employeeId !== selectedTeamLeadId)
+    );
     setAssignedEmployeeIds((current) => current.filter((id) => !visibleIds.has(id)));
   };
 
@@ -204,7 +214,7 @@ const EmployeeAccessControl = () => {
             </select>
           </label>
           <Button
-            text={`Assign ${assignedEmployeeIds.length} Employee${assignedEmployeeIds.length === 1 ? "" : "s"}`}
+            text={`Assign ${assignedEmployeeIds.length + (selectedTeamLeadId ? 1 : 0)} Member${assignedEmployeeIds.length + (selectedTeamLeadId ? 1 : 0) === 1 ? "" : "s"}`}
             onClick={saveAssignments}
             loading={saving}
             disabled={!selectedTeamLeadId}
@@ -214,7 +224,7 @@ const EmployeeAccessControl = () => {
 
         {selectedTeamLead && (
           <div className="border border-blue-100 bg-blue-50 rounded-sm p-3 text-sm text-blue-800">
-            <b>{selectedTeamLead.employee?.name}</b> currently has {assignedEmployeeIds.length} selected employee(s).
+            <b>{selectedTeamLead.employee?.name}</b> is included in their own team, plus {assignedEmployeeIds.length} selected employee(s).
           </div>
         )}
       </section>
@@ -245,7 +255,8 @@ const EmployeeAccessControl = () => {
           ) : (
             filteredEmployees.map((row) => {
               const employeeId = row.employee?._id;
-              const checked = assignedEmployeeIds.includes(employeeId);
+              const isSelectedLead = selectedTeamLeadId && employeeId === selectedTeamLeadId;
+              const checked = isSelectedLead || assignedEmployeeIds.includes(employeeId);
               return (
                 <label
                   key={employeeId}
@@ -257,7 +268,7 @@ const EmployeeAccessControl = () => {
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleEmployee(employeeId)}
-                    disabled={!selectedTeamLeadId}
+                    disabled={!selectedTeamLeadId || isSelectedLead}
                     className="mt-1 lg:mt-0 h-4 w-4"
                   />
                   <span className="hidden lg:block">{row.employee?.employeeId || "-"}</span>
@@ -273,7 +284,7 @@ const EmployeeAccessControl = () => {
                     <span className="block text-xs text-gray-500">{row.employee?.designation || "-"}</span>
                   </span>
                   <span className="text-gray-600">
-                    {row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
+                    {isSelectedLead ? "Self / Team Lead" : row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
                   </span>
                 </label>
               );

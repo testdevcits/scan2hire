@@ -9,25 +9,6 @@ import { useToast } from "../../contexts/ToastContext";
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const monthKey = () => new Date().toISOString().slice(0, 7);
 
-const emptyTask = {
-  assignedTo: "",
-  taskDate: todayKey(),
-  handledBy: "",
-  phase: "",
-  project: "",
-  title: "",
-  url: "",
-  description: "",
-  tech: "",
-  collaborator: "",
-  status: "pending",
-  reply: "",
-  billing: "",
-  priority: "normal",
-  taskSource: "",
-  remark: "",
-};
-
 const statusLabels = {
   pending: "Pending",
   in_progress: "On Process",
@@ -36,19 +17,26 @@ const statusLabels = {
   cancelled: "Cancelled",
 };
 
-const fieldOptions = {
-  phase: ["Discuss", "Development", "Designing", "Testing", "Deployment", "Support"],
-  tech: ["WFCS", "React", "Node", "MongoDB", "UI", "API", "SEO"],
-  billing: ["Billable", "Non Billable", "Internal"],
-  priority: ["normal", "important", "urgent", "low"],
-  status: ["pending", "in_progress", "completed", "blocked", "cancelled"],
-  taskSource: ["Client", "Mike Task", "Internal", "Asana", "WhatsApp", "Call"],
+const projectDefaults = {
+  name: "",
+  phase: "Development",
+  environment: "development",
+  url: "",
+  tech: "",
+  billing: "",
+  taskSource: "",
+  description: "",
 };
 
-const getUnique = (tasks, key) =>
-  [...new Set(tasks.map((task) => task[key]).filter(Boolean))].sort((a, b) =>
-    String(a).localeCompare(String(b))
-  );
+const taskDefaults = {
+  assignedTo: "",
+  taskDate: todayKey(),
+  title: "",
+  priority: "normal",
+  status: "pending",
+  collaborator: "",
+  remark: "",
+};
 
 const TaskManagement = () => {
   const toast = useToast();
@@ -56,11 +44,14 @@ const TaskManagement = () => {
   const isHr = user?.role === "hr";
   const [employees, setEmployees] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [form, setForm] = useState(emptyTask);
+  const [projects, setProjects] = useState([]);
+  const [projectForm, setProjectForm] = useState(projectDefaults);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [taskForm, setTaskForm] = useState(taskDefaults);
   const [date, setDate] = useState(todayKey());
   const [month, setMonth] = useState(monthKey());
   const [employeeFilter, setEmployeeFilter] = useState("");
-  const [editingId, setEditingId] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -70,14 +61,14 @@ const TaskManagement = () => {
       const params = isHr
         ? { month, employeeId: employeeFilter || undefined }
         : { date, employeeId: employeeFilter || undefined };
-      const [employeeRes, taskRes] = await Promise.all([
-        hrApi.getEmployees(),
-        hrApi.getTasks(params),
-      ]);
+      const requests = [hrApi.getEmployees(), hrApi.getTasks(params)];
+      if (!isHr) requests.push(hrApi.getTaskProjects());
+      const [employeeRes, taskRes, projectRes] = await Promise.all(requests);
       setEmployees(employeeRes.data.data || []);
       setTasks(taskRes.data.data || []);
+      if (!isHr) setProjects(projectRes?.data?.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load tasks");
+      toast.error(err.response?.data?.message || "Unable to load task data");
     } finally {
       setLoading(false);
     }
@@ -87,49 +78,75 @@ const TaskManagement = () => {
     loadData();
   }, [loadData]);
 
-  const dynamicOptions = useMemo(
-    () => ({
-      project: getUnique(tasks, "project"),
-      title: getUnique(tasks, "title"),
-      url: getUnique(tasks, "url"),
-      collaborator: getUnique(tasks, "collaborator"),
-      handledBy: employees.map((employee) => employee.name).filter(Boolean),
-    }),
-    [employees, tasks]
+  const selectedProject = useMemo(
+    () => projects.find((project) => project._id === selectedProjectId),
+    [projects, selectedProjectId]
   );
+
+  useEffect(() => {
+    if (!selectedProject) return;
+    setTaskForm((prev) => ({
+      ...prev,
+      title: prev.title,
+    }));
+  }, [selectedProject]);
 
   const stats = useMemo(
     () => ({
       total: tasks.length,
-      pending: tasks.filter((task) => task.status === "pending").length,
-      progress: tasks.filter((task) => task.status === "in_progress").length,
+      important: tasks.filter((task) => ["important", "urgent"].includes(task.priority)).length,
+      running: tasks.filter((task) => task.status === "in_progress").length,
       completed: tasks.filter((task) => task.status === "completed").length,
     }),
     [tasks]
   );
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const resetForm = () => {
-    setEditingId("");
-    setForm({ ...emptyTask, taskDate: date });
-  };
-
-  const submitTask = async (e) => {
+  const saveProject = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      if (editingId) {
-        await hrApi.updateTask(editingId, form);
+      const res = await hrApi.createTaskProject(projectForm);
+      toast.success("Project added");
+      setProjectForm(projectDefaults);
+      await loadData();
+      setSelectedProjectId(res.data.data?._id || "");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to add project");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveTask = async (e) => {
+    e.preventDefault();
+    if (!selectedProject) {
+      toast.error("Select project first");
+      return;
+    }
+
+    const payload = {
+      ...taskForm,
+      project: selectedProject.name,
+      phase: selectedProject.phase,
+      url: selectedProject.url,
+      tech: selectedProject.tech,
+      billing: selectedProject.billing,
+      taskSource: selectedProject.taskSource,
+      description: selectedProject.description,
+      handledBy: employees.find((employee) => employee._id === taskForm.assignedTo)?.name || "",
+    };
+
+    setSaving(true);
+    try {
+      if (editingTaskId) {
+        await hrApi.updateTask(editingTaskId, payload);
         toast.success("Task updated");
       } else {
-        await hrApi.createTask(form);
+        await hrApi.createTask(payload);
         toast.success("Task assigned");
       }
-      resetForm();
+      setTaskForm({ ...taskDefaults, taskDate: date });
+      setEditingTaskId("");
       await loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to save task");
@@ -139,23 +156,16 @@ const TaskManagement = () => {
   };
 
   const editTask = (task) => {
-    setEditingId(task._id);
-    setForm({
+    const project = projects.find((item) => item.name === task.project);
+    setSelectedProjectId(project?._id || "");
+    setEditingTaskId(task._id);
+    setTaskForm({
       assignedTo: task.assignedTo?._id || "",
       taskDate: task.taskDate ? task.taskDate.slice(0, 10) : todayKey(),
-      handledBy: task.handledBy || "",
-      phase: task.phase || "",
-      project: task.project || "",
       title: task.title || "",
-      url: task.url || "",
-      description: task.description || "",
-      tech: task.tech || "",
-      collaborator: task.collaborator || "",
-      status: task.status || "pending",
-      reply: task.reply || "",
-      billing: task.billing || "",
       priority: task.priority || "normal",
-      taskSource: task.taskSource || "",
+      status: task.status || "pending",
+      collaborator: task.collaborator || "",
       remark: task.remark || "",
     });
   };
@@ -197,24 +207,6 @@ const TaskManagement = () => {
     XLSX.writeFile(book, `task-sheet-${month}.xlsx`);
   };
 
-  const TextWithList = ({ name, label, options = [] }) => (
-    <label className="text-sm font-medium text-gray-700">
-      {label}
-      <input
-        name={name}
-        value={form[name]}
-        onChange={handleChange}
-        list={`${name}-options`}
-        className="mt-1 w-full border rounded-sm px-3 py-2"
-      />
-      <datalist id={`${name}-options`}>
-        {options.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-    </label>
-  );
-
   if (loading) return <CommonLoader text="Loading tasks..." />;
 
   return (
@@ -222,23 +214,19 @@ const TaskManagement = () => {
       <section className="bg-white rounded-sm shadow p-4">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {isHr ? "Monthly Task Sheet" : "Team Task Management"}
-            </h1>
+            <h1 className="text-xl font-bold text-gray-900">{isHr ? "Monthly Task Sheet" : "Team Task Management"}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {isHr
-                ? "Review monthly task data and download Excel sheet."
-                : "Add project/task details for your assigned team. Employees update timing and replies."}
+              {isHr ? "Download monthly task sheet." : "Add projects first, then assign sheet-style tasks to your team."}
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
               ["Total", stats.total],
-              ["Pending", stats.pending],
-              ["Running", stats.progress],
+              ["Important", stats.important],
+              ["Running", stats.running],
               ["Done", stats.completed],
             ].map(([label, value]) => (
-              <div key={label} className="px-3 py-2 rounded-sm bg-[#fff5f3] text-[#f84525] text-sm font-semibold">
+              <div key={label} className={`px-3 py-2 rounded-sm text-sm font-semibold ${label === "Important" ? "bg-red-50 text-red-700 border border-red-200" : "bg-[#fff5f3] text-[#f84525]"}`}>
                 <span className="block text-xs">{label}</span>
                 <span>{value}</span>
               </div>
@@ -248,78 +236,159 @@ const TaskManagement = () => {
       </section>
 
       {!isHr && (
-        <form onSubmit={submitTask} className="bg-white rounded-sm shadow p-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <section className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-4">
+          <form onSubmit={saveProject} className="bg-white rounded-sm shadow p-4 space-y-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Project Master</h2>
+              <p className="text-xs text-gray-500 mt-1">Project information yaha add karo. Task row me project select hoga.</p>
+            </div>
             <label className="text-sm font-medium text-gray-700">
-              Employee
-              <select name="assignedTo" value={form.assignedTo} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2" required>
-                <option value="">Select employee</option>
-                {employees.map((employee) => (
-                  <option key={employee._id} value={employee._id}>
-                    {employee.employeeId || "-"} - {employee.name}
-                  </option>
-                ))}
-              </select>
+              Project Name
+              <input value={projectForm.name} onChange={(e) => setProjectForm((prev) => ({ ...prev, name: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
             </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Phase
+                <select value={projectForm.phase} onChange={(e) => setProjectForm((prev) => ({ ...prev, phase: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                  <option>Development</option>
+                  <option>Designing</option>
+                  <option>Testing</option>
+                  <option>Discuss</option>
+                  <option>Support</option>
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-700">
+                Stage
+                <select value={projectForm.environment} onChange={(e) => setProjectForm((prev) => ({ ...prev, environment: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                  <option value="development">Development</option>
+                  <option value="live">Live</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="testing">Testing</option>
+                </select>
+              </label>
+            </div>
             <label className="text-sm font-medium text-gray-700">
-              Date
-              <input type="date" name="taskDate" value={form.taskDate} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+              URL
+              <input value={projectForm.url} onChange={(e) => setProjectForm((prev) => ({ ...prev, url: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
             </label>
-            <TextWithList name="project" label="Project" options={dynamicOptions.project} />
-            <TextWithList name="title" label="Task Title" options={dynamicOptions.title} />
-            <TextWithList name="url" label="URL" options={dynamicOptions.url} />
-            <TextWithList name="handledBy" label="Task Handle By" options={dynamicOptions.handledBy} />
-            <label className="text-sm font-medium text-gray-700">
-              Phase
-              <select name="phase" value={form.phase} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option value="">Select phase</option>
-                {fieldOptions.phase.map((option) => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Task Tech
-              <select name="tech" value={form.tech} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option value="">Select tech</option>
-                {fieldOptions.tech.map((option) => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <TextWithList name="collaborator" label="Collaborator" options={dynamicOptions.collaborator} />
-            <label className="text-sm font-medium text-gray-700">
-              Billing
-              <select name="billing" value={form.billing} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option value="">Select billing</option>
-                {fieldOptions.billing.map((option) => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Priority
-              <select name="priority" value={form.priority} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                {fieldOptions.priority.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Tech
+                <input value={projectForm.tech} onChange={(e) => setProjectForm((prev) => ({ ...prev, tech: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
+              </label>
+              <label className="text-sm font-medium text-gray-700">
+                Billing
+                <select value={projectForm.billing} onChange={(e) => setProjectForm((prev) => ({ ...prev, billing: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                  <option value="">Select</option>
+                  <option>Billable</option>
+                  <option>Non Billable</option>
+                  <option>Internal</option>
+                </select>
+              </label>
+            </div>
             <label className="text-sm font-medium text-gray-700">
               Task Source
-              <select name="taskSource" value={form.taskSource} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option value="">Select source</option>
-                {fieldOptions.taskSource.map((option) => <option key={option}>{option}</option>)}
-              </select>
+              <input value={projectForm.taskSource} onChange={(e) => setProjectForm((prev) => ({ ...prev, taskSource: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
             </label>
             <label className="text-sm font-medium text-gray-700">
-              Status
-              <select name="status" value={form.status} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2">
-                {fieldOptions.status.map((option) => <option key={option} value={option}>{statusLabels[option]}</option>)}
-              </select>
+              Project Description
+              <textarea value={projectForm.description} onChange={(e) => setProjectForm((prev) => ({ ...prev, description: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]" />
             </label>
+            <Button text="Add Project" type="submit" loading={saving} className="w-full" />
+          </form>
+
+          <div className="bg-white rounded-sm shadow overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b">
+              <h2 className="font-semibold text-gray-900">Task Sheet Entry</h2>
+              <p className="text-xs text-gray-500 mt-1">Project select karo, employee choose karo, task title aur priority set karo.</p>
+            </div>
+            <form onSubmit={saveTask} className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Project
+                  <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2" required>
+                    <option value="">Select project</option>
+                    {projects.map((project) => (
+                      <option key={project._id} value={project._id}>
+                        {project.name} - {project.phase} - {project.environment}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Employee
+                  <select value={taskForm.assignedTo} onChange={(e) => setTaskForm((prev) => ({ ...prev, assignedTo: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required>
+                    <option value="">Select employee</option>
+                    {employees.map((employee) => (
+                      <option key={employee._id} value={employee._id}>
+                        {employee.employeeId || "-"} - {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Date
+                  <input type="date" value={taskForm.taskDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, taskDate: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Task Title
+                  <input value={taskForm.title} onChange={(e) => setTaskForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Priority
+                  <select value={taskForm.priority} onChange={(e) => setTaskForm((prev) => ({ ...prev, priority: e.target.value }))} className={`mt-1 w-full border rounded-sm px-3 py-2 ${["important", "urgent"].includes(taskForm.priority) ? "border-red-400 bg-red-50 text-red-700 font-semibold" : ""}`}>
+                    <option value="normal">Normal</option>
+                    <option value="important">Important</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Status
+                  <select value={taskForm.status} onChange={(e) => setTaskForm((prev) => ({ ...prev, status: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">On Process</option>
+                    <option value="completed">Complete</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Collaborator
+                  <input value={taskForm.collaborator} onChange={(e) => setTaskForm((prev) => ({ ...prev, collaborator: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Remark
+                  <input value={taskForm.remark} onChange={(e) => setTaskForm((prev) => ({ ...prev, remark: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
+                </label>
+              </div>
+
+              {selectedProject && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 rounded-sm border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                  <span><b>Phase:</b> {selectedProject.phase || "-"}</span>
+                  <span><b>Stage:</b> {selectedProject.environment || "-"}</span>
+                  <span><b>Tech:</b> {selectedProject.tech || "-"}</span>
+                  <span><b>Billing:</b> {selectedProject.billing || "-"}</span>
+                  <span className="md:col-span-4 break-all"><b>URL:</b> {selectedProject.url || "-"}</span>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button text={editingTaskId ? "Update Task" : "Add Task"} loading={saving} type="submit" />
+                {editingTaskId && (
+                  <Button
+                    text="Cancel Edit"
+                    variant="secondary"
+                    onClick={() => {
+                      setEditingTaskId("");
+                      setTaskForm({ ...taskDefaults, taskDate: date });
+                    }}
+                  />
+                )}
+              </div>
+            </form>
           </div>
-          <label className="block text-sm font-medium text-gray-700">
-            Task Description
-            <textarea name="description" value={form.description} onChange={handleChange} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[80px]" />
-          </label>
-          <div className="flex gap-2">
-            <Button text={editingId ? "Update Task" : "Add Task"} loading={saving} type="submit" />
-            {editingId && <Button text="Cancel Edit" variant="secondary" type="button" onClick={resetForm} />}
-          </div>
-        </form>
+        </section>
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -353,33 +422,36 @@ const TaskManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task) => (
-                  <tr key={task._id} className="border-t align-top">
-                    <td className="px-3 py-3 min-w-[150px]">{task.assignedTo?.name || "-"}</td>
-                    <td className="px-3 py-3">{task.phase || "-"}</td>
-                    <td className="px-3 py-3">{task.project || "-"}</td>
-                    <td className="px-3 py-3 font-medium max-w-[180px] break-words">{task.title}</td>
-                    <td className="px-3 py-3">{task.url ? <a href={task.url} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
-                    <td className="px-3 py-3 max-w-[260px] break-words">{task.description || "-"}</td>
-                    <td className="px-3 py-3">{task.tech || "-"}</td>
-                    <td className="px-3 py-3">{task.timing || "-"}</td>
-                    <td className="px-3 py-3">{task.collaborator || "-"}</td>
-                    <td className="px-3 py-3">{statusLabels[task.status] || task.status}</td>
-                    <td className="px-3 py-3 max-w-[180px] break-words">{task.reply || "-"}</td>
-                    <td className="px-3 py-3">{task.billing || "-"}</td>
-                    <td className="px-3 py-3 capitalize">{task.priority}</td>
-                    <td className="px-3 py-3">{task.taskSource || "-"}</td>
-                    <td className="px-3 py-3 max-w-[180px] break-words">{task.remark || "-"}</td>
-                    {!isHr && (
-                      <td className="px-3 py-3">
-                        <div className="flex gap-2">
-                          <Button text="Edit" className="text-xs px-3 py-1.5" onClick={() => editTask(task)} />
-                          <Button text="Delete" variant="danger" className="text-xs px-3 py-1.5" onClick={() => deleteTask(task._id)} />
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
+                {tasks.map((task) => {
+                  const important = ["important", "urgent"].includes(task.priority);
+                  return (
+                    <tr key={task._id} className={`border-t align-top ${important ? "bg-red-50/70" : ""}`}>
+                      <td className="px-3 py-3 min-w-[150px]">{task.assignedTo?.name || "-"}</td>
+                      <td className="px-3 py-3">{task.phase || "-"}</td>
+                      <td className="px-3 py-3">{task.project || "-"}</td>
+                      <td className="px-3 py-3 font-medium max-w-[180px] break-words">{task.title}</td>
+                      <td className="px-3 py-3">{task.url ? <a href={task.url} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
+                      <td className="px-3 py-3 max-w-[260px] break-words">{task.description || "-"}</td>
+                      <td className="px-3 py-3">{task.tech || "-"}</td>
+                      <td className="px-3 py-3">{task.timing || "-"}</td>
+                      <td className="px-3 py-3">{task.collaborator || "-"}</td>
+                      <td className="px-3 py-3">{statusLabels[task.status] || task.status}</td>
+                      <td className="px-3 py-3 max-w-[180px] break-words">{task.reply || "-"}</td>
+                      <td className="px-3 py-3">{task.billing || "-"}</td>
+                      <td className={`px-3 py-3 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
+                      <td className="px-3 py-3">{task.taskSource || "-"}</td>
+                      <td className="px-3 py-3 max-w-[180px] break-words">{task.remark || "-"}</td>
+                      {!isHr && (
+                        <td className="px-3 py-3">
+                          <div className="flex gap-2">
+                            <Button text="Edit" className="text-xs px-3 py-1.5" onClick={() => editTask(task)} />
+                            <Button text="Delete" variant="danger" className="text-xs px-3 py-1.5" onClick={() => deleteTask(task._id)} />
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -38,7 +38,7 @@ const SystemAllotments = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const isEmployee = ["employee", "teamlead"].includes(user?.role);
-  const canEdit = user?.role === "hr" || user?.role === "employee";
+  const canEdit = user?.role === "employee";
   const api = isEmployee ? employeeApi : hrApi;
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]);
