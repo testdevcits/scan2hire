@@ -67,9 +67,9 @@ const AdminDashboard = () => {
   const statCards = useMemo(
     () => [
       {
-        label: "Total Employees",
-        value: employees.length,
-        note: `${hrs.length} HR accounts active`,
+        label: "Total Staff",
+        value: employees.length + hrs.length,
+        note: `${hrs.length} HR + ${employees.length} employees`,
         tone: "primary",
       },
       {

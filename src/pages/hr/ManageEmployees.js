@@ -33,6 +33,7 @@ const ManageEmployees = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const canManage = user?.role === "hr";
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -135,17 +136,17 @@ const ManageEmployees = () => {
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
             Total Employees: {employees.length}
           </span>
-          <button
+          {canManage && <button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
             className="bg-[#f84525] text-white px-4 py-2 rounded-sm text-sm"
           >
             {showForm ? "Close Form" : "Add Employee"}
-          </button>
+          </button>}
         </div>
       </div>
 
-      {showForm && (
+      {canManage && showForm && (
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-3"

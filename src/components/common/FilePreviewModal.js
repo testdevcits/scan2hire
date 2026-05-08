@@ -1,4 +1,6 @@
 const getPreviewType = (url = "") => {
+  if (String(url).startsWith("data:image/")) return "image";
+  if (String(url).startsWith("data:application/pdf")) return "pdf";
   const cleanUrl = String(url).split("?")[0].toLowerCase();
   if (cleanUrl.match(/\.(jpg|jpeg|png|webp|gif|bmp|svg)$/)) return "image";
   if (cleanUrl.endsWith(".pdf")) return "pdf";

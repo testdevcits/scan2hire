@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
+import FilePreviewModal from "../../../components/common/FilePreviewModal";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useEmployee } from "../../../contexts/Hr/EmployeeContext";
 import { useModal } from "../../../contexts/ModalContext";
@@ -68,8 +69,10 @@ const CandidateDetail = () => {
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
   const { employees, fetchEmployees } = useEmployee();
+  const canManage = user?.role === "hr";
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState(null);
   const [statusForm, setStatusForm] = useState({
     interviewStatus: "hr_round",
     roundType: "hr",
@@ -83,10 +86,9 @@ const CandidateDetail = () => {
   const loadCandidate = async () => {
     setLoading(true);
     try {
-      const [candidateRes] = await Promise.all([
-        hrApi.getCandidate(candidateId),
-        fetchEmployees(),
-      ]);
+      const requests = [hrApi.getCandidate(candidateId)];
+      if (canManage) requests.push(fetchEmployees());
+      const [candidateRes] = await Promise.all(requests);
       const data = candidateRes.data.data;
       setCandidate(data);
       setStatusForm({
@@ -108,7 +110,7 @@ const CandidateDetail = () => {
   useEffect(() => {
     loadCandidate();
     // eslint-disable-next-line
-  }, [candidateId]);
+  }, [candidateId, canManage]);
 
   const updateAssignment = async (e) => {
     e.preventDefault();
@@ -256,12 +258,12 @@ const CandidateDetail = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
-          {candidate.isActive ? (
+          {canManage && (candidate.isActive ? (
             <Button text="Deactivate" variant="danger" onClick={deactivateCandidate} />
           ) : (
             <Button text="Activate" variant="success" onClick={activateCandidate} />
-          )}
-          {user?.role === "superadmin" && (
+          ))}
+          {canManage && (
             <Button text="Delete" variant="danger" onClick={deleteCandidate} />
           )}
         </div>
@@ -291,28 +293,53 @@ const CandidateDetail = () => {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
-          <h2 className="font-semibold mb-3">Candidate Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <p><b>Email:</b> {formatValue(candidate.email)}</p>
-            <p><b>Mobile:</b> {formatValue(candidate.mobile)}</p>
-            <p><b>Alt Mobile:</b> {formatValue(candidate.altMobile)}</p>
-            <p><b>Qualification:</b> {formatValue(candidate.qualification)}</p>
-            <p><b>Branch:</b> {formatValue(candidate.branch)}</p>
-            <p><b>Experience:</b> {candidate.experienceType === "fresher" ? "Fresher" : `${formatValue(candidate.experience)} yrs`}</p>
-            <p><b>Company:</b> {formatValue(candidate.currentCompany)}</p>
-            <p><b>Current Salary:</b> {salaryText(candidate.currentSalary, candidate.currentSalaryPeriod)}</p>
-            <p><b>Expected Salary:</b> {salaryText(candidate.expectedSalary, candidate.expectedSalaryPeriod)}</p>
-            <p><b>Night Shift:</b> {formatValue(candidate.nightShift)}</p>
-            <p><b>Reference:</b> {candidate.referenceName ? `${candidate.referenceName} (${candidate.referenceMobile || "N/A"})` : "N/A"}</p>
-            <p><b>Skills:</b> {formatValue(candidate.skills)}</p>
-            <p><b>Framework:</b> {formatValue(candidate.framework)}</p>
-            <p><b>CMS:</b> {formatValue(candidate.cms)}</p>
-            <p><b>Certificate:</b> {candidate.certificateName || (candidate.certificate ? "Uploaded" : "N/A")}</p>
-            <p><b>Resume:</b> {candidate.resumeName || (candidate.resume ? "Uploaded" : "N/A")}</p>
+        <div className="bg-white rounded-sm shadow p-4 lg:col-span-2 space-y-5">
+          <div>
+            <h2 className="font-semibold mb-3">Candidate Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <p><b>Email:</b> {formatValue(candidate.email)}</p>
+              <p><b>Mobile:</b> {formatValue(candidate.mobile)}</p>
+              <p><b>Alt Mobile:</b> {formatValue(candidate.altMobile)}</p>
+              <p><b>Qualification:</b> {formatValue(candidate.qualification)}</p>
+              <p><b>Branch:</b> {formatValue(candidate.branch)}</p>
+              <p><b>Experience:</b> {candidate.experienceType === "fresher" ? "Fresher" : `${formatValue(candidate.experience)} yrs`}</p>
+              <p><b>Company:</b> {formatValue(candidate.currentCompany)}</p>
+              <p><b>Current Salary:</b> {salaryText(candidate.currentSalary, candidate.currentSalaryPeriod)}</p>
+              <p><b>Expected Salary:</b> {salaryText(candidate.expectedSalary, candidate.expectedSalaryPeriod)}</p>
+              <p><b>Night Shift:</b> {formatValue(candidate.nightShift)}</p>
+              <p><b>Reference:</b> {candidate.referenceName ? `${candidate.referenceName} (${candidate.referenceMobile || "N/A"})` : "N/A"}</p>
+              <p><b>Skills:</b> {formatValue(candidate.skills)}</p>
+              <p><b>Framework:</b> {formatValue(candidate.framework)}</p>
+              <p><b>CMS:</b> {formatValue(candidate.cms)}</p>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-3">Documents</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                ["Resume", candidate.resume, candidate.resumeName],
+                ["Certificate", candidate.certificate, candidate.certificateName],
+              ].map(([label, url, fileName]) => (
+                <div key={label} className="border rounded-sm p-3">
+                  <p className="text-sm font-semibold text-gray-900">{label}</p>
+                  <p className="text-xs text-gray-500 mt-1 break-all">{fileName || (url ? "Uploaded" : "Not uploaded")}</p>
+                  {url ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreview({ title: `${candidate.name} - ${label}`, url })}
+                      className="mt-3 text-sm text-[#f84525] underline"
+                    >
+                      View {label}
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
+        {canManage ? (
         <form onSubmit={updateAssignment} className="bg-white rounded-sm shadow p-4 space-y-3">
           <h2 className="font-semibold">Assign & Status</h2>
           <label className="block text-sm font-medium">
@@ -423,6 +450,15 @@ const CandidateDetail = () => {
             <Button text="Add as Employee" variant="success" onClick={convertToEmployee} className="w-full" />
           )}
         </form>
+        ) : (
+          <aside className="bg-white rounded-sm shadow p-4 space-y-3">
+            <h2 className="font-semibold">Status</h2>
+            <p className="text-sm"><b>Current:</b> {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}</p>
+            <p className="text-sm"><b>Assigned To:</b> {candidate.assignedTo?.name || "Unassigned"}</p>
+            <p className="text-sm"><b>HR Status:</b> {candidate.hrReview?.hrStatus || "pending"}</p>
+            <p className="text-xs text-gray-500">Read-only access. HR manages candidate updates.</p>
+          </aside>
+        )}
       </section>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -444,6 +480,13 @@ const CandidateDetail = () => {
           <p className="p-4 text-sm text-gray-500">No interview report added yet.</p>
         )}
       </section>
+      {preview && (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 };

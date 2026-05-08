@@ -19,6 +19,7 @@ const EmployeeDetail = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
+  const canManage = user?.role === "hr";
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -275,12 +276,12 @@ const EmployeeDetail = () => {
           />
           <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
           <Button text={reportDate ? "Download Day Report" : "Download PDF"} onClick={downloadEmployeeReport} />
-          {employee.isActive ? (
+          {canManage && (employee.isActive ? (
             <Button text="Deactivate" variant="danger" onClick={deactivateEmployee} />
           ) : (
             <Button text="Activate" variant="success" onClick={activateEmployee} />
-          )}
-          {user?.role === "superadmin" && (
+          ))}
+          {canManage && (
             <Button text="Delete" variant="danger" onClick={deleteEmployee} />
           )}
         </div>
@@ -344,6 +345,7 @@ const EmployeeDetail = () => {
         </div>
       </section>
 
+      {canManage && (
       <form onSubmit={updateEmployee} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <h2 className="font-semibold md:col-span-4">Update Employee</h2>
         {[
@@ -406,6 +408,7 @@ const EmployeeDetail = () => {
         </div>
         <Button text={savingProfile ? "Saving..." : "Save Employee"} loading={savingProfile} type="submit" className="md:col-span-4" />
       </form>
+      )}
 
       {user?.role === "superadmin" && (
         <section className="bg-white rounded-sm shadow overflow-hidden">

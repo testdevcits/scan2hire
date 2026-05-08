@@ -78,8 +78,6 @@ function App() {
           <Route path="reports" element={<ViewReports />} />
           <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
-          <Route path="manage-tl" element={<EmployeeAccessControl />} />
-          <Route path="access-control" element={<EmployeeAccessControl />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
@@ -88,7 +86,7 @@ function App() {
         <Route
           path="/hr/*"
           element={
-            <ProtectedRoute allowedRoles={["hr", "superadmin", "teamlead"]}>
+            <ProtectedRoute allowedRoles={["hr", "teamlead"]}>
               <HRLayout />
             </ProtectedRoute>
           }

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const getYesterdayKey = () => {
@@ -15,6 +16,8 @@ const labelize = (value = "") => value.replace(/_/g, " ");
 
 const LeaveReports = () => {
   const toast = useToast();
+  const { user } = useContext(AuthContext);
+  const canReview = user?.role === "hr";
   const [selectedDate, setSelectedDate] = useState(getYesterdayKey());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [status, setStatus] = useState("");
@@ -193,10 +196,14 @@ const LeaveReports = () => {
                       </td>
                       <td className="px-4 py-3 font-semibold capitalize whitespace-nowrap">{leave.status}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2 flex-wrap min-w-[150px]">
-                          <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
-                          <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
-                        </div>
+                        {canReview ? (
+                          <div className="flex gap-2 flex-wrap min-w-[150px]">
+                            <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                            <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                          </div>
+                        ) : (
+                          <span className="text-xs font-medium text-gray-500">View only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -229,10 +236,14 @@ const LeaveReports = () => {
                       View attachment
                     </a>
                   )}
-                  <div className="flex gap-2 flex-wrap">
-                    <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
-                    <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
-                  </div>
+                  {canReview ? (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button text="Approve" variant="success" onClick={() => reviewLeave(leave._id, "approved")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                      <Button text="Reject" variant="danger" onClick={() => reviewLeave(leave._id, "rejected")} loading={updatingId === leave._id} disabled={leave.status !== "pending"} className="text-xs px-3 py-1.5" />
+                    </div>
+                  ) : (
+                    <span className="text-xs font-medium text-gray-500">View only</span>
+                  )}
                 </article>
               ))}
             </div>
