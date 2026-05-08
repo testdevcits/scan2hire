@@ -38,6 +38,7 @@ const SystemAllotments = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const isEmployee = ["employee", "teamlead"].includes(user?.role);
+  const canEdit = user?.role === "hr" || user?.role === "employee";
   const api = isEmployee ? employeeApi : hrApi;
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]);
@@ -443,21 +444,25 @@ const SystemAllotments = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              text={showForm ? "Close Form" : editingId ? "Continue Editing" : "Add / Assign System"}
-              onClick={() => setShowForm((prev) => !prev)}
-            />
-            <label className="inline-flex items-center justify-center px-4 py-2 rounded-sm bg-[#f84525] text-white text-sm font-semibold cursor-pointer">
-              {importing ? "Importing..." : "Import Excel"}
-              <input type="file" accept=".xlsx,.xls,.csv,.ods" onChange={handleImport} className="hidden" disabled={importing} />
-            </label>
-            <Button
-              text={selectedIds.length ? `Delete Selected (${selectedIds.length})` : "Delete Selected"}
-              variant="danger"
-              onClick={deleteSelectedItems}
-              disabled={!selectedIds.length}
-              loading={importing && selectedIds.length > 0}
-            />
+            {canEdit && (
+              <>
+                <Button
+                  text={showForm ? "Close Form" : editingId ? "Continue Editing" : "Add / Assign System"}
+                  onClick={() => setShowForm((prev) => !prev)}
+                />
+                <label className="inline-flex items-center justify-center px-4 py-2 rounded-sm bg-[#f84525] text-white text-sm font-semibold cursor-pointer">
+                  {importing ? "Importing..." : "Import Excel"}
+                  <input type="file" accept=".xlsx,.xls,.csv,.ods" onChange={handleImport} className="hidden" disabled={importing} />
+                </label>
+                <Button
+                  text={selectedIds.length ? `Delete Selected (${selectedIds.length})` : "Delete Selected"}
+                  variant="danger"
+                  onClick={deleteSelectedItems}
+                  disabled={!selectedIds.length}
+                  loading={importing && selectedIds.length > 0}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -507,7 +512,7 @@ const SystemAllotments = () => {
         </div>
       </section>
 
-      {showForm && (
+      {canEdit && showForm && (
       <form onSubmit={saveAllotment} className="bg-white rounded-sm shadow overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
@@ -647,7 +652,9 @@ const SystemAllotments = () => {
           <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50">
             <div>
               <h2 className="font-semibold text-gray-900">Employees</h2>
-              <p className="text-xs text-gray-500">Click an employee before saving to assign a system.</p>
+              <p className="text-xs text-gray-500">
+                {canEdit ? "Click an employee before saving to assign a system." : "View employee system ownership."}
+              </p>
             </div>
             <select value={employeeListFilter} onChange={(e) => setEmployeeListFilter(e.target.value)} className="border border-gray-300 rounded-sm px-2 py-1 text-sm">
               <option value="all">All</option>
@@ -660,7 +667,7 @@ const SystemAllotments = () => {
               <button
                 key={employee._id}
                 type="button"
-                onClick={() => setForm((prev) => ({ ...prev, employee: employee._id, status: "assigned" }))}
+                onClick={() => canEdit && setForm((prev) => ({ ...prev, employee: employee._id, status: "assigned" }))}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50"
               >
                 <span className="flex items-center justify-between gap-3">
@@ -678,14 +685,16 @@ const SystemAllotments = () => {
         <div className="bg-white rounded-sm shadow overflow-hidden">
           <div className="px-4 py-3 bg-gray-50">
             <h2 className="font-semibold text-gray-900">Quick System Picker</h2>
-            <p className="text-xs text-gray-500">Click a system to open it in edit mode.</p>
+            <p className="text-xs text-gray-500">
+              {canEdit ? "Click a system to open it in edit mode." : "View system details."}
+            </p>
           </div>
           <div className="max-h-72 overflow-auto divide-y">
             {systemList.map((system) => (
               <button
                 key={system._id}
                 type="button"
-                onClick={() => fillFormFromSystem(system)}
+                onClick={() => canEdit && fillFormFromSystem(system)}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50"
               >
                 <span className="font-medium text-sm">{getSystemTitle(system)}</span>
@@ -702,9 +711,11 @@ const SystemAllotments = () => {
         <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h2 className="font-semibold text-gray-900">Current Allotments</h2>
-            <p className="text-xs text-gray-500">Tick systems below, then use Delete Selected.</p>
+            <p className="text-xs text-gray-500">
+              {canEdit ? "Tick systems below, then use Delete Selected." : "View-only access for Team Lead."}
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {canEdit && <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
               <input
                 type="checkbox"
@@ -722,7 +733,7 @@ const SystemAllotments = () => {
               loading={importing && selectedIds.length > 0}
               className="text-sm"
             />
-          </div>
+          </div>}
         </div>
         {items.length === 0 ? (
           <p className="p-6 text-center text-gray-500">No system allotments found.</p>
@@ -736,14 +747,16 @@ const SystemAllotments = () => {
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <label className="shrink-0 pt-1" title="Select for bulk delete">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(item._id)}
-                      onChange={() => toggleSelected(item._id)}
-                      className="w-4 h-4 accent-[#f84525]"
-                    />
-                  </label>
+                  {canEdit && (
+                    <label className="shrink-0 pt-1" title="Select for bulk delete">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item._id)}
+                        onChange={() => toggleSelected(item._id)}
+                        className="w-4 h-4 accent-[#f84525]"
+                      />
+                    </label>
+                  )}
                   <div className="min-w-0">
                     <h3 className="font-semibold text-gray-900 break-words">{getSystemTitle(item)}</h3>
                     <p className="text-xs text-gray-500 mt-1">
@@ -787,8 +800,12 @@ const SystemAllotments = () => {
                 {item.notes && <p className="mt-3 text-sm text-gray-600 break-words">{item.notes}</p>}
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button text="Edit" variant="secondary" onClick={() => editItem(item)} className="text-xs px-3 py-1.5" />
-                  <Button text="Remove" variant="danger" onClick={() => deleteItem(item)} className="text-xs px-3 py-1.5" />
+                  {canEdit && (
+                    <>
+                      <Button text="Edit" variant="secondary" onClick={() => editItem(item)} className="text-xs px-3 py-1.5" />
+                      <Button text="Remove" variant="danger" onClick={() => deleteItem(item)} className="text-xs px-3 py-1.5" />
+                    </>
+                  )}
                   <details className="w-full text-xs text-gray-600 mt-1">
                     <summary className="cursor-pointer font-semibold">History</summary>
                     {(item.history || []).slice().reverse().map((history, index) => (
