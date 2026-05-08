@@ -38,8 +38,8 @@ const SystemAllotments = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const isEmployee = ["employee", "teamlead"].includes(user?.role);
-  const canEdit = user?.role === "employee";
   const api = isEmployee ? employeeApi : hrApi;
+  const [canEdit, setCanEdit] = useState(user?.role === "employee");
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -57,13 +57,17 @@ const SystemAllotments = () => {
     setLoading(true);
     setAccessDenied(false);
     try {
+      const accessReq = isEmployee
+        ? employeeApi.getMyAccess()
+        : Promise.resolve({ data: { data: { systemAllotmentManage: false } } });
       const allotmentsReq = api.getSystemAllotments({
         employeeId: filters.employeeId || undefined,
         status: filters.status || undefined,
         search: filters.search.trim() || undefined,
       });
       const employeesReq = isEmployee ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
-      const [employeesRes, allotmentsRes] = await Promise.all([employeesReq, allotmentsReq]);
+      const [accessRes, employeesRes, allotmentsRes] = await Promise.all([accessReq, employeesReq, allotmentsReq]);
+      setCanEdit(Boolean(accessRes?.data?.data?.systemAllotmentManage));
       setEmployees(employeesRes.data.data || []);
       setItems(allotmentsRes.data.data || []);
       setSelectedIds([]);
