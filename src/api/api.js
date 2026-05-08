@@ -77,6 +77,10 @@ export const hrApi = {
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/hr/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/hr/system-allotments/${allotmentId}`),
+  getTasks: (params) => API.get("/hr/tasks", { params }),
+  createTask: (payload) => API.post("/hr/tasks", payload),
+  updateTask: (taskId, payload) => API.put(`/hr/tasks/${taskId}`, payload),
+  deleteTask: (taskId) => API.delete(`/hr/tasks/${taskId}`),
 };
 
 export const employeeApi = {
@@ -108,6 +112,8 @@ export const employeeApi = {
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/employees/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),
+  getTasks: (params) => API.get("/employees/tasks", { params }),
+  updateTask: (taskId, payload) => API.patch(`/employees/tasks/${taskId}`, payload),
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),

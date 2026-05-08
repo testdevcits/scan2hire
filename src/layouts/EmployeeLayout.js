@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiCalendar, FiClock, FiFileText, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiCheckSquare, FiClock, FiFileText, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 
 const EmployeeLayout = () => {
@@ -10,6 +10,7 @@ const EmployeeLayout = () => {
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
     { label: "Leave Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
+    { label: "My Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
     ...(user?.role === "teamlead"
       ? [{ label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> }]
       : []),

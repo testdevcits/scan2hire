@@ -108,9 +108,11 @@ const ManageEmployees = () => {
     <div className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold">Manage Employees</h1>
+          <h1 className="text-xl font-bold">{user?.role === "teamlead" ? "Your Team" : "Manage Employees"}</h1>
           <p className="text-sm text-gray-500">
-            Add employees, create login access, and review documents.
+            {user?.role === "teamlead"
+              ? "View employees assigned to your team."
+              : "Add employees, create login access, and review documents."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -134,7 +136,7 @@ const ManageEmployees = () => {
             ))}
           </div>
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
-            Total Employees: {employees.length}
+            {user?.role === "teamlead" ? "Team Members" : "Total Employees"}: {employees.length}
           </span>
           {canManage && <button
             type="button"

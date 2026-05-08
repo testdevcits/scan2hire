@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { FiBarChart2, FiCalendar, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiCheckSquare, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 
@@ -9,7 +9,8 @@ const HRLayout = () => {
   const isHr = user?.role === "hr";
   const navItems = [
     { label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> },
-    { label: "Employees", path: "/hr/employees", icon: <FiUsers /> },
+    { label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> },
+    { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
     { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
     { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },
     { label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> },
