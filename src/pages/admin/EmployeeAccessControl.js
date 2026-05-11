@@ -153,7 +153,7 @@ const EmployeeAccessControl = () => {
     try {
       await hrApi.updateEmployeeAccess(selectedEmployeeId, {
         isTeamLead: allowed,
-        modules: { systemAllotment: allowed || Boolean(selectedEmployee?.modules?.systemAllotment) },
+        modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
       });
       toast.success(allowed ? "Employee is now Team Lead" : "Team Lead access removed");
       if (allowed) {
@@ -165,6 +165,36 @@ const EmployeeAccessControl = () => {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update Team Lead access");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setSystemAllotmentAccess = async (allowed) => {
+    if (!selectedEmployeeId) {
+      toast.error("Select employee first");
+      return;
+    }
+
+    const ok = await confirm({
+      title: allowed ? "Allow System Allotment" : "Remove System Allotment Access",
+      message: `${selectedEmployee?.employee?.name || "This employee"} ${
+        allowed ? "will be able to open and manage System Allotments." : "will no longer see System Allotments."
+      }`,
+      confirmText: allowed ? "Allow Access" : "Remove Access",
+      tone: allowed ? "primary" : "danger",
+    });
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+        modules: { systemAllotment: allowed },
+      });
+      toast.success(allowed ? "System Allotment access allowed" : "System Allotment access removed");
+      await loadAccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update System Allotment access");
     } finally {
       setSaving(false);
     }
@@ -333,13 +363,22 @@ const EmployeeAccessControl = () => {
               <div className="border border-gray-200 bg-gray-50 rounded-sm p-3">
                 <p className="font-semibold text-gray-900">{selectedEmployee.employee?.name}</p>
                 <p className="text-xs text-gray-500 break-all">{selectedEmployee.employee?.email || "-"}</p>
-                <span className={`inline-block mt-2 px-2 py-1 text-xs font-semibold rounded-sm border ${
-                  selectedEmployee.isTeamLead
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "bg-gray-100 text-gray-600 border-gray-200"
-                }`}>
-                  {selectedEmployee.isTeamLead ? "Team Lead" : "Employee"}
-                </span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
+                    selectedEmployee.isTeamLead
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}>
+                    {selectedEmployee.isTeamLead ? "Team Lead" : "Employee"}
+                  </span>
+                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
+                    selectedEmployee.modules?.systemAllotment
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}>
+                    {selectedEmployee.modules?.systemAllotment ? "System Allotment Allowed" : "No System Allotment Access"}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -359,6 +398,32 @@ const EmployeeAccessControl = () => {
                 disabled={!selectedEmployeeId || !selectedEmployee?.isTeamLead}
                 className="w-full"
               />
+            </div>
+
+            <div className="border-t pt-3 space-y-2">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">System Allotment Access</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Allowed employees can see System Allotments in sidebar and add/update allotments.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  text="Allow"
+                  onClick={() => setSystemAllotmentAccess(true)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || selectedEmployee?.modules?.systemAllotment}
+                  className="w-full"
+                />
+                <Button
+                  text="Remove"
+                  variant="secondary"
+                  onClick={() => setSystemAllotmentAccess(false)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || !selectedEmployee?.modules?.systemAllotment}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         </div>

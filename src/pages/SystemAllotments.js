@@ -38,9 +38,8 @@ const SystemAllotments = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const isEmployee = ["employee", "teamlead"].includes(user?.role);
-  const isAdminUser = ["hr", "superadmin"].includes(user?.role);
   const api = isEmployee ? employeeApi : hrApi;
-  const [canEdit, setCanEdit] = useState(isAdminUser);
+  const [canEdit, setCanEdit] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -68,7 +67,7 @@ const SystemAllotments = () => {
       });
       const employeesReq = isEmployee ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
       const [accessRes, employeesRes, allotmentsRes] = await Promise.all([accessReq, employeesReq, allotmentsReq]);
-      setCanEdit(isAdminUser || Boolean(accessRes?.data?.data?.systemAllotmentManage));
+      setCanEdit(isEmployee && Boolean(accessRes?.data?.data?.systemAllotmentManage));
       setEmployees(employeesRes.data.data || []);
       setItems(allotmentsRes.data.data || []);
       setSelectedIds([]);
@@ -81,7 +80,7 @@ const SystemAllotments = () => {
     } finally {
       setLoading(false);
     }
-  }, [api, filters.employeeId, filters.search, filters.status, isAdminUser, isEmployee, toast]);
+  }, [api, filters.employeeId, filters.search, filters.status, isEmployee, toast]);
 
   useEffect(() => {
     loadData();
@@ -141,6 +140,37 @@ const SystemAllotments = () => {
   };
 
   const statusLabel = (status = "") => status.replace(/_/g, " ") || "unknown";
+  const formatDateTime = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+  };
+
+  const employeeNameById = useMemo(() => {
+    return employees.reduce((acc, employee) => {
+      acc[String(employee._id)] = `${employee.employeeId || "-"} - ${employee.name}`;
+      return acc;
+    }, {});
+  }, [employees]);
+
+  const getHistoryTitle = (action = "") => {
+    if (action === "created") return "Created";
+    if (action === "deleted") return "Removed";
+    return "Updated";
+  };
+
+  const getHistoryDetails = (history = {}) => {
+    const snapshot = history.snapshot || {};
+    const details = [
+      snapshot.systemName && `System: ${snapshot.systemName}`,
+      snapshot.employee
+        ? `Assigned to: ${employeeNameById[String(snapshot.employee)] || String(snapshot.employee)}`
+        : "Assigned to: Inventory",
+      snapshot.status && `Status: ${statusLabel(snapshot.status)}`,
+    ].filter(Boolean);
+
+    return details.join(" | ");
+  };
 
   const getSystemTitle = (item) =>
     item.systemName ||
@@ -658,7 +688,7 @@ const SystemAllotments = () => {
             <div>
               <h2 className="font-semibold text-gray-900">Employees</h2>
               <p className="text-xs text-gray-500">
-                {canEdit ? "Click an employee before saving to assign a system." : "View employee system ownership."}
+              {canEdit ? "Click an employee before saving to assign a system." : "View employee system ownership."}
               </p>
             </div>
             <select value={employeeListFilter} onChange={(e) => setEmployeeListFilter(e.target.value)} className="border border-gray-300 rounded-sm px-2 py-1 text-sm">
@@ -717,7 +747,9 @@ const SystemAllotments = () => {
           <div>
             <h2 className="font-semibold text-gray-900">Current Allotments</h2>
             <p className="text-xs text-gray-500">
-              {canEdit ? "Tick systems below, then use Delete Selected." : "View-only access for Team Lead."}
+              {canEdit
+                ? "Allowed employees can assign, update, or remove systems."
+                : "View-only access. HR can allow an employee from Manage TL."}
             </p>
           </div>
           {canEdit && <div className="flex flex-wrap items-center gap-2">
@@ -813,11 +845,26 @@ const SystemAllotments = () => {
                   )}
                   <details className="w-full text-xs text-gray-600 mt-1">
                     <summary className="cursor-pointer font-semibold">History</summary>
-                    {(item.history || []).slice().reverse().map((history, index) => (
-                      <p key={`${item._id}-${index}`} className="mt-1">
-                        {history.action} - {history.updatedAt ? new Date(history.updatedAt).toLocaleString() : "-"}
-                      </p>
-                    ))}
+                    {!item.history?.length ? (
+                      <p className="mt-2 text-gray-500">No history found.</p>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        {(item.history || []).slice().reverse().map((history, index) => (
+                          <div key={`${item._id}-${index}`} className="rounded-sm border border-gray-200 bg-gray-50 p-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-semibold text-gray-800">{getHistoryTitle(history.action)}</span>
+                              <span className="text-gray-500">{formatDateTime(history.updatedAt)}</span>
+                            </div>
+                            <p className="mt-1 text-gray-600">
+                              By {history.updatedBy?.name || history.updatedBy?.email || "System"}
+                            </p>
+                            {getHistoryDetails(history) && (
+                              <p className="mt-1 text-gray-700 break-words">{getHistoryDetails(history)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </details>
                 </div>
               </article>

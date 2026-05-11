@@ -43,7 +43,7 @@ const ManageEmployees = () => {
 
   useEffect(() => {
     fetchEmployees();
-    if (user?.role === "superadmin") {
+    if (["hr", "superadmin"].includes(user?.role)) {
       authApi
         .getHrs()
         .then((res) => setHrUsers(res.data.data || []))
@@ -52,19 +52,20 @@ const ManageEmployees = () => {
     // eslint-disable-next-line
   }, [user?.role]);
 
-  const displayEmployees =
-    user?.role === "superadmin"
-      ? [
-          ...hrUsers.map((hr) => ({
-            ...hr,
-            employeeId: "HR",
-            department: "HR",
-            designation: "HR",
-            isHrAccount: true,
-          })),
-          ...employees,
-        ]
-      : employees;
+  const hrRows = hrUsers.map((hr) => ({
+    ...hr,
+    employeeId: "HR",
+    department: "HR",
+    designation: "HR",
+    isHrAccount: true,
+  }));
+  const hrEmails = new Set(hrUsers.map((hr) => String(hr.email || "").toLowerCase()));
+  const nonHrEmployees = employees.filter(
+    (employee) => !hrEmails.has(String(employee.email || "").toLowerCase())
+  );
+  const displayEmployees = ["hr", "superadmin"].includes(user?.role)
+    ? [...hrRows, ...nonHrEmployees]
+    : employees;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -119,6 +120,7 @@ const ManageEmployees = () => {
   const formatValue = (value) => value || "N/A";
   const openEmployee = (employee) => {
     if (employee.isHrAccount) {
+      if (user?.role === "hr") return;
       navigate("/admin/hrs");
       return;
     }
@@ -165,7 +167,7 @@ const ManageEmployees = () => {
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
             {user?.role === "teamlead" ? "Team Members" : "Total Employees"}: {employees.length}
           </span>
-          {user?.role === "superadmin" && (
+          {["hr", "superadmin"].includes(user?.role) && (
             <span className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-sm">
               Including HR: {displayEmployees.length}
             </span>
