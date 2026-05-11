@@ -6,6 +6,7 @@ import CommonLoader from "../../components/common/CommonLoader";
 import FileUploadField from "../../components/common/FileUploadField";
 import { useToast } from "../../contexts/ToastContext";
 import { AuthContext } from "../../contexts/AuthContext";
+import { authApi } from "../../api";
 
 const emptyForm = {
   name: "",
@@ -38,11 +39,32 @@ const ManageEmployees = () => {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState("list");
+  const [hrUsers, setHrUsers] = useState([]);
 
   useEffect(() => {
     fetchEmployees();
+    if (user?.role === "superadmin") {
+      authApi
+        .getHrs()
+        .then((res) => setHrUsers(res.data.data || []))
+        .catch(() => setHrUsers([]));
+    }
     // eslint-disable-next-line
-  }, []);
+  }, [user?.role]);
+
+  const displayEmployees =
+    user?.role === "superadmin"
+      ? [
+          ...hrUsers.map((hr) => ({
+            ...hr,
+            employeeId: "HR",
+            department: "HR",
+            designation: "HR",
+            isHrAccount: true,
+          })),
+          ...employees,
+        ]
+      : employees;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -95,12 +117,17 @@ const ManageEmployees = () => {
   };
 
   const formatValue = (value) => value || "N/A";
-  const openEmployee = (employeeId) =>
+  const openEmployee = (employee) => {
+    if (employee.isHrAccount) {
+      navigate("/admin/hrs");
+      return;
+    }
     navigate(
       user?.role === "superadmin"
-        ? `/admin/employees/${employeeId}`
-        : `/hr/employees/${employeeId}`
+        ? `/admin/employees/${employee._id}`
+        : `/hr/employees/${employee._id}`
     );
+  };
 
   if (loading) return <CommonLoader text="Fetching employees..." />;
 
@@ -138,6 +165,11 @@ const ManageEmployees = () => {
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
             {user?.role === "teamlead" ? "Team Members" : "Total Employees"}: {employees.length}
           </span>
+          {user?.role === "superadmin" && (
+            <span className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-sm">
+              Including HR: {displayEmployees.length}
+            </span>
+          )}
           {canManage && <button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
@@ -251,10 +283,10 @@ const ManageEmployees = () => {
             )}
           </div>
 
-          {employees.length === 0 ? (
+          {displayEmployees.length === 0 ? (
             <p className="p-4 text-center text-gray-500">No employees found</p>
           ) : (
-            employees.map((employee) => (
+            displayEmployees.map((employee) => (
               <div
                 key={employee._id}
                 className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm md:items-center"
@@ -265,22 +297,22 @@ const ManageEmployees = () => {
                 <span>{employee.mobile}</span>
                 <span>{formatValue(employee.department)}</span>
                 <span>{formatValue(employee.designation)}</span>
-                <Button text="View" className="text-xs" onClick={() => openEmployee(employee._id)} />
+                <Button text="View" className="text-xs" onClick={() => openEmployee(employee)} />
               </div>
             ))
           )}
         </div>
-      ) : employees.length === 0 ? (
+      ) : displayEmployees.length === 0 ? (
         <div className="bg-white rounded-sm shadow p-8 text-center text-gray-500">
           No employees found
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
-          {employees.map((employee) => (
+          {displayEmployees.map((employee) => (
             <button
               key={employee._id}
               type="button"
-              onClick={() => openEmployee(employee._id)}
+              onClick={() => openEmployee(employee)}
               className="bg-white rounded-sm shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden border border-[#f7a08f] group"
             >
               <div className="relative aspect-[4/3.4] bg-gradient-to-br from-[#2d2a33] via-[#3e3440] to-[#18171d] overflow-hidden">

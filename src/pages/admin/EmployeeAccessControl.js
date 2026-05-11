@@ -20,7 +20,10 @@ const EmployeeAccessControl = () => {
     setLoading(true);
     try {
       const res = await hrApi.getEmployeeAccess();
-      setRows(res.data.data || []);
+      const list = [...(res.data.data || [])].sort((a, b) =>
+        String(a.employee?.name || "").localeCompare(String(b.employee?.name || ""))
+      );
+      setRows(list);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load Team Lead data");
     } finally {
@@ -36,10 +39,6 @@ const EmployeeAccessControl = () => {
   const employees = useMemo(() => rows.filter((row) => !row.isTeamLead), [rows]);
   const selectedEmployee = rows.find((row) => row.employee?._id === selectedEmployeeId);
   const selectedTeamLead = teamLeads.find((row) => row.employee?._id === selectedTeamLeadId);
-  const assignmentRows = useMemo(() => {
-    if (!selectedTeamLeadId || !selectedTeamLead) return employees;
-    return [selectedTeamLead, ...employees];
-  }, [employees, selectedTeamLead, selectedTeamLeadId]);
 
   useEffect(() => {
     if (!selectedTeamLeadId) {
@@ -56,7 +55,7 @@ const EmployeeAccessControl = () => {
 
   const filteredEmployees = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return assignmentRows.filter((row) => {
+    return employees.filter((row) => {
       if (!term) return true;
       return [
         row.employee?.name,
@@ -68,7 +67,7 @@ const EmployeeAccessControl = () => {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [assignmentRows, search]);
+  }, [employees, search]);
 
   const stats = useMemo(
     () => ({
@@ -157,6 +156,9 @@ const EmployeeAccessControl = () => {
         modules: { systemAllotment: allowed || Boolean(selectedEmployee?.modules?.systemAllotment) },
       });
       toast.success(allowed ? "Employee is now Team Lead" : "Team Lead access removed");
+      if (allowed) {
+        setSelectedTeamLeadId(selectedEmployeeId);
+      }
       await loadAccess();
       if (!allowed && selectedTeamLeadId === selectedEmployeeId) {
         setSelectedTeamLeadId("");
@@ -177,7 +179,7 @@ const EmployeeAccessControl = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Manage TL</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Select a Team Lead, then select employees to assign under that TL.
+              Step 1: make an employee TL. Step 2: select that TL and assign employees under them.
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -208,13 +210,13 @@ const EmployeeAccessControl = () => {
               <option value="">Select TL</option>
               {teamLeads.map((row) => (
                 <option key={row.employee?._id} value={row.employee?._id}>
-                  {row.employee?.employeeId || "-"} - {row.employee?.name}
+                  {row.employee?.employeeId || "-"} - {row.employee?.name} ({employees.filter((employeeRow) => String(employeeRow.teamLead?._id || employeeRow.teamLead) === row.employee?._id).length} assigned)
                 </option>
               ))}
             </select>
           </label>
           <Button
-            text={`Assign ${assignedEmployeeIds.length + (selectedTeamLeadId ? 1 : 0)} Member${assignedEmployeeIds.length + (selectedTeamLeadId ? 1 : 0) === 1 ? "" : "s"}`}
+            text={`Save ${assignedEmployeeIds.length} Assignment${assignedEmployeeIds.length === 1 ? "" : "s"}`}
             onClick={saveAssignments}
             loading={saving}
             disabled={!selectedTeamLeadId}
@@ -224,7 +226,12 @@ const EmployeeAccessControl = () => {
 
         {selectedTeamLead && (
           <div className="border border-blue-100 bg-blue-50 rounded-sm p-3 text-sm text-blue-800">
-            <b>{selectedTeamLead.employee?.name}</b> is included in their own team, plus {assignedEmployeeIds.length} selected employee(s).
+            <b>{selectedTeamLead.employee?.name}</b> will manage {assignedEmployeeIds.length} selected employee(s).
+          </div>
+        )}
+        {!teamLeads.length && (
+          <div className="border border-amber-100 bg-amber-50 rounded-sm p-3 text-sm text-amber-800">
+            No Team Lead exists yet. Select an employee in the right panel and click Make TL first.
           </div>
         )}
       </section>
@@ -245,18 +252,25 @@ const EmployeeAccessControl = () => {
           <div className="hidden lg:grid grid-cols-[52px_120px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-gray-100 px-4 py-3 text-xs uppercase font-semibold text-gray-600">
             <span />
             <span>ID</span>
-            <span>Employee</span>
+            <span>Assignable Employee</span>
             <span>Department</span>
             <span>Current TL</span>
           </div>
 
+          {!selectedTeamLeadId && (
+            <div className="border-b bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              Select a TL above to start assigning employees. The list below shows employees who can be assigned.
+            </div>
+          )}
+
           {filteredEmployees.length === 0 ? (
-            <p className="p-6 text-center text-sm text-gray-500">No employees found.</p>
+            <p className="p-6 text-center text-sm text-gray-500">No assignable employees found.</p>
           ) : (
             filteredEmployees.map((row) => {
               const employeeId = row.employee?._id;
-              const isSelectedLead = selectedTeamLeadId && employeeId === selectedTeamLeadId;
-              const checked = isSelectedLead || assignedEmployeeIds.includes(employeeId);
+              const checked = assignedEmployeeIds.includes(employeeId);
+              const currentTlId = String(row.teamLead?._id || row.teamLead || "");
+              const assignedToSelectedTl = selectedTeamLeadId && currentTlId === selectedTeamLeadId;
               return (
                 <label
                   key={employeeId}
@@ -268,7 +282,7 @@ const EmployeeAccessControl = () => {
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleEmployee(employeeId)}
-                    disabled={!selectedTeamLeadId || isSelectedLead}
+                    disabled={!selectedTeamLeadId}
                     className="mt-1 lg:mt-0 h-4 w-4"
                   />
                   <span className="hidden lg:block">{row.employee?.employeeId || "-"}</span>
@@ -284,7 +298,8 @@ const EmployeeAccessControl = () => {
                     <span className="block text-xs text-gray-500">{row.employee?.designation || "-"}</span>
                   </span>
                   <span className="text-gray-600">
-                    {isSelectedLead ? "Self / Team Lead" : row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
+                    {row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
+                    {assignedToSelectedTl && <span className="ml-2 text-xs font-semibold text-green-700">Current</span>}
                   </span>
                 </label>
               );
