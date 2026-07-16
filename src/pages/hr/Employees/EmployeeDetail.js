@@ -36,6 +36,7 @@ const EmployeeDetail = () => {
     dateOfJoining: "",
     reportingManager: "",
     employeeType: "Permanent",
+    attendanceMode: "office",
     address: {
       street: "",
       city: "",
@@ -70,6 +71,7 @@ const EmployeeDetail = () => {
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         reportingManager: employeeData.reportingManager || "",
         employeeType: employeeData.employeeType || "Permanent",
+        attendanceMode: employeeData.attendanceMode || "office",
         address: {
           street: employeeData.address?.street || "",
           city: employeeData.address?.city || "",
@@ -298,6 +300,7 @@ const EmployeeDetail = () => {
             <p><b>Joining:</b> {employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : "N/A"}</p>
             <p><b>Reporting Manager:</b> {employee.reportingManager || "N/A"}</p>
             <p><b>Type:</b> {employee.employeeType || "N/A"}</p>
+            <p><b>Attendance Mode:</b> {employee.attendanceMode === "work_from_home" ? "Work From Home" : "Office"}</p>
             <p><b>Created By:</b> {employee.createdBy?.name || "N/A"}</p>
             <p className="md:col-span-2">
               <b>Address:</b>{" "}
@@ -378,6 +381,17 @@ const EmployeeDetail = () => {
             <option>Permanent</option>
             <option>Contract</option>
             <option>Intern</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium text-gray-700">
+          Attendance Mode
+          <select
+            value={editForm.attendanceMode}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, attendanceMode: e.target.value }))}
+            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          >
+            <option value="office">Office</option>
+            <option value="work_from_home">Work From Home</option>
           </select>
         </label>
         <FileUploadField

@@ -221,6 +221,45 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }
   };
 
+  const getCurrentLocationPayload = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Location is not supported in this browser"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({
+            location: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            },
+          }),
+        () => reject(new Error("Please allow location access to start work")),
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        }
+      );
+    });
+
+  const startWork = async () => {
+    let payload;
+    try {
+      payload = await getCurrentLocationPayload();
+    } catch (err) {
+      if (profile?.attendanceMode !== "work_from_home") {
+        toast.error(err.message || "Please allow location access to start work");
+        return;
+      }
+    }
+
+    await runAttendanceAction(employeeApi.startDay, "Work started", payload, "start");
+  };
+
   const applyLeave = async (e) => {
     e.preventDefault();
     setLeaveSaving(true);
@@ -649,14 +688,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 text="Start Work"
                 loading={actionLoading === "start"}
                 disabled={dayStarted}
-                onClick={() =>
-                  runAttendanceAction(
-                    employeeApi.startDay,
-                    "Work started",
-                    undefined,
-                    "start"
-                  )
-                }
+                onClick={startWork}
               />
               <Button
                 text="End Work"
