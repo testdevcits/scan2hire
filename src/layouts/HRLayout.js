@@ -39,6 +39,7 @@ const HRLayout = () => {
     { label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> },
     { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
     { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
+    { label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> },
     { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },
     { label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> },
     ...(canViewSystemAllotments

@@ -21,6 +21,7 @@ import EmployeeLayout from "./layouts/EmployeeLayout";
 import HRDashboard from "./pages/hr/HRDashboard";
 import ManageEmployees from "./pages/hr/ManageEmployees";
 import ViewReports from "./pages/hr/ViewReports";
+import TodayCheckIns from "./pages/hr/TodayCheckIns";
 import LeaveReports from "./pages/hr/LeaveReports";
 import ThankYouPage from "./pages/ThankYouPage";
 import Candidates from "./pages/hr/Candidates/Candidates";
@@ -78,6 +79,7 @@ function App() {
           <Route path="candidates" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="today-checkins" element={<TodayCheckIns />} />
           <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
@@ -100,6 +102,7 @@ function App() {
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="tasks" element={<TaskManagement />} />
           <Route path="reports" element={<ViewReports />} />
+          <Route path="today-checkins" element={<TodayCheckIns />} />
           <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
           <Route path="manage-tl" element={<EmployeeAccessControl />} />
