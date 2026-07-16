@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
+import { FiCopy, FiEye, FiEyeOff, FiMapPin, FiPlus } from "react-icons/fi";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
 import FileUploadField from "../../components/common/FileUploadField";
@@ -23,6 +23,7 @@ const AdminSettings = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locatingOffice, setLocatingOffice] = useState(false);
   const [hasVaultPassword, setHasVaultPassword] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -201,6 +202,43 @@ const AdminSettings = () => {
     }));
   };
 
+  const useCurrentOfficeLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Current location is not supported in this browser");
+      return;
+    }
+
+    setLocatingOffice(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((prev) => ({
+          ...prev,
+          officeLocation: {
+            ...prev.officeLocation,
+            latitude: position.coords.latitude.toFixed(7),
+            longitude: position.coords.longitude.toFixed(7),
+            radiusMeters: prev.officeLocation.radiusMeters || "100",
+          },
+        }));
+        toast.success("Current location added");
+        setLocatingOffice(false);
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? "Please allow location access to use current location"
+            : "Unable to get current location";
+        toast.error(message);
+        setLocatingOffice(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   if (loading) {
     return <div className="text-sm text-gray-500">Loading settings...</div>;
   }
@@ -362,11 +400,22 @@ const AdminSettings = () => {
         </section>
 
         <section className="bg-white rounded-sm shadow p-4 space-y-3">
-          <div>
-            <h2 className="font-semibold">Office Attendance Location</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              App check-in will be allowed only inside this radius.
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Office Attendance Location</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                App check-in will be allowed only inside this radius.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={useCurrentOfficeLocation}
+              disabled={locatingOffice}
+              className="inline-flex items-center justify-center gap-2 border border-[#f84525] text-[#f84525] rounded-sm px-3 py-2 text-sm disabled:opacity-60"
+            >
+              <FiMapPin />
+              {locatingOffice ? "Detecting..." : "Use Current Location"}
+            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <label className="block text-sm font-medium">
