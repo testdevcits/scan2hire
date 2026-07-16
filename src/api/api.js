@@ -26,6 +26,7 @@ export const authApi = {
   getAttendance: () => API.get("/users/attendance"),
   startAttendance: (payload) => API.post("/users/attendance/start", payload),
   endAttendance: () => API.post("/users/attendance/end"),
+  syncAttendanceLocation: (payload) => API.post("/users/attendance/location", payload),
   startAttendanceBreak: (payload) => API.post("/users/attendance/break/start", payload),
   endAttendanceBreak: () => API.post("/users/attendance/break/end"),
 };
