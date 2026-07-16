@@ -23,6 +23,11 @@ export const authApi = {
   getNotifications: () => API.get("/users/notifications"),
   markNotificationRead: (notificationId) => API.patch(`/users/notifications/${notificationId}/read`),
   deleteNotification: (notificationId) => API.delete(`/users/notifications/${notificationId}`),
+  getAttendance: () => API.get("/users/attendance"),
+  startAttendance: (payload) => API.post("/users/attendance/start", payload),
+  endAttendance: () => API.post("/users/attendance/end"),
+  startAttendanceBreak: (payload) => API.post("/users/attendance/break/start", payload),
+  endAttendanceBreak: () => API.post("/users/attendance/break/end"),
 };
 
 export const candidateApi = {
@@ -96,7 +101,7 @@ export const employeeApi = {
   requestDocumentOtp: () => API.post("/employees/me/documents/otp"),
   updateDocuments: (payload) => API.patch("/employees/me/documents", payload),
   getAttendance: () => API.get("/employees/attendance"),
-  startDay: () => API.post("/employees/attendance/start"),
+  startDay: (payload) => API.post("/employees/attendance/start", payload),
   endDay: () => API.post("/employees/attendance/end"),
   startBreak: (payload) => API.post("/employees/attendance/break/start", payload),
   endBreak: () => API.post("/employees/attendance/break/end"),

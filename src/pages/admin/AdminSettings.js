@@ -15,6 +15,11 @@ const AdminSettings = () => {
     noticeNotificationsEnabled: true,
     adminApprovalEmail: "",
     employeeVaultPassword: "",
+    officeLocation: {
+      latitude: "",
+      longitude: "",
+      radiusMeters: "100",
+    },
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +62,11 @@ const AdminSettings = () => {
           notificationsEnabled: Boolean(data.notificationsEnabled),
           noticeNotificationsEnabled: Boolean(data.noticeNotificationsEnabled),
           adminApprovalEmail: data.adminApprovalEmail || "",
+          officeLocation: {
+            latitude: data.officeLocation?.latitude ?? "",
+            longitude: data.officeLocation?.longitude ?? "",
+            radiusMeters: data.officeLocation?.radiusMeters ?? "100",
+          },
         }));
         setHasVaultPassword(Boolean(data.hasEmployeeVaultPassword));
         setProfileForm({
@@ -96,9 +106,43 @@ const AdminSettings = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await authApi.updateSettings(form);
+      const latitude = String(form.officeLocation.latitude || "").trim();
+      const longitude = String(form.officeLocation.longitude || "").trim();
+      const radiusMeters = String(form.officeLocation.radiusMeters || "").trim();
+      const hasOfficeLocationInput = latitude || longitude;
+
+      if (hasOfficeLocationInput && (!latitude || !longitude)) {
+        toast.error("Office latitude and longitude are required");
+        return;
+      }
+
+      const payload = {
+        mailEnabled: form.mailEnabled,
+        notificationsEnabled: form.notificationsEnabled,
+        noticeNotificationsEnabled: form.noticeNotificationsEnabled,
+        adminApprovalEmail: form.adminApprovalEmail,
+        employeeVaultPassword: form.employeeVaultPassword,
+      };
+
+      if (latitude && longitude) {
+        payload.officeLocation = {
+          latitude,
+          longitude,
+          radiusMeters: radiusMeters || "100",
+        };
+      }
+
+      const res = await authApi.updateSettings(payload);
       setHasVaultPassword(Boolean(res.data.data?.hasEmployeeVaultPassword));
-      setForm((prev) => ({ ...prev, employeeVaultPassword: "" }));
+      setForm((prev) => ({
+        ...prev,
+        employeeVaultPassword: "",
+        officeLocation: {
+          latitude: res.data.data?.officeLocation?.latitude ?? prev.officeLocation.latitude,
+          longitude: res.data.data?.officeLocation?.longitude ?? prev.officeLocation.longitude,
+          radiusMeters: res.data.data?.officeLocation?.radiusMeters ?? prev.officeLocation.radiusMeters,
+        },
+      }));
       toast.success(res.data.message || "Settings updated");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update settings");
@@ -145,6 +189,16 @@ const AdminSettings = () => {
     } catch {
       toast.error("Unable to copy");
     }
+  };
+
+  const updateOfficeLocation = (key, value) => {
+    setForm((prev) => ({
+      ...prev,
+      officeLocation: {
+        ...prev.officeLocation,
+        [key]: value,
+      },
+    }));
   };
 
   if (loading) {
@@ -305,6 +359,51 @@ const AdminSettings = () => {
               className="mt-1 w-full border rounded-sm px-3 py-2"
             />
           </label>
+        </section>
+
+        <section className="bg-white rounded-sm shadow p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold">Office Attendance Location</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              App check-in will be allowed only inside this radius.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="block text-sm font-medium">
+              Latitude
+              <input
+                type="number"
+                step="any"
+                value={form.officeLocation.latitude}
+                onChange={(e) => updateOfficeLocation("latitude", e.target.value)}
+                placeholder="22.7196"
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Longitude
+              <input
+                type="number"
+                step="any"
+                value={form.officeLocation.longitude}
+                onChange={(e) => updateOfficeLocation("longitude", e.target.value)}
+                placeholder="75.8577"
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Radius in meters
+              <input
+                type="number"
+                min="50"
+                step="1"
+                value={form.officeLocation.radiusMeters}
+                onChange={(e) => updateOfficeLocation("radiusMeters", e.target.value)}
+                placeholder="100"
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              />
+            </label>
+          </div>
         </section>
 
         <section className="bg-white rounded-sm shadow p-4 space-y-3">
