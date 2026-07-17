@@ -1,12 +1,31 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { FiEye } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import FilePreviewModal from "../../components/common/FilePreviewModal";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const minutesToHours = (minutes = 0) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const formatTime = (value) =>
+  value
+    ? new Date(value).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-";
+
+const statusClasses = {
+  present: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  half_day: "bg-orange-50 text-orange-700 border-orange-200",
+  running: "bg-blue-50 text-blue-700 border-blue-200",
+  absent: "bg-red-50 text-red-700 border-red-200",
+  leave: "bg-violet-50 text-violet-700 border-violet-200",
+};
+
+const statusLabel = (status = "") => status.replace(/_/g, " ") || "-";
 
 const ViewReports = () => {
   const toast = useToast();
@@ -26,6 +45,7 @@ const ViewReports = () => {
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
   const [holidayForm, setHolidayForm] = useState({
     date: "",
     title: "",
@@ -279,11 +299,12 @@ const ViewReports = () => {
           <tr>
             <td>${item.dateKey}</td>
             <td>${item.employee?.name || "N/A"}</td>
-            <td>${item.loginAt ? new Date(item.loginAt).toLocaleTimeString() : "-"}</td>
-            <td>${item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "-"}</td>
+            <td>${item.loginSelfie?.url ? `<img src="${item.loginSelfie.url}" alt="Selfie" style="width:44px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #ddd" />` : "-"}</td>
+            <td>${formatTime(item.loginAt)}</td>
+            <td>${formatTime(item.logoutAt)}</td>
             <td>${minutesToHours(item.totalWorkMinutes)}</td>
             <td>${minutesToHours(item.totalBreakMinutes)}</td>
-            <td>${item.status}</td>
+            <td>${statusLabel(item.status)}</td>
           </tr>
         `
       )
@@ -317,8 +338,8 @@ const ViewReports = () => {
             <tbody>${summaryRows || "<tr><td colspan='8'>No employee data found</td></tr>"}</tbody>
           </table>
           <table>
-            <thead><tr><th>Date</th><th>Employee</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
-            <tbody>${rows || "<tr><td colspan='7'>No attendance found</td></tr>"}</tbody>
+            <thead><tr><th>Date</th><th>Employee</th><th>Selfie</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
+            <tbody>${rows || "<tr><td colspan='8'>No attendance found</td></tr>"}</tbody>
           </table>
           <script>window.onload = () => window.print();</script>
         </body>
@@ -343,11 +364,12 @@ const ViewReports = () => {
           (item) => `
             <tr>
               <td>${item.dateKey}</td>
-              <td>${item.loginAt ? new Date(item.loginAt).toLocaleTimeString() : "-"}</td>
-              <td>${item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "-"}</td>
+              <td>${item.loginSelfie?.url ? `<img src="${item.loginSelfie.url}" alt="Selfie" style="width:44px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #ddd" />` : "-"}</td>
+              <td>${formatTime(item.loginAt)}</td>
+              <td>${formatTime(item.logoutAt)}</td>
               <td>${minutesToHours(item.totalWorkMinutes)}</td>
               <td>${minutesToHours(item.totalBreakMinutes)}</td>
-              <td>${item.status}</td>
+              <td>${statusLabel(item.status)}</td>
             </tr>
           `
         )
@@ -377,8 +399,8 @@ const ViewReports = () => {
               <div class="box">Break: ${minutesToHours(summaryData.breakMinutes || 0)}</div>
             </div>
             <table>
-              <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
-              <tbody>${rows || "<tr><td colspan='6'>No attendance found</td></tr>"}</tbody>
+              <thead><tr><th>Date</th><th>Selfie</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
+              <tbody>${rows || "<tr><td colspan='7'>No attendance found</td></tr>"}</tbody>
             </table>
             <script>window.onload = () => window.print();</script>
           </body>
@@ -393,32 +415,32 @@ const ViewReports = () => {
   if (pageLoading) return <CommonLoader text="Loading reports..." />;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="space-y-4">
+      <div className="bg-white rounded-sm shadow p-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold">Attendance Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
           <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and approved leave totals.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
-          <Button text="Download View" onClick={downloadMonthlyPdf} />
-          <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} />
-          <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2 min-h-10" />
+          <Button text="Download View" onClick={downloadMonthlyPdf} className="min-h-10" />
+          <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} className="min-h-10" />
+          <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="min-h-10" />
         </div>
       </div>
 
-      <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         <label className="text-sm font-medium">
           View
-          <select value={reportView} onChange={(e) => setReportView(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+          <select value={reportView} onChange={(e) => setReportView(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10">
             <option value="employee">Employee View</option>
             <option value="day">Day View</option>
             <option value="records">All Records</option>
           </select>
         </label>
-        <label className="text-sm font-medium md:col-span-2">
+        <label className="text-sm font-medium xl:col-span-2">
           Employee
-          <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+          <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10">
             <option value="">All employees</option>
             {employees.map((employee) => (
               <option key={employee._id} value={employee._id}>
@@ -429,11 +451,11 @@ const ViewReports = () => {
         </label>
         <label className="text-sm font-medium">
           Day
-          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} disabled={reportView !== "day"} className="mt-1 w-full border rounded-sm px-3 py-2 disabled:bg-gray-50" />
+          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} disabled={reportView !== "day"} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10 disabled:bg-gray-50" />
         </label>
         <label className="text-sm font-medium">
           Search
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID, status" className="mt-1 w-full border rounded-sm px-3 py-2" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID, status" className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10" />
         </label>
       </section>
 
@@ -444,9 +466,9 @@ const ViewReports = () => {
           ["Present", filteredAttendance.filter((item) => item.status === "present").length],
           ["Half Day", filteredAttendance.filter((item) => item.status === "half_day").length],
         ].map(([label, value]) => (
-          <div key={label} className="bg-white rounded-sm shadow p-4">
+          <div key={label} className="bg-white rounded-sm shadow p-4 border-l-4 border-[#f84525]">
             <p className="text-sm text-gray-500">{label}</p>
-            <p className="text-2xl font-bold text-[#f84525]">{value}</p>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
           </div>
         ))}
       </section>
@@ -456,56 +478,124 @@ const ViewReports = () => {
           <h2 className="font-semibold">Employee Monthly Summary</h2>
           <p className="text-xs text-gray-500 mt-1">Approved EL, SL, urgent leave and attendance totals for every employee.</p>
         </div>
-        <div className="hidden md:grid grid-cols-8 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
-          {["ID", "Employee", "Present", "Half Day", "EL", "SL", "Urgent", "Work"].map((item) => (
-            <div key={item} className="px-4 py-3">{item}</div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-600">
+              <tr>
+                {["ID", "Employee", "Present", "Half Day", "EL", "SL", "Urgent", "Work"].map((item) => (
+                  <th key={item} className="px-4 py-3 text-left font-semibold">{item}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEmployeeSummary.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-4 text-center text-gray-500">No employee data found</td>
+                </tr>
+              ) : (
+                filteredEmployeeSummary.map((item) => (
+                  <tr key={item.employee?._id || item.employee?.email} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{item.employee?.employeeId || "-"}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
+                      <p className="text-xs text-gray-500">{item.employee?.department || item.employee?.email || "-"}</p>
+                    </td>
+                    <td className="px-4 py-3">{item.present}</td>
+                    <td className="px-4 py-3">{item.halfDay}</td>
+                    <td className="px-4 py-3">{item.earnedLeave}</td>
+                    <td className="px-4 py-3">{item.sickLeave}</td>
+                    <td className="px-4 py-3">{item.urgentLeave}</td>
+                    <td className="px-4 py-3 font-medium">{minutesToHours(item.workMinutes)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        {filteredEmployeeSummary.length === 0 ? (
-          <p className="p-4 text-center text-gray-500">No employee data found</p>
-        ) : (
-          filteredEmployeeSummary.map((item) => (
-            <div key={item.employee?._id || item.employee?.email} className="grid grid-cols-2 md:grid-cols-8 gap-2 border-t px-4 py-3 text-sm">
-              <span>{item.employee?.employeeId || "-"}</span>
-              <span className="font-medium">{item.employee?.name || "N/A"}</span>
-              <span>{item.present}</span>
-              <span>{item.halfDay}</span>
-              <span>{item.earnedLeave}</span>
-              <span>{item.sickLeave}</span>
-              <span>{item.urgentLeave}</span>
-              <span>{minutesToHours(item.workMinutes)}</span>
-            </div>
-          ))
-        )}
       </section>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold">Monthly Attendance</h2>
+        <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Monthly Attendance</h2>
+            <p className="text-xs text-gray-500 mt-1">App work-start selfies appear here when employees checked in with an image.</p>
+          </div>
+          <span className="text-xs text-gray-500">
+            {filteredAttendance.filter((item) => item.loginSelfie?.url).length} selfie records
+          </span>
         </div>
-        <div className="hidden md:grid grid-cols-7 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
-          {["Date", "Employee", "Login", "Logout", "Work", "Break", "Status"].map((item) => (
-            <div key={item} className="px-4 py-3">{item}</div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="min-w-[980px] w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-600">
+              <tr>
+                {["Date", "Employee", "Selfie", "Login", "Logout", "Work", "Break", "Mode", "Status"].map((item) => (
+                  <th key={item} className="px-4 py-3 text-left font-semibold">{item}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAttendance.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="p-4 text-center text-gray-500">No attendance found</td>
+                </tr>
+              ) : (
+                filteredAttendance.map((item) => (
+                  <tr key={item._id} className="border-t hover:bg-gray-50 align-middle">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium">{item.dateKey}</td>
+                    <td className="px-4 py-3 min-w-44">
+                      <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
+                      <p className="text-xs text-gray-500">{item.employee?.employeeId || "-"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.loginSelfie?.url ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreview({
+                              title: `${item.employee?.name || "Employee"} work-start selfie - ${item.dateKey}`,
+                              url: item.loginSelfie.url,
+                            })
+                          }
+                          className="inline-flex items-center gap-2 text-[#f84525] hover:text-[#d93a1e]"
+                        >
+                          <img
+                            src={item.loginSelfie.url}
+                            alt="Work start selfie"
+                            className="w-11 h-11 object-cover rounded-sm border bg-gray-50"
+                          />
+                          <FiEye aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">No image</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(item.loginAt)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(item.logoutAt)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{minutesToHours(item.totalWorkMinutes)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{minutesToHours(item.totalBreakMinutes)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {item.attendanceMode === "work_from_home" ? "WFH" : "Office"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 border rounded-sm text-xs font-semibold capitalize ${statusClasses[item.status] || "bg-gray-50 text-gray-700 border-gray-200"}`}>
+                        {statusLabel(item.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        {filteredAttendance.length === 0 ? (
-          <p className="p-4 text-center text-gray-500">No attendance found</p>
-        ) : (
-          filteredAttendance.map((item) => (
-            <div key={item._id} className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm">
-              <span>{item.dateKey}</span>
-              <span>{item.employee?.name || "N/A"}</span>
-              <span>{item.loginAt ? new Date(item.loginAt).toLocaleTimeString() : "-"}</span>
-              <span>{item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "-"}</span>
-              <span>{minutesToHours(item.totalWorkMinutes)}</span>
-              <span>{minutesToHours(item.totalBreakMinutes)}</span>
-              <span className={item.status === "half_day" ? "text-orange-600 font-medium" : "font-medium"}>
-                {item.status}
-              </span>
-            </div>
-          ))
-        )}
       </section>
+
+      {preview && (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
+      )}
 
       {calendarModalOpen && (
       <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-3 sm:p-4">
