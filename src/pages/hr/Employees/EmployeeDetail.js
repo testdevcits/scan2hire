@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { FiCopy, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
-import { hrApi } from "../../../api";
+import { authApi, hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
 import FilePreviewModal from "../../../components/common/FilePreviewModal";
@@ -12,16 +12,6 @@ import { useToast } from "../../../contexts/ToastContext";
 
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-
-const DEFAULT_DEPARTMENTS = [
-  "HR",
-  "Technology",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Finance",
-  "Admin",
-];
 
 const EmployeeDetail = () => {
   const { employeeId } = useParams();
@@ -60,6 +50,7 @@ const EmployeeDetail = () => {
   const [accountCredentials, setAccountCredentials] = useState([]);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   const loadEmployee = async () => {
     setLoading(true);
@@ -73,13 +64,16 @@ const EmployeeDetail = () => {
       }
       if (canManage) {
         requests.push(hrApi.getEmployees());
+        requests.push(authApi.getDepartments());
       }
-      const [employeeRes, reportRes, thirdRes, fourthRes] = await Promise.all(requests);
+      const [employeeRes, reportRes, thirdRes, fourthRes, fifthRes] = await Promise.all(requests);
       const credentialsRes = user?.role === "superadmin" ? thirdRes : null;
       const employeesRes = canManage ? (user?.role === "superadmin" ? fourthRes : thirdRes) : null;
+      const departmentsRes = canManage ? (user?.role === "superadmin" ? fifthRes : fourthRes) : null;
       const employeeData = employeeRes.data.data;
       setEmployee(employeeData);
       setEmployeeOptions(employeesRes?.data?.data || []);
+      setDepartments(departmentsRes?.data?.data || []);
       setEditForm({
         name: employeeData.name || "",
         mobile: employeeData.mobile || "",
@@ -204,12 +198,11 @@ const EmployeeDetail = () => {
 
   const departmentOptions = useMemo(() => {
     const values = [
-      ...DEFAULT_DEPARTMENTS,
-      ...employeeOptions.map((item) => item.department),
+      ...departments.map((item) => item.name),
       editForm.department,
     ];
     return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
-  }, [editForm.department, employeeOptions]);
+  }, [departments, editForm.department]);
 
   const teamLeadOptions = useMemo(
     () =>
@@ -422,13 +415,22 @@ const EmployeeDetail = () => {
           </select>
         </label>
         <label className="text-sm font-medium text-gray-700">
-          Team Lead
+          Reporting Manager
           <select
             value={editForm.teamLead}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, teamLead: e.target.value }))}
+            onChange={(e) => {
+              const selectedTeamLead = teamLeadOptions.find((item) => item._id === e.target.value);
+              setEditForm((prev) => ({
+                ...prev,
+                teamLead: e.target.value,
+                reportingManager: selectedTeamLead
+                  ? selectedTeamLead.employeeId || selectedTeamLead.name
+                  : "",
+              }));
+            }}
             className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
           >
-            <option value="">No Team Lead</option>
+            <option value="">No Reporting Manager</option>
             {teamLeadOptions.map((teamLead) => (
               <option key={teamLead._id} value={teamLead._id}>
                 {teamLead.employeeId || "-"} - {teamLead.name}

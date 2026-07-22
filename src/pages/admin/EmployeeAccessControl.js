@@ -207,9 +207,9 @@ const EmployeeAccessControl = () => {
       <section className="bg-white rounded-sm shadow p-4">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage TL</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Team Lead & Access Control</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Step 1: make an employee TL. Step 2: select that TL and assign employees under them.
+              HR can make employees Team Leads, assign team members, and manage System Allotment access.
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -339,8 +339,8 @@ const EmployeeAccessControl = () => {
 
         <div className="bg-white rounded-sm shadow overflow-hidden h-fit">
           <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Create / Remove TL</h2>
-            <p className="text-xs text-gray-500 mt-1">First make an employee TL, then assign employees from the left panel.</p>
+            <h2 className="font-semibold text-gray-900">Employee Access</h2>
+            <p className="text-xs text-gray-500 mt-1">Select an employee to make/remove Team Lead or manage System Allotment access.</p>
           </div>
           <div className="p-4 space-y-3">
             <label className="text-sm font-medium text-gray-700">

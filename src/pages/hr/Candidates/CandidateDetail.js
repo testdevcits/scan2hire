@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { hrApi } from "../../../api";
+import { authApi, hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
 import FilePreviewModal from "../../../components/common/FilePreviewModal";
@@ -73,6 +73,7 @@ const CandidateDetail = () => {
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [statusForm, setStatusForm] = useState({
     interviewStatus: "hr_round",
     roundType: "hr",
@@ -87,10 +88,14 @@ const CandidateDetail = () => {
     setLoading(true);
     try {
       const requests = [hrApi.getCandidate(candidateId)];
-      if (canManage) requests.push(fetchEmployees());
-      const [candidateRes] = await Promise.all(requests);
+      if (canManage) {
+        requests.push(fetchEmployees());
+        requests.push(authApi.getDepartments());
+      }
+      const [candidateRes, , departmentsRes] = await Promise.all(requests);
       const data = candidateRes.data.data;
       setCandidate(data);
+      setDepartments(departmentsRes?.data?.data || []);
       setStatusForm({
         interviewStatus: data.interviewStatus || "hr_round",
         roundType: data.currentRoundType || (data.interviewStatus === "hr_round" ? "hr" : "technical"),
@@ -162,7 +167,13 @@ const CandidateDetail = () => {
       confirmText: "Create Employee",
       fields: [
         { name: "designation", label: "Designation", required: true },
-        { name: "department", label: "Department", required: true },
+        {
+          name: "department",
+          label: "Department",
+          type: "select",
+          options: departments.map((department) => department.name),
+          required: true,
+        },
         { name: "dateOfJoining", label: "Joining Date", type: "date", required: true },
         {
           name: "employeeType",
@@ -180,7 +191,7 @@ const CandidateDetail = () => {
       ],
       initialValues: {
         designation: candidate?.jobRole || "",
-        department: "Technology",
+        department: departments[0]?.name || "",
         employeeType: "Permanent",
       },
     });

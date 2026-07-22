@@ -40,6 +40,7 @@ const ManageEmployees = () => {
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState("list");
   const [hrUsers, setHrUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     fetchEmployees();
@@ -48,6 +49,12 @@ const ManageEmployees = () => {
         .getHrs()
         .then((res) => setHrUsers(res.data.data || []))
         .catch(() => setHrUsers([]));
+    }
+    if (["hr", "superadmin"].includes(user?.role)) {
+      authApi
+        .getDepartments()
+        .then((res) => setDepartments(res.data.data || []))
+        .catch(() => setDepartments([]));
     }
     // eslint-disable-next-line
   }, [user?.role]);
@@ -66,6 +73,9 @@ const ManageEmployees = () => {
   const displayEmployees = ["hr", "superadmin"].includes(user?.role)
     ? [...hrRows, ...nonHrEmployees]
     : employees;
+  const departmentOptions = [
+    ...new Set(departments.map((department) => String(department.name || "").trim()).filter(Boolean)),
+  ].sort();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -192,7 +202,6 @@ const ManageEmployees = () => {
           ["email", "Email"],
           ["mobile", "Mobile"],
           ["password", "Temporary Password"],
-          ["department", "Department"],
           ["designation", "Designation"],
           ["dateOfJoining", "Joining Date"],
           ["reportingManager", "Reporting Manager"],
@@ -217,6 +226,23 @@ const ManageEmployees = () => {
             />
           </label>
         ))}
+
+        <label className="text-sm font-medium text-gray-700">
+          Department
+          <select
+            name="department"
+            value={form.department}
+            onChange={handleChange}
+            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          >
+            <option value="">Select Department</option>
+            {departmentOptions.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="text-sm font-medium text-gray-700">
           Employee Type
