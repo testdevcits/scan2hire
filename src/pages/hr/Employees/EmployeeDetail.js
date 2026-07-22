@@ -13,6 +13,16 @@ import { useToast } from "../../../contexts/ToastContext";
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 
+const DEFAULT_DEPARTMENTS = [
+  "HR",
+  "Technology",
+  "Marketing",
+  "Sales",
+  "Operations",
+  "Finance",
+  "Admin",
+];
+
 const EmployeeDetail = () => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
@@ -35,6 +45,7 @@ const EmployeeDetail = () => {
     designation: "",
     dateOfJoining: "",
     reportingManager: "",
+    teamLead: "",
     employeeType: "Permanent",
     attendanceMode: "office",
     address: {
@@ -48,6 +59,7 @@ const EmployeeDetail = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [accountCredentials, setAccountCredentials] = useState([]);
   const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   const loadEmployee = async () => {
     setLoading(true);
@@ -59,9 +71,15 @@ const EmployeeDetail = () => {
       if (user?.role === "superadmin") {
         requests.push(hrApi.getEmployeeAccountCredentials(employeeId));
       }
-      const [employeeRes, reportRes, credentialsRes] = await Promise.all(requests);
+      if (canManage) {
+        requests.push(hrApi.getEmployees());
+      }
+      const [employeeRes, reportRes, thirdRes, fourthRes] = await Promise.all(requests);
+      const credentialsRes = user?.role === "superadmin" ? thirdRes : null;
+      const employeesRes = canManage ? (user?.role === "superadmin" ? fourthRes : thirdRes) : null;
       const employeeData = employeeRes.data.data;
       setEmployee(employeeData);
+      setEmployeeOptions(employeesRes?.data?.data || []);
       setEditForm({
         name: employeeData.name || "",
         mobile: employeeData.mobile || "",
@@ -70,6 +88,7 @@ const EmployeeDetail = () => {
         designation: employeeData.designation || "",
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         reportingManager: employeeData.reportingManager || "",
+        teamLead: employeeData.teamLead?._id || employeeData.teamLead || "",
         employeeType: employeeData.employeeType || "Permanent",
         attendanceMode: employeeData.attendanceMode || "office",
         address: {
@@ -182,6 +201,23 @@ const EmployeeDetail = () => {
       },
     }));
   };
+
+  const departmentOptions = useMemo(() => {
+    const values = [
+      ...DEFAULT_DEPARTMENTS,
+      ...employeeOptions.map((item) => item.department),
+      editForm.department,
+    ];
+    return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
+  }, [editForm.department, employeeOptions]);
+
+  const teamLeadOptions = useMemo(
+    () =>
+      employeeOptions
+        .filter((item) => item.user?.role === "teamlead" && String(item._id) !== String(employeeId))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
+    [employeeId, employeeOptions]
+  );
 
   const copyValue = async (value, label) => {
     try {
@@ -299,6 +335,7 @@ const EmployeeDetail = () => {
             <p><b>Designation:</b> {employee.designation || "N/A"}</p>
             <p><b>Joining:</b> {employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : "N/A"}</p>
             <p><b>Reporting Manager:</b> {employee.reportingManager || "N/A"}</p>
+            <p><b>Team Lead:</b> {employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : "N/A"}</p>
             <p><b>Type:</b> {employee.employeeType || "N/A"}</p>
             <p><b>Attendance Mode:</b> {employee.attendanceMode === "work_from_home" ? "Work From Home" : "Office"}</p>
             <p><b>Created By:</b> {employee.createdBy?.name || "N/A"}</p>
@@ -355,10 +392,8 @@ const EmployeeDetail = () => {
           ["name", "Full Name", "text"],
           ["mobile", "Mobile", "text"],
           ["altMobile", "Alt Mobile", "text"],
-          ["department", "Department", "text"],
           ["designation", "Designation", "text"],
           ["dateOfJoining", "Joining Date", "date"],
-          ["reportingManager", "Reporting Manager", "text"],
         ].map(([name, label, type]) => (
           <label key={name} className="text-sm font-medium text-gray-700">
             {label}
@@ -371,6 +406,36 @@ const EmployeeDetail = () => {
             />
           </label>
         ))}
+        <label className="text-sm font-medium text-gray-700">
+          Department
+          <select
+            value={editForm.department}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, department: e.target.value }))}
+            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          >
+            <option value="">Select Department</option>
+            {departmentOptions.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-gray-700">
+          Team Lead
+          <select
+            value={editForm.teamLead}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, teamLead: e.target.value }))}
+            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+          >
+            <option value="">No Team Lead</option>
+            {teamLeadOptions.map((teamLead) => (
+              <option key={teamLead._id} value={teamLead._id}>
+                {teamLead.employeeId || "-"} - {teamLead.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="text-sm font-medium text-gray-700">
           Employee Type
           <select
