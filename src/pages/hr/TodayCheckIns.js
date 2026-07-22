@@ -158,9 +158,29 @@ const TodayCheckIns = () => {
                       {item.attendanceMode === "work_from_home" ? "WFH" : "Office"}
                     </td>
                     <td className="px-4 py-3">
-                      {Number.isFinite(item.loginLocation?.distanceFromOfficeMeters)
-                        ? `${item.loginLocation.distanceFromOfficeMeters}m`
-                        : "-"}
+                      {Number.isFinite(item.loginLocation?.distanceFromOfficeMeters) ? (
+                        <div>
+                          <p
+                            className={
+                              item.loginLocation?.withinRadius === false
+                                ? "font-semibold text-red-600"
+                                : "font-medium text-gray-900"
+                            }
+                          >
+                            {item.loginLocation.distanceFromOfficeMeters}m
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Radius {item.loginLocation?.radiusMeters || "-"}m
+                          </p>
+                          {item.loginLocation?.withinRadius === false && (
+                            <span className="mt-1 inline-block rounded-sm bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                              Outside
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-4 py-3">{minutesToHours(item.totalWorkMinutes || 0)}</td>
                     <td className="px-4 py-3">
