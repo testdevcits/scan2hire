@@ -169,9 +169,6 @@ const TodayCheckIns = () => {
                           >
                             {item.loginLocation.distanceFromOfficeMeters}m
                           </p>
-                          <p className="text-xs text-gray-500">
-                            Radius {item.loginLocation?.radiusMeters || "-"}m
-                          </p>
                           {item.loginLocation?.withinRadius === false && (
                             <span className="mt-1 inline-block rounded-sm bg-red-50 px-2 py-0.5 text-xs text-red-700">
                               Outside
