@@ -220,7 +220,7 @@ const TaskManagement = () => {
       URL: task.url || "",
       "TASK DESCRIPTION": task.description || "",
       "TASK TECH": task.tech || "",
-      "TASK TIMING": task.timing || "",
+      "TASK TIME": task.timing || "",
       "TASK COLLABORATOR": task.collaborator || "",
       STATUS: statusLabels[task.status] || task.status || "",
       REPLY: task.reply || "",
@@ -468,7 +468,7 @@ const TaskManagement = () => {
             <table className="min-w-[1500px] w-full text-sm">
               <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                 <tr>
-                  {["Employee", "Phase", "Project", "Task Title", "URL", "Description", "Tech", "Timing", "Collaborator", "Status", "Reply", "Billing", "Priority", "Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                  {["Employee", "Phase", "Project", "Task Title", "URL", "Description", "Tech", "Time", "Collaborator", "Status", "Reply", "Billing", "Priority", "Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
                     <th key={item} className="px-3 py-3 text-left">{item}</th>
                   ))}
                 </tr>

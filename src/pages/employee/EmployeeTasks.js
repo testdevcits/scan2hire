@@ -163,7 +163,7 @@ const EmployeeTasks = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
                 <p><b>Tech:</b> {task.tech || "-"}</p>
-                <p><b>Timing:</b> {task.timing || "-"}</p>
+                <p><b>Time:</b> {task.timing || "-"}</p>
                 <p><b>Collaborator:</b> {task.collaborator || "-"}</p>
                 <p><b>Source:</b> {task.taskSource || "-"}</p>
               </div>
@@ -192,8 +192,9 @@ const EmployeeTasks = () => {
                   </select>
                 </label>
                 <label className="text-sm font-medium text-gray-700">
-                  Timing
+                  Time
                   <input
+                    type="time"
                     value={task.timing || ""}
                     onChange={(e) => handleInline(task._id, "timing", e.target.value)}
                     className="mt-1 w-full border rounded-sm px-3 py-2"
