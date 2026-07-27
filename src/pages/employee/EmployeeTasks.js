@@ -7,6 +7,11 @@ import { useToast } from "../../contexts/ToastContext";
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const monthKey = () => new Date().toISOString().slice(0, 7);
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "-");
+const getExternalUrl = (value) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
+};
 
 const statusLabels = {
   pending: "Pending",
@@ -164,7 +169,7 @@ const EmployeeTasks = () => {
               </div>
 
               {task.url && (
-                <a href={task.url} target="_blank" rel="noreferrer" className="text-sm text-[#f84525] underline break-all">
+                <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-sm text-[#f84525] underline break-all">
                   {task.url}
                 </a>
               )}

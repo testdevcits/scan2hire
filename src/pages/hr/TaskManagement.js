@@ -8,6 +8,11 @@ import { useToast } from "../../contexts/ToastContext";
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const monthKey = () => new Date().toISOString().slice(0, 7);
+const getExternalUrl = (value) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
+};
 
 const statusLabels = {
   pending: "Pending",
@@ -477,7 +482,7 @@ const TaskManagement = () => {
                       <td className="px-3 py-3">{task.phase || "-"}</td>
                       <td className="px-3 py-3">{task.project || "-"}</td>
                       <td className="px-3 py-3 font-medium max-w-[180px] break-words">{task.title}</td>
-                      <td className="px-3 py-3">{task.url ? <a href={task.url} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
+                      <td className="px-3 py-3">{task.url ? <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
                       <td className="px-3 py-3 max-w-[260px] break-words">{task.description || "-"}</td>
                       <td className="px-3 py-3">{task.tech || "-"}</td>
                       <td className="px-3 py-3">{task.timing || "-"}</td>
