@@ -46,6 +46,7 @@ const TaskManagement = () => {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [projectForm, setProjectForm] = useState(projectDefaults);
+  const [editingProjectId, setEditingProjectId] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [taskForm, setTaskForm] = useState(taskDefaults);
   const [date, setDate] = useState(todayKey());
@@ -105,16 +106,39 @@ const TaskManagement = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await hrApi.createTaskProject(projectForm);
-      toast.success("Project added");
+      const res = editingProjectId
+        ? await hrApi.updateTaskProject(editingProjectId, projectForm)
+        : await hrApi.createTaskProject(projectForm);
+      toast.success(editingProjectId ? "Project updated" : "Project added");
       setProjectForm(projectDefaults);
+      setEditingProjectId("");
       await loadData();
       setSelectedProjectId(res.data.data?._id || "");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to add project");
+      toast.error(err.response?.data?.message || "Unable to save project");
     } finally {
       setSaving(false);
     }
+  };
+
+  const editProject = (project) => {
+    setEditingProjectId(project._id);
+    setSelectedProjectId(project._id);
+    setProjectForm({
+      name: project.name || "",
+      phase: project.phase || "Development",
+      environment: project.environment || "development",
+      url: project.url || "",
+      tech: project.tech || "",
+      billing: project.billing || "",
+      taskSource: project.taskSource || "",
+      description: project.description || "",
+    });
+  };
+
+  const resetProjectForm = () => {
+    setProjectForm(projectDefaults);
+    setEditingProjectId("");
   };
 
   const saveTask = async (e) => {
@@ -240,7 +264,7 @@ const TaskManagement = () => {
           <form onSubmit={saveProject} className="bg-white rounded-sm shadow p-4 space-y-3">
             <div>
               <h2 className="font-semibold text-gray-900">Project Master</h2>
-              <p className="text-xs text-gray-500 mt-1">Project information yaha add karo. Task row me project select hoga.</p>
+              <p className="text-xs text-gray-500 mt-1">{editingProjectId ? "Project details update karo." : "Project information yaha add karo. Task row me project select hoga."}</p>
             </div>
             <label className="text-sm font-medium text-gray-700">
               Project Name
@@ -294,7 +318,30 @@ const TaskManagement = () => {
               Project Description
               <textarea value={projectForm.description} onChange={(e) => setProjectForm((prev) => ({ ...prev, description: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]" />
             </label>
-            <Button text="Add Project" type="submit" loading={saving} className="w-full" />
+            <div className="flex gap-2">
+              <Button text={editingProjectId ? "Update Project" : "Add Project"} type="submit" loading={saving} className="flex-1" />
+              {editingProjectId && (
+                <Button text="Cancel" variant="secondary" onClick={resetProjectForm} />
+              )}
+            </div>
+            {projects.length > 0 && (
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-xs font-semibold uppercase text-gray-500">Your Projects</p>
+                <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                  {projects.map((project) => (
+                    <button
+                      key={project._id}
+                      type="button"
+                      onClick={() => editProject(project)}
+                      className={`w-full text-left rounded-sm border px-3 py-2 text-sm hover:border-[#f84525] ${editingProjectId === project._id ? "border-[#f84525] bg-[#fff5f3]" : "border-gray-200 bg-white"}`}
+                    >
+                      <span className="block font-semibold text-gray-900">{project.name}</span>
+                      <span className="block text-xs text-gray-500">{project.phase || "-"} | {project.environment || "-"}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
 
           <div className="bg-white rounded-sm shadow overflow-hidden">
