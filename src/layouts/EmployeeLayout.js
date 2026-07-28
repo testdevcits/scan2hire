@@ -7,6 +7,7 @@ import { employeeApi } from "../api";
 const EmployeeLayout = () => {
   const { user } = useContext(AuthContext);
   const [access, setAccess] = useState(null);
+  const [bugCount, setBugCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -26,10 +27,32 @@ const EmployeeLayout = () => {
     };
   }, [user?.role]);
 
+  useEffect(() => {
+    let active = true;
+    if (!["employee", "teamlead"].includes(user?.role)) return undefined;
+
+    employeeApi
+      .getBugs()
+      .then((res) => {
+        if (!active) return;
+        const count = (res.data.data || []).filter((bug) =>
+          ["open", "in_progress", "reopen"].includes(bug.status)
+        ).length;
+        setBugCount(count);
+      })
+      .catch(() => {
+        if (active) setBugCount(0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.role]);
+
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "My Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
-    { label: "Bugs", path: "/employee/bugs", icon: <FiAlertTriangle /> },
+    { label: "Bugs", path: "/employee/bugs", icon: <FiAlertTriangle />, badge: bugCount },
     { label: "API Tester", path: "/employee/api-tester", icon: <FiCode /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },

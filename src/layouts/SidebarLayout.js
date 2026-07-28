@@ -152,9 +152,14 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 }`
               }
             >
-              <span className="flex items-center gap-2">
-                {item.icon}
-                {item.label}
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="shrink-0">{item.icon}</span>
+                <span className="truncate">{item.label}</span>
+                {Number(item.badge || 0) > 0 ? (
+                  <span className="ml-auto min-w-5 rounded-full bg-[#f84525] px-1.5 py-0.5 text-center text-[11px] font-bold text-white">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                ) : null}
               </span>
             </NavLink>
           ))}
