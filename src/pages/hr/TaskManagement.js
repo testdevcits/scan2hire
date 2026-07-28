@@ -488,6 +488,70 @@ const TaskManagement = () => {
 
         {tasks.length === 0 ? (
           <p className="p-6 text-center text-gray-500">No tasks found.</p>
+        ) : isHr ? (
+          <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {tasks.map((task) => {
+              const important = ["important", "urgent"].includes(task.priority);
+              const attachments = [...(task.attachments || []), ...(task.responseAttachments || [])];
+              return (
+                <article
+                  key={task._id}
+                  className={`rounded-sm border p-4 text-sm ${important ? "border-red-200 bg-red-50/70" : "border-gray-200 bg-white"}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase text-gray-500">
+                        {task.assignedTo?.employeeId || "-"} | {task.assignedTo?.name || "-"}
+                      </p>
+                      <h2 className="mt-1 font-semibold text-gray-900 break-words">{task.title}</h2>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {task.project || "No Project"} | {task.phase || "No Phase"} | {statusLabels[task.status] || task.status}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-sm px-2 py-1 text-xs font-semibold capitalize ${important ? "bg-red-600 text-white" : "bg-[#fff5f3] text-[#f84525]"}`}>
+                      {task.priority || "normal"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-600">
+                    <p><b>Tech:</b> {task.tech || "-"}</p>
+                    <p><b>Billing:</b> {task.billing || "-"}</p>
+                    <p><b>Source:</b> {task.taskSource || "-"}</p>
+                    <p><b>Time:</b> {task.timing || "-"}</p>
+                    <p><b>Collaborator:</b> {task.collaborator || "-"}</p>
+                    <p><b>Remark:</b> {task.remark || "-"}</p>
+                  </div>
+
+                  {task.url && (
+                    <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-[#f84525] underline break-all">
+                      Open URL
+                    </a>
+                  )}
+
+                  {task.description && (
+                    <p className="mt-3 max-h-20 overflow-y-auto rounded-sm bg-gray-50 p-3 text-sm text-gray-700 break-words">
+                      {task.description}
+                    </p>
+                  )}
+
+                  {(task.reply || attachments.length > 0) && (
+                    <div className="mt-3 border-t pt-3">
+                      {task.reply && <p className="text-sm text-gray-700 break-words"><b>Reply:</b> {task.reply}</p>}
+                      {attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {attachments.slice(0, 4).map((item, index) => (
+                            <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="h-12 w-12 overflow-hidden rounded-sm border block">
+                              <img src={item.url} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[1500px] w-full text-sm">

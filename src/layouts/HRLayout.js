@@ -47,7 +47,7 @@ const HRLayout = () => {
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
     { label: "Credentials", path: "/hr/credentials", icon: <FiLock /> },
-    ...(isHr ? [{ label: "Team & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
+    ...(isHr ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
     { label: "Documents", path: "/hr/documents", icon: <FiFolder /> },
     { label: "Profile", path: "/hr/profile", icon: <FiUser /> },
   ];
