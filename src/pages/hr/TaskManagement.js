@@ -46,6 +46,7 @@ const taskDefaults = {
   title: "",
   priority: "normal",
   status: "pending",
+  timing: "",
   collaborator: "",
   remark: "",
   attachments: [],
@@ -64,17 +65,25 @@ const TaskManagement = () => {
   const [taskForm, setTaskForm] = useState(taskDefaults);
   const [date, setDate] = useState(todayKey());
   const [month, setMonth] = useState(monthKey());
+  const [taskViewMode, setTaskViewMode] = useState("date");
+  const [projectFilter, setProjectFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [editingTaskId, setEditingTaskId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingTimeId, setSavingTimeId] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = isHr
-        ? { month, employeeId: employeeFilter || undefined }
-        : { date, employeeId: employeeFilter || undefined };
+        ? { month, employeeId: employeeFilter || undefined, project: projectFilter || undefined }
+        : {
+            date: taskViewMode === "date" ? date : undefined,
+            month: taskViewMode === "month" ? month : undefined,
+            employeeId: employeeFilter || undefined,
+            project: projectFilter || undefined,
+          };
       const requests = [hrApi.getEmployees(), hrApi.getTasks(params)];
       if (!isHr) requests.push(hrApi.getTaskProjects());
       const [employeeRes, taskRes, projectRes] = await Promise.all(requests);
@@ -86,7 +95,7 @@ const TaskManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [date, employeeFilter, isHr, month, toast]);
+  }, [date, employeeFilter, isHr, month, projectFilter, taskViewMode, toast]);
 
   useEffect(() => {
     loadData();
@@ -205,6 +214,7 @@ const TaskManagement = () => {
       title: task.title || "",
       priority: task.priority || "normal",
       status: task.status || "pending",
+      timing: task.timing || "",
       collaborator: task.collaborator || "",
       remark: task.remark || "",
       attachments: [],
@@ -220,6 +230,25 @@ const TaskManagement = () => {
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete task");
     }
+  };
+
+  const updateTaskTime = async (task) => {
+    setSavingTimeId(task._id);
+    try {
+      await hrApi.updateTask(task._id, { timing: task.timing || "" });
+      toast.success("Task time updated");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update time");
+    } finally {
+      setSavingTimeId("");
+    }
+  };
+
+  const updateTaskInline = (taskId, field, value) => {
+    setTasks((current) =>
+      current.map((task) => (task._id === taskId ? { ...task, [field]: value } : task))
+    );
   };
 
   const downloadMonthlySheet = () => {
@@ -245,7 +274,8 @@ const TaskManagement = () => {
     const sheet = XLSX.utils.json_to_sheet(rows);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Monthly Tasks");
-    XLSX.writeFile(book, `task-sheet-${month}.xlsx`);
+    const safeProject = projectFilter ? `-${projectFilter.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}` : "";
+    XLSX.writeFile(book, `task-sheet-${month}${safeProject}.xlsx`);
   };
 
   if (loading) return <CommonLoader text="Loading tasks..." />;
@@ -417,6 +447,15 @@ const TaskManagement = () => {
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Time
+                  <input
+                    type="time"
+                    value={taskForm.timing}
+                    onChange={(e) => setTaskForm((prev) => ({ ...prev, timing: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
                 <label className="text-sm font-medium text-gray-700 md:col-span-2">
                   Collaborator
                   <input value={taskForm.collaborator} onChange={(e) => setTaskForm((prev) => ({ ...prev, collaborator: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
@@ -469,11 +508,27 @@ const TaskManagement = () => {
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50 grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-3">
-          {isHr ? (
+        <div className={`p-4 border-b bg-gray-50 grid grid-cols-1 gap-3 ${isHr ? "md:grid-cols-[180px_minmax(0,1fr)_auto]" : "lg:grid-cols-[150px_180px_minmax(0,1fr)_minmax(0,1fr)_auto]"}`}>
+          {!isHr && (
+            <select value={taskViewMode} onChange={(e) => setTaskViewMode(e.target.value)} className="border rounded-sm px-3 py-2">
+              <option value="date">Daily View</option>
+              <option value="month">Monthly Sheet</option>
+            </select>
+          )}
+          {isHr || taskViewMode === "month" ? (
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
           ) : (
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border rounded-sm px-3 py-2" />
+          )}
+          {!isHr && (
+            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="border rounded-sm px-3 py-2">
+              <option value="">All projects</option>
+              {projects.map((project) => (
+                <option key={project._id} value={project.name}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           )}
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="border rounded-sm px-3 py-2">
             <option value="">All employees</option>
@@ -483,8 +538,19 @@ const TaskManagement = () => {
               </option>
             ))}
           </select>
-          {isHr && <Button text="Download Excel" onClick={downloadMonthlySheet} disabled={tasks.length === 0} />}
+          {(isHr || taskViewMode === "month") && (
+            <Button
+              text={isHr ? "Download Excel" : "Export Monthly Sheet"}
+              onClick={downloadMonthlySheet}
+              disabled={tasks.length === 0 || (!isHr && !projectFilter)}
+            />
+          )}
         </div>
+        {!isHr && taskViewMode === "month" && !projectFilter && (
+          <div className="border-b bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Select a project to export the full monthly sheet with employee time.
+          </div>
+        )}
 
         {tasks.length === 0 ? (
           <p className="p-6 text-center text-gray-500">No tasks found.</p>
@@ -585,7 +651,22 @@ const TaskManagement = () => {
                         ) : "-"}
                       </td>
                       <td className="px-3 py-3">{task.tech || "-"}</td>
-                      <td className="px-3 py-3">{task.timing || "-"}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2 min-w-[150px]">
+                          <input
+                            type="time"
+                            value={task.timing || ""}
+                            onChange={(e) => updateTaskInline(task._id, "timing", e.target.value)}
+                            className="w-24 border rounded-sm px-2 py-1.5"
+                          />
+                          <Button
+                            text="Save"
+                            className="text-xs px-2 py-1.5"
+                            loading={savingTimeId === task._id}
+                            onClick={() => updateTaskTime(task)}
+                          />
+                        </div>
+                      </td>
                       <td className="px-3 py-3">{task.collaborator || "-"}</td>
                       <td className="px-3 py-3">{statusLabels[task.status] || task.status}</td>
                       <td className="px-3 py-3 max-w-[180px] break-words">{task.reply || "-"}</td>
