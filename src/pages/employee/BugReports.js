@@ -38,6 +38,15 @@ const fileToDataUri = (file) =>
     reader.readAsDataURL(file);
   });
 
+const getPastedImages = async (event) => {
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageFiles = items
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+  return Promise.all(imageFiles.map(fileToDataUri));
+};
+
 const getExternalUrl = (value) => {
   const url = String(value || "").trim();
   if (!url) return "";
@@ -119,6 +128,13 @@ const BugReports = ({ scope = "employee" }) => {
     const selected = Array.from(files || []);
     const images = await Promise.all(selected.map(fileToDataUri));
     setter((prev) => ({ ...prev, [field]: images }));
+  };
+
+  const handlePasteImages = async (event, setter, field) => {
+    const images = await getPastedImages(event);
+    if (!images.length) return;
+    event.preventDefault();
+    setter((prev) => ({ ...prev, [field]: [...(prev[field] || []), ...images] }));
   };
 
   const createBug = async (e) => {
@@ -263,7 +279,28 @@ const BugReports = ({ scope = "employee" }) => {
             </label>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Screenshots
-              <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files, setForm, "screenshots")} className="mt-1 w-full border rounded-sm px-3 py-2" />
+              <div
+                tabIndex={0}
+                onPaste={(e) => handlePasteImages(e, setForm, "screenshots")}
+                className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+              >
+                <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files, setForm, "screenshots")} className="w-full border rounded-sm px-3 py-2 bg-white" />
+                <p className="mt-2 text-xs text-gray-500">Paste copied screenshot here or choose files.</p>
+                {form.screenshots.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {form.screenshots.map((item, index) => (
+                      <button
+                        key={`${item.name}-${index}`}
+                        type="button"
+                        onClick={() => setPreview({ title: item.name || "Pasted screenshot", url: item.dataUri })}
+                        className="h-14 w-14 overflow-hidden rounded-sm border bg-white"
+                      >
+                        <img src={item.dataUri} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Description
@@ -353,10 +390,36 @@ const BugReports = ({ scope = "employee" }) => {
                   </label>
                   <label className="text-sm font-medium text-gray-700">
                     Add Images
-                    <input type="file" accept="image/*" multiple onChange={async (e) => {
-                      const images = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
-                      updateBugInline(bug._id, "newAttachments", images);
-                    }} className="mt-1 w-full border rounded-sm px-3 py-2" />
+                    <div
+                      tabIndex={0}
+                      onPaste={async (e) => {
+                        const images = await getPastedImages(e);
+                        if (!images.length) return;
+                        e.preventDefault();
+                        updateBugInline(bug._id, "newAttachments", [...(bug.newAttachments || []), ...images]);
+                      }}
+                      className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                    >
+                      <input type="file" accept="image/*" multiple onChange={async (e) => {
+                        const images = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
+                        updateBugInline(bug._id, "newAttachments", images);
+                      }} className="w-full border rounded-sm px-3 py-2 bg-white" />
+                      <p className="mt-1 text-xs text-gray-500">Paste screenshot here or choose files.</p>
+                      {(bug.newAttachments || []).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(bug.newAttachments || []).map((item, index) => (
+                            <button
+                              key={`${item.name}-${index}`}
+                              type="button"
+                              onClick={() => setPreview({ title: item.name || "Pasted screenshot", url: item.dataUri })}
+                              className="h-12 w-12 overflow-hidden rounded-sm border bg-white"
+                            >
+                              <img src={item.dataUri} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </label>
                   <label className="text-sm font-medium text-gray-700">
                     Reply

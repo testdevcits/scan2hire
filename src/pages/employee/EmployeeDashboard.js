@@ -302,6 +302,15 @@ const EmployeeDashboard = ({ section = "all" }) => {
     }));
   };
 
+  const handleLeaveAttachmentPaste = async (event) => {
+    const file = Array.from(event.clipboardData?.items || [])
+      .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (!file) return;
+    event.preventDefault();
+    await handleLeaveAttachment(file);
+  };
+
   const updateRound = async (e) => {
     e.preventDefault();
     if (roundForm.score === "" || !roundForm.comments.trim()) {
@@ -1120,12 +1129,19 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   </label>
                   <label className="text-sm font-medium md:col-span-2">
                     Attachment Image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleLeaveAttachment(e.target.files?.[0])}
-                      className="mt-1 w-full border rounded-md px-3 py-2"
-                    />
+                    <div
+                      tabIndex={0}
+                      onPaste={handleLeaveAttachmentPaste}
+                      className="mt-1 rounded-md border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleLeaveAttachment(e.target.files?.[0])}
+                        className="w-full border rounded-md px-3 py-2 bg-white"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Paste copied image here or choose file.</p>
+                    </div>
                     {leaveForm.attachment?.name && (
                       <span className="mt-1 block text-xs text-gray-500">
                         Selected: {leaveForm.attachment.name}

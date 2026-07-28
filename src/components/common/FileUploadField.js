@@ -13,6 +13,24 @@ const FileUploadField = ({
   onPreview,
   selectedPreviewUrl,
 }) => {
+  const acceptsImage = /image|jpg|jpeg|png|webp/i.test(String(accept || ""));
+
+  const handlePaste = (event) => {
+    if (!acceptsImage) return;
+    const imageFile = Array.from(event.clipboardData?.items || [])
+      .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (!imageFile) return;
+
+    event.preventDefault();
+    onChange?.({
+      target: {
+        name,
+        files: [imageFile],
+      },
+    });
+  };
+
   const canShowImagePreview =
     selectedPreviewUrl &&
     (String(accept).includes(".jpg") ||
@@ -26,7 +44,11 @@ const FileUploadField = ({
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </span>
-      <div className="mt-1 border border-dashed border-[#f7a08f] bg-[#fffaf8] rounded-sm px-3 py-3">
+      <div
+        tabIndex={0}
+        onPaste={handlePaste}
+        className="mt-1 border border-dashed border-[#f7a08f] bg-[#fffaf8] rounded-sm px-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+      >
         <div className="flex items-center gap-2 text-[#f84525] mb-2">
           <FiUploadCloud />
           <span className="text-sm">{hint}</span>
@@ -39,6 +61,9 @@ const FileUploadField = ({
           required={required}
           className="w-full min-w-0 text-xs sm:text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-[#f84525] file:px-3 file:py-2 file:text-white"
         />
+        {acceptsImage ? (
+          <p className="text-xs text-gray-500 mt-2">You can paste a copied image here.</p>
+        ) : null}
         {canShowImagePreview ? (
           <div className="mt-3 flex items-center gap-3 rounded-sm border border-[#f7a08f] bg-white p-2">
             <div className="w-16 h-16 rounded-sm overflow-hidden border border-[#ffd8cf] bg-[#fff5f3] shrink-0">

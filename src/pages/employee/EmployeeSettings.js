@@ -13,6 +13,11 @@ const fileToDataUri = (file) =>
     reader.readAsDataURL(file);
   });
 
+const getPastedImage = (event) =>
+  Array.from(event.clipboardData?.items || [])
+    .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+    ?.getAsFile();
+
 const EmployeeSettings = () => {
   const toast = useToast();
   const [profile, setProfile] = useState(null);
@@ -89,7 +94,17 @@ const EmployeeSettings = () => {
     <div className="space-y-5">
       <section className="bg-white rounded-sm shadow p-5">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <label className="relative w-24 h-24 rounded-full overflow-hidden bg-[#fff5f3] flex items-center justify-center border border-[#ffd8cf] cursor-pointer group shrink-0">
+          <label
+            tabIndex={0}
+            onPaste={(e) => {
+              const file = getPastedImage(e);
+              if (!file) return;
+              e.preventDefault();
+              handleProfileImageFile(file);
+            }}
+            className="relative w-24 h-24 rounded-full overflow-hidden bg-[#fff5f3] flex items-center justify-center border border-[#ffd8cf] cursor-pointer group shrink-0 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+            title="Click to upload or paste copied image"
+          >
             {profileImagePreview || profile?.documents?.photo?.url ? (
               <img src={profileImagePreview || profile.documents.photo.url} alt={profile.name} className="w-full h-full object-cover" />
             ) : (

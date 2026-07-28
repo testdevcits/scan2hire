@@ -20,6 +20,13 @@ const fileToDataUri = (file) =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+const getPastedImages = async (event) => {
+  const files = Array.from(event.clipboardData?.items || [])
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+  return Promise.all(files.map(fileToDataUri));
+};
 
 const statusLabels = {
   pending: "Pending",
@@ -466,16 +473,37 @@ const TaskManagement = () => {
                 </label>
                 <label className="text-sm font-medium text-gray-700 md:col-span-2">
                   Images
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={async (e) => {
-                      const files = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
-                      setTaskForm((prev) => ({ ...prev, attachments: files }));
+                  <div
+                    tabIndex={0}
+                    onPaste={async (e) => {
+                      const files = await getPastedImages(e);
+                      if (!files.length) return;
+                      e.preventDefault();
+                      setTaskForm((prev) => ({ ...prev, attachments: [...(prev.attachments || []), ...files] }));
                     }}
-                    className="mt-1 w-full border rounded-sm px-3 py-2"
-                  />
+                    className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={async (e) => {
+                        const files = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
+                        setTaskForm((prev) => ({ ...prev, attachments: files }));
+                      }}
+                      className="w-full border rounded-sm px-3 py-2 bg-white"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Paste copied screenshots here or choose files.</p>
+                    {taskForm.attachments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {taskForm.attachments.map((item, index) => (
+                          <div key={`${item.name}-${index}`} className="h-12 w-12 overflow-hidden rounded-sm border bg-white">
+                            <img src={item.dataUri} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </label>
               </div>
 
