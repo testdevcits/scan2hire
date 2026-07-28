@@ -7,6 +7,10 @@ import { useToast } from "../../contexts/ToastContext";
 
 const defaultForm = {
   siteUrl: "",
+  projectId: "",
+  project: "",
+  projectUrl: "",
+  pageUrl: "",
   title: "",
   description: "",
   stepsToReproduce: "",
@@ -39,13 +43,25 @@ const getExternalUrl = (value) => {
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
 };
 
+const buildBugUrl = (form) => {
+  const pageUrl = String(form.pageUrl || "").trim();
+  const baseUrl = String(form.projectUrl || form.siteUrl || "").trim();
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(pageUrl)) return pageUrl;
+  if (pageUrl && baseUrl) {
+    return `${baseUrl.replace(/\/+$/, "")}/${pageUrl.replace(/^\/+/, "")}`;
+  }
+  return pageUrl || baseUrl;
+};
+
 const BugReports = ({ scope = "employee" }) => {
   const { user } = useContext(AuthContext);
   const toast = useToast();
   const api = scope === "managed" ? hrApi : employeeApi;
   const effectiveRole = user?.effectiveRole || user?.role;
-  const canCreateBug = ["tester", "teamlead"].includes(effectiveRole);
+  const [access, setAccess] = useState(null);
+  const canCreateBug = ["tester", "teamlead"].includes(effectiveRole) || Boolean(access?.isTester || access?.isTeamLead);
   const [employees, setEmployees] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [bugs, setBugs] = useState([]);
   const [form, setForm] = useState(defaultForm);
   const [status, setStatus] = useState("");
@@ -56,17 +72,32 @@ const BugReports = ({ scope = "employee" }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const requests = [api.getBugs({ status: status || undefined })];
-      if (canCreateBug) requests.push(hrApi.getEmployees());
-      const [bugRes, employeeRes] = await Promise.all(requests);
+      const requests = [api.getBugs({ status: status || undefined }), employeeApi.getMyAccess()];
+      if (canCreateBug) {
+        requests.push(hrApi.getEmployees(), employeeApi.getTaskProjects());
+      }
+      const [bugRes, accessRes, employeeRes, projectRes] = await Promise.all(requests);
+      const accessData = accessRes.data.data || {};
+      const allowedToCreate = ["tester", "teamlead"].includes(effectiveRole) || Boolean(accessData.isTester || accessData.isTeamLead);
       setBugs(bugRes.data.data || []);
-      if (employeeRes) setEmployees(employeeRes.data.data || []);
+      setAccess(accessData);
+      if (employeeRes) {
+        setEmployees(employeeRes.data.data || []);
+        setProjects(projectRes?.data?.data || []);
+      } else if (allowedToCreate) {
+        const [employeeListRes, projectListRes] = await Promise.all([
+          hrApi.getEmployees(),
+          employeeApi.getTaskProjects(),
+        ]);
+        setEmployees(employeeListRes.data.data || []);
+        setProjects(projectListRes.data.data || []);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load bugs");
     } finally {
       setLoading(false);
     }
-  }, [api, canCreateBug, status, toast]);
+  }, [api, canCreateBug, effectiveRole, status, toast]);
 
   useEffect(() => {
     loadData();
@@ -92,7 +123,7 @@ const BugReports = ({ scope = "employee" }) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.createBug(form);
+      await api.createBug({ ...form, siteUrl: buildBugUrl(form) });
       toast.success("Bug added and assigned");
       setForm(defaultForm);
       await loadData();
@@ -160,8 +191,28 @@ const BugReports = ({ scope = "employee" }) => {
         <form onSubmit={createBug} className="bg-white rounded-sm shadow p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Site URL
-              <input value={form.siteUrl} onChange={(e) => setForm((prev) => ({ ...prev, siteUrl: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
+              Running Project
+              <select
+                value={form.projectId}
+                onChange={(e) => {
+                  const project = projects.find((item) => item._id === e.target.value);
+                  setForm((prev) => ({
+                    ...prev,
+                    projectId: project?._id || "",
+                    project: project?.name || "",
+                    projectUrl: project?.url || "",
+                    siteUrl: project?.url || prev.siteUrl,
+                  }));
+                }}
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              >
+                <option value="">Select running project</option>
+                {projects.map((project) => (
+                  <option key={project._id} value={project._id}>
+                    {project.name} - {project.environment || "running"}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="text-sm font-medium text-gray-700">
               Assign To
@@ -183,6 +234,27 @@ const BugReports = ({ scope = "employee" }) => {
                 <option value="critical">Critical</option>
               </select>
             </label>
+            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              Project Base URL
+              <input
+                value={form.projectUrl || form.siteUrl}
+                onChange={(e) => setForm((prev) => ({ ...prev, projectUrl: e.target.value, siteUrl: e.target.value }))}
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+                required
+              />
+            </label>
+            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              Specific Page URL
+              <input
+                value={form.pageUrl}
+                onChange={(e) => setForm((prev) => ({ ...prev, pageUrl: e.target.value }))}
+                placeholder="/about, /seller/products, or full URL"
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              />
+            </label>
+            <div className="md:col-span-4 rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 break-all">
+              Final URL: {buildBugUrl(form) || "-"}
+            </div>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Bug Title
               <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />

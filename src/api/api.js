@@ -130,6 +130,7 @@ export const employeeApi = {
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),
   getTasks: (params) => API.get("/employees/tasks", { params }),
   updateTask: (taskId, payload) => API.patch(`/employees/tasks/${taskId}`, payload),
+  getTaskProjects: () => API.get("/employees/tasks/projects/available"),
   getBugs: (params) => API.get("/employees/bugs", { params }),
   createBug: (payload) => API.post("/employees/bugs", payload),
   updateBug: (bugId, payload) => API.patch(`/employees/bugs/${bugId}`, payload),
