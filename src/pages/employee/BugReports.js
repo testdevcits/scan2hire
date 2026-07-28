@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { FiImage, FiUploadCloud, FiX } from "react-icons/fi";
 import { employeeApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -63,6 +64,106 @@ const buildBugUrl = (form) => {
   return pageUrl || baseUrl;
 };
 
+const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact = false }) => {
+  const addFiles = async (files) => {
+    const selected = Array.from(files || []).filter((file) => file.type?.startsWith("image/"));
+    if (!selected.length) return;
+    const nextImages = await Promise.all(selected.map(fileToDataUri));
+    onChange([...(images || []), ...nextImages]);
+  };
+
+  const handlePaste = async (event) => {
+    const pastedImages = await getPastedImages(event);
+    if (!pastedImages.length) return;
+    event.preventDefault();
+    onChange([...(images || []), ...pastedImages]);
+  };
+
+  const removeImage = (indexToRemove) => {
+    onChange(images.filter((_, index) => index !== indexToRemove));
+  };
+
+  return (
+    <div className="space-y-2">
+      {label && <p className="text-sm font-medium text-gray-700">{label}</p>}
+      <div
+        tabIndex={0}
+        onPaste={handlePaste}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.currentTarget.classList.add("border-[#f84525]", "bg-[#fff5f3]");
+        }}
+        onDragLeave={(event) => {
+          event.currentTarget.classList.remove("border-[#f84525]", "bg-[#fff5f3]");
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          event.currentTarget.classList.remove("border-[#f84525]", "bg-[#fff5f3]");
+          addFiles(event.dataTransfer.files);
+        }}
+        className={`rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#f84525] ${
+          compact ? "p-3" : "p-4"
+        }`}
+      >
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border border-gray-200 bg-white px-3 py-4 text-center hover:border-[#f84525] hover:bg-[#fffafa]">
+          <FiUploadCloud className="text-2xl text-[#f84525]" />
+          <span className="text-sm font-semibold text-gray-900">Drop, paste, or browse screenshots</span>
+          <span className="text-xs text-gray-500">Multiple images supported. Click any thumbnail to preview.</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(event) => addFiles(event.target.files)}
+            className="sr-only"
+          />
+        </label>
+
+        {images.length > 0 ? (
+          <div className="mt-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-gray-600">{images.length} screenshot{images.length === 1 ? "" : "s"} selected</span>
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-xs font-semibold text-[#f84525] hover:underline"
+              >
+                Remove all
+              </button>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {images.map((item, index) => (
+                <div key={`${item.name}-${index}`} className="group relative aspect-square overflow-hidden rounded-sm border bg-white">
+                  <button
+                    type="button"
+                    onClick={() => onPreview?.({ title: item.name || "Screenshot", url: item.dataUri || item.url })}
+                    className="h-full w-full"
+                  >
+                    {item.dataUri || item.url ? (
+                      <img src={item.dataUri || item.url} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-gray-400">
+                        <FiImage />
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-sm bg-black/70 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                    aria-label="Remove screenshot"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
 const BugReports = ({ scope = "employee" }) => {
   const { user } = useContext(AuthContext);
   const toast = useToast();
@@ -123,19 +224,6 @@ const BugReports = ({ scope = "employee" }) => {
     }),
     [bugs]
   );
-
-  const handleFiles = async (files, setter, field) => {
-    const selected = Array.from(files || []);
-    const images = await Promise.all(selected.map(fileToDataUri));
-    setter((prev) => ({ ...prev, [field]: images }));
-  };
-
-  const handlePasteImages = async (event, setter, field) => {
-    const images = await getPastedImages(event);
-    if (!images.length) return;
-    event.preventDefault();
-    setter((prev) => ({ ...prev, [field]: [...(prev[field] || []), ...images] }));
-  };
 
   const createBug = async (e) => {
     e.preventDefault();
@@ -279,28 +367,11 @@ const BugReports = ({ scope = "employee" }) => {
             </label>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Screenshots
-              <div
-                tabIndex={0}
-                onPaste={(e) => handlePasteImages(e, setForm, "screenshots")}
-                className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-              >
-                <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files, setForm, "screenshots")} className="w-full border rounded-sm px-3 py-2 bg-white" />
-                <p className="mt-2 text-xs text-gray-500">Paste copied screenshot here or choose files.</p>
-                {form.screenshots.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {form.screenshots.map((item, index) => (
-                      <button
-                        key={`${item.name}-${index}`}
-                        type="button"
-                        onClick={() => setPreview({ title: item.name || "Pasted screenshot", url: item.dataUri })}
-                        className="h-14 w-14 overflow-hidden rounded-sm border bg-white"
-                      >
-                        <img src={item.dataUri} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ScreenshotDropzone
+                images={form.screenshots}
+                onChange={(screenshots) => setForm((prev) => ({ ...prev, screenshots }))}
+                onPreview={setPreview}
+              />
             </label>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Description
@@ -390,36 +461,12 @@ const BugReports = ({ scope = "employee" }) => {
                   </label>
                   <label className="text-sm font-medium text-gray-700">
                     Add Images
-                    <div
-                      tabIndex={0}
-                      onPaste={async (e) => {
-                        const images = await getPastedImages(e);
-                        if (!images.length) return;
-                        e.preventDefault();
-                        updateBugInline(bug._id, "newAttachments", [...(bug.newAttachments || []), ...images]);
-                      }}
-                      className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-                    >
-                      <input type="file" accept="image/*" multiple onChange={async (e) => {
-                        const images = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
-                        updateBugInline(bug._id, "newAttachments", images);
-                      }} className="w-full border rounded-sm px-3 py-2 bg-white" />
-                      <p className="mt-1 text-xs text-gray-500">Paste screenshot here or choose files.</p>
-                      {(bug.newAttachments || []).length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {(bug.newAttachments || []).map((item, index) => (
-                            <button
-                              key={`${item.name}-${index}`}
-                              type="button"
-                              onClick={() => setPreview({ title: item.name || "Pasted screenshot", url: item.dataUri })}
-                              className="h-12 w-12 overflow-hidden rounded-sm border bg-white"
-                            >
-                              <img src={item.dataUri} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <ScreenshotDropzone
+                      images={bug.newAttachments || []}
+                      onChange={(newAttachments) => updateBugInline(bug._id, "newAttachments", newAttachments)}
+                      onPreview={setPreview}
+                      compact
+                    />
                   </label>
                   <label className="text-sm font-medium text-gray-700">
                     Reply
