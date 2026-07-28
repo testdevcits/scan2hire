@@ -94,6 +94,9 @@ export const hrApi = {
   createTask: (payload) => API.post("/hr/tasks", payload),
   updateTask: (taskId, payload) => API.put(`/hr/tasks/${taskId}`, payload),
   deleteTask: (taskId) => API.delete(`/hr/tasks/${taskId}`),
+  getBugs: (params) => API.get("/hr/bugs", { params }),
+  createBug: (payload) => API.post("/hr/bugs", payload),
+  updateBug: (bugId, payload) => API.patch(`/hr/bugs/${bugId}`, payload),
 };
 
 export const employeeApi = {
@@ -127,6 +130,9 @@ export const employeeApi = {
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),
   getTasks: (params) => API.get("/employees/tasks", { params }),
   updateTask: (taskId, payload) => API.patch(`/employees/tasks/${taskId}`, payload),
+  getBugs: (params) => API.get("/employees/bugs", { params }),
+  createBug: (payload) => API.post("/employees/bugs", payload),
+  updateBug: (bugId, payload) => API.patch(`/employees/bugs/${bugId}`, payload),
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),

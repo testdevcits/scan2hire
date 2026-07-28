@@ -13,6 +13,13 @@ const getExternalUrl = (value) => {
   if (!url) return "";
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
 };
+const fileToDataUri = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 const statusLabels = {
   pending: "Pending",
@@ -41,6 +48,7 @@ const taskDefaults = {
   status: "pending",
   collaborator: "",
   remark: "",
+  attachments: [],
 };
 
 const TaskManagement = () => {
@@ -164,6 +172,9 @@ const TaskManagement = () => {
       description: selectedProject.description,
       handledBy: employees.find((employee) => employee._id === taskForm.assignedTo)?.name || "",
     };
+    if (!payload.attachments?.length) {
+      delete payload.attachments;
+    }
 
     setSaving(true);
     try {
@@ -196,6 +207,7 @@ const TaskManagement = () => {
       status: task.status || "pending",
       collaborator: task.collaborator || "",
       remark: task.remark || "",
+      attachments: [],
     });
   };
 
@@ -413,6 +425,19 @@ const TaskManagement = () => {
                   Remark
                   <input value={taskForm.remark} onChange={(e) => setTaskForm((prev) => ({ ...prev, remark: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
                 </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Images
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={async (e) => {
+                      const files = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
+                      setTaskForm((prev) => ({ ...prev, attachments: files }));
+                    }}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
               </div>
 
               {selectedProject && (
@@ -468,7 +493,7 @@ const TaskManagement = () => {
             <table className="min-w-[1500px] w-full text-sm">
               <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                 <tr>
-                  {["Employee", "Phase", "Project", "Task Title", "URL", "Description", "Tech", "Time", "Collaborator", "Status", "Reply", "Billing", "Priority", "Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                  {["Employee", "Phase", "Project", "Task Title", "URL", "Description", "Images", "Tech", "Time", "Collaborator", "Status", "Reply", "Billing", "Priority", "Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
                     <th key={item} className="px-3 py-3 text-left">{item}</th>
                   ))}
                 </tr>
@@ -484,6 +509,17 @@ const TaskManagement = () => {
                       <td className="px-3 py-3 font-medium max-w-[180px] break-words">{task.title}</td>
                       <td className="px-3 py-3">{task.url ? <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
                       <td className="px-3 py-3 max-w-[260px] break-words">{task.description || "-"}</td>
+                      <td className="px-3 py-3">
+                        {[...(task.attachments || []), ...(task.responseAttachments || [])].length ? (
+                          <div className="flex gap-1">
+                            {[...(task.attachments || []), ...(task.responseAttachments || [])].slice(0, 3).map((item, index) => (
+                              <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="h-10 w-10 overflow-hidden rounded-sm border block">
+                                <img src={item.url} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        ) : "-"}
+                      </td>
                       <td className="px-3 py-3">{task.tech || "-"}</td>
                       <td className="px-3 py-3">{task.timing || "-"}</td>
                       <td className="px-3 py-3">{task.collaborator || "-"}</td>

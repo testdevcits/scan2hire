@@ -207,7 +207,7 @@ const EmployeeDetail = () => {
   const teamLeadOptions = useMemo(
     () =>
       employeeOptions
-        .filter((item) => item.user?.role === "teamlead" && String(item._id) !== String(employeeId))
+        .filter((item) => (item.workRole === "teamlead" || item.user?.role === "teamlead") && String(item._id) !== String(employeeId))
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
     [employeeId, employeeOptions]
   );

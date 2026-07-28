@@ -1,12 +1,12 @@
 import { useContext, useEffect, useState } from "react";
-import { FiBarChart2, FiCalendar, FiCheckSquare, FiClock, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiAlertTriangle, FiBarChart2, FiCalendar, FiCheckSquare, FiClock, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 import { employeeApi } from "../api";
 
 const HRLayout = () => {
   const { user } = useContext(AuthContext);
-  const isTeamLead = user?.role === "teamlead";
+  const isTeamLead = (user?.effectiveRole || user?.role) === "teamlead";
   const isHr = user?.role === "hr";
   const [access, setAccess] = useState(null);
 
@@ -38,6 +38,7 @@ const HRLayout = () => {
     ...(isTeamLead ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
     { label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> },
     { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
+    { label: "Bugs", path: "/hr/bugs", icon: <FiAlertTriangle /> },
     { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
     { label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> },
     { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },

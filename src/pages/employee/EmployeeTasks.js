@@ -12,6 +12,13 @@ const getExternalUrl = (value) => {
   if (!url) return "";
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
 };
+const fileToDataUri = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 const statusLabels = {
   pending: "Pending",
@@ -174,6 +181,16 @@ const EmployeeTasks = () => {
                 </a>
               )}
 
+              {[...(task.attachments || []), ...(task.responseAttachments || [])].length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {[...(task.attachments || []), ...(task.responseAttachments || [])].map((item, index) => (
+                    <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block h-20 w-20 overflow-hidden rounded-sm border">
+                      <img src={item.url} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
+
               <p className="text-sm text-gray-700 break-words">{task.description || "-"}</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -216,6 +233,19 @@ const EmployeeTasks = () => {
                     className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]"
                   />
                 </label>
+                <label className="text-sm font-medium text-gray-700 sm:col-span-2">
+                  Add Images
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={async (e) => {
+                      const files = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
+                      handleInline(task._id, "responseAttachments", files);
+                    }}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
               </div>
 
               <Button
@@ -227,6 +257,7 @@ const EmployeeTasks = () => {
                     timing: task.timing,
                     reply: task.reply,
                     remark: task.remark,
+                    responseAttachments: task.responseAttachments || [],
                   })
                 }
               />

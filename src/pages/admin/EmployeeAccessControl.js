@@ -73,10 +73,11 @@ const EmployeeAccessControl = () => {
     () => ({
       total: rows.length,
       teamLeads: teamLeads.length,
+      testers: rows.filter((row) => row.isTester).length,
       assigned: employees.filter((row) => row.teamLead).length,
       unassigned: employees.filter((row) => !row.teamLead).length,
     }),
-    [employees, rows.length, teamLeads.length]
+    [employees, rows, teamLeads.length]
   );
 
   const toggleEmployee = (employeeId) => {
@@ -170,6 +171,37 @@ const EmployeeAccessControl = () => {
     }
   };
 
+  const setTester = async (allowed) => {
+    if (!selectedEmployeeId) {
+      toast.error("Select employee first");
+      return;
+    }
+
+    const ok = await confirm({
+      title: allowed ? "Make Tester" : "Remove Tester",
+      message: `${selectedEmployee?.employee?.name || "This employee"} ${
+        allowed ? "will be able to add website bugs and assign them." : "will no longer have tester access."
+      }`,
+      confirmText: allowed ? "Make Tester" : "Remove Tester",
+      tone: allowed ? "primary" : "danger",
+    });
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+        isTester: allowed,
+        modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
+      });
+      toast.success(allowed ? "Employee is now Tester" : "Tester access removed");
+      await loadAccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update Tester access");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const setSystemAllotmentAccess = async (allowed) => {
     if (!selectedEmployeeId) {
       toast.error("Select employee first");
@@ -216,6 +248,7 @@ const EmployeeAccessControl = () => {
             {[
               ["Staff", stats.total, "bg-gray-900 text-white"],
               ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border border-blue-200"],
+              ["Testers", stats.testers, "bg-amber-50 text-amber-700 border border-amber-200"],
               ["Assigned", stats.assigned, "bg-green-50 text-green-700 border border-green-200"],
               ["Unassigned", stats.unassigned, "bg-gray-100 text-gray-700 border border-gray-200"],
             ].map(([label, value, className]) => (
@@ -378,6 +411,13 @@ const EmployeeAccessControl = () => {
                   }`}>
                     {selectedEmployee.modules?.systemAllotment ? "System Allotment Allowed" : "No System Allotment Access"}
                   </span>
+                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
+                    selectedEmployee.isTester
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}>
+                    {selectedEmployee.isTester ? "Tester" : "Not Tester"}
+                  </span>
                 </div>
               </div>
             )}
@@ -398,6 +438,32 @@ const EmployeeAccessControl = () => {
                 disabled={!selectedEmployeeId || !selectedEmployee?.isTeamLead}
                 className="w-full"
               />
+            </div>
+
+            <div className="border-t pt-3 space-y-2">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Tester Access</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Tester can add website bugs, attach screenshots, and assign bugs to employees.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  text="Make Tester"
+                  onClick={() => setTester(true)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || selectedEmployee?.isTester}
+                  className="w-full"
+                />
+                <Button
+                  text="Remove"
+                  variant="secondary"
+                  onClick={() => setTester(false)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || !selectedEmployee?.isTester}
+                  className="w-full"
+                />
+              </div>
             </div>
 
             <div className="border-t pt-3 space-y-2">

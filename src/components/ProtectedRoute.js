@@ -29,7 +29,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
       }
 
       // 3️⃣ Check role
-      if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      const roleClaims = [user.role, user.workRole, user.effectiveRole].filter(Boolean);
+      if (allowedRoles.length > 0 && !roleClaims.some((role) => allowedRoles.includes(role))) {
         setIsAllowed(false);
       } else {
         setIsAllowed(true);

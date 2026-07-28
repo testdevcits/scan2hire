@@ -128,6 +128,7 @@ const ManageEmployees = () => {
   };
 
   const formatValue = (value) => value || "N/A";
+  const isTeamLead = (user?.effectiveRole || user?.role) === "teamlead";
   const openEmployee = (employee) => {
     if (employee.isHrAccount) {
       if (user?.role === "hr") return;
@@ -147,9 +148,9 @@ const ManageEmployees = () => {
     <div className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold">{user?.role === "teamlead" ? "Your Team" : "Manage Employees"}</h1>
+          <h1 className="text-xl font-bold">{isTeamLead ? "Your Team" : "Manage Employees"}</h1>
           <p className="text-sm text-gray-500">
-            {user?.role === "teamlead"
+            {isTeamLead
               ? "View employees assigned to your team."
               : "Add employees, create login access, and review documents."}
           </p>
@@ -175,7 +176,7 @@ const ManageEmployees = () => {
             ))}
           </div>
           <span className="text-sm bg-[#fff5f3] text-[#f84525] px-3 py-2 rounded-sm">
-            {user?.role === "teamlead" ? "Team Members" : "Total Employees"}: {employees.length}
+            {isTeamLead ? "Team Members" : "Total Employees"}: {employees.length}
           </span>
           {["hr", "superadmin"].includes(user?.role) && (
             <span className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-sm">
