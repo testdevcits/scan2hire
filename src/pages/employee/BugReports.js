@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FiImage, FiUploadCloud, FiX } from "react-icons/fi";
+import { FiEye, FiImage, FiPlus, FiUploadCloud, FiX } from "react-icons/fi";
 import { employeeApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -62,6 +62,12 @@ const buildBugUrl = (form) => {
     return `${baseUrl.replace(/\/+$/, "")}/${pageUrl.replace(/^\/+/, "")}`;
   }
   return pageUrl || baseUrl;
+};
+
+const truncateText = (value, max = 90) => {
+  const text = String(value || "");
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trim()}...`;
 };
 
 const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact = false }) => {
@@ -177,6 +183,9 @@ const BugReports = ({ scope = "employee" }) => {
   const [form, setForm] = useState(defaultForm);
   const [status, setStatus] = useState("");
   const [preview, setPreview] = useState(null);
+  const [selectedBugId, setSelectedBugId] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingId, setSavingId] = useState("");
@@ -225,6 +234,21 @@ const BugReports = ({ scope = "employee" }) => {
     [bugs]
   );
 
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(bugs.length / pageSize));
+  const pagedBugs = useMemo(
+    () => bugs.slice((page - 1) * pageSize, page * pageSize),
+    [bugs, page]
+  );
+  const selectedBug = useMemo(
+    () => bugs.find((bug) => bug._id === selectedBugId) || null,
+    [bugs, selectedBugId]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
+
   const createBug = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -232,6 +256,7 @@ const BugReports = ({ scope = "employee" }) => {
       await api.createBug({ ...form, siteUrl: buildBugUrl(form) });
       toast.success("Bug added and assigned");
       setForm(defaultForm);
+      setShowCreateForm(false);
       await loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to add bug");
@@ -294,7 +319,17 @@ const BugReports = ({ scope = "employee" }) => {
       </section>
 
       {canCreateBug && (
-        <form onSubmit={createBug} className="bg-white rounded-sm shadow p-4 space-y-3">
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowCreateForm((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-semibold text-gray-900 hover:bg-gray-50"
+          >
+            <span className="inline-flex items-center gap-2"><FiPlus /> Add Bug</span>
+            <span className="text-xs text-gray-500">{showCreateForm ? "Close" : "Open"}</span>
+          </button>
+          {showCreateForm && (
+        <form onSubmit={createBug} className="border-t p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
               Running Project
@@ -392,97 +427,155 @@ const BugReports = ({ scope = "employee" }) => {
           </div>
           <Button text="Add Bug" type="submit" loading={saving} />
         </form>
+          )}
+        </section>
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
+        <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="border rounded-sm px-3 py-2">
             <option value="">All status</option>
             {Object.entries(statusLabels).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          <span className="text-sm text-gray-500">{bugs.length} bug{bugs.length === 1 ? "" : "s"}</span>
         </div>
 
         {bugs.length === 0 ? (
           <p className="p-6 text-center text-sm text-gray-500">No bugs found.</p>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4">
-            {bugs.map((bug) => (
-              <article key={bug._id} className="border border-gray-200 rounded-sm p-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <div>
-                    <a href={getExternalUrl(bug.siteUrl)} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] underline break-all">
-                      {bug.siteUrl}
-                    </a>
-                    <h2 className="font-semibold text-gray-900 mt-1">{bug.title}</h2>
-                    <p className="text-xs text-gray-500">
-                      Assigned to {bug.assignedTo?.name || "-"} | Reported by {bug.reportedBy?.name || "-"}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-sm capitalize ${bug.severity === "critical" ? "bg-red-600 text-white" : "bg-amber-50 text-amber-700"}`}>
-                    {bug.severity}
-                  </span>
+          <>
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full text-sm">
+              <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                <tr>
+                  {["Bug", "URL", "Assigned", "Status", "Severity", "Images", "Actions"].map((item) => (
+                    <th key={item} className="px-3 py-3 text-left">{item}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pagedBugs.map((bug) => {
+                  const imageCount = [...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].length;
+                  return (
+                    <tr key={bug._id} className="border-t align-top hover:bg-gray-50">
+                      <td className="px-3 py-3 min-w-[260px]">
+                        <p className="font-semibold text-gray-900">{bug.title}</p>
+                        <p className="mt-1 text-xs text-gray-500">{truncateText(bug.description, 95)}</p>
+                      </td>
+                      <td className="px-3 py-3 max-w-[220px]">
+                        <a href={getExternalUrl(bug.siteUrl)} target="_blank" rel="noreferrer" className="text-[#f84525] underline break-all">
+                          {truncateText(bug.siteUrl, 48)}
+                        </a>
+                      </td>
+                      <td className="px-3 py-3">{bug.assignedTo?.name || "-"}</td>
+                      <td className="px-3 py-3">{statusLabels[bug.status] || bug.status}</td>
+                      <td className="px-3 py-3">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-sm capitalize ${bug.severity === "critical" ? "bg-red-600 text-white" : "bg-amber-50 text-amber-700"}`}>
+                          {bug.severity}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{imageCount}</td>
+                      <td className="px-3 py-3">
+                        <Button text="View" className="text-xs px-3 py-1.5" onClick={() => setSelectedBugId(bug._id)}>
+                          <span className="inline-flex items-center gap-1"><FiEye /> View</span>
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="border-t px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
+            <div className="flex gap-2">
+              <Button text="Previous" variant="secondary" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))} />
+              <Button text="Next" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} />
+            </div>
+          </div>
+          </>
+        )}
+      </section>
+      {selectedBug && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-black/40">
+          <div className="h-full w-full max-w-3xl bg-white shadow-xl flex flex-col">
+            <div className="border-b px-4 py-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-gray-900 break-words">{selectedBug.title}</h2>
+                <a href={getExternalUrl(selectedBug.siteUrl)} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] underline break-all">
+                  {selectedBug.siteUrl}
+                </a>
+              </div>
+              <button type="button" onClick={() => setSelectedBugId("")} className="text-gray-500 hover:text-[#f84525] text-xl">
+                <FiX />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <p><b>Assigned:</b> {selectedBug.assignedTo?.name || "-"}</p>
+                <p><b>Reported:</b> {selectedBug.reportedBy?.name || "-"}</p>
+                <p><b>Severity:</b> <span className="capitalize">{selectedBug.severity}</span></p>
+              </div>
+              <div className="rounded-sm border bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">{selectedBug.description}</div>
+              {selectedBug.stepsToReproduce && <div className="rounded-sm border p-3 text-sm whitespace-pre-wrap break-words"><b>Steps:</b> {selectedBug.stepsToReproduce}</div>}
+              {(selectedBug.expectedResult || selectedBug.actualResult) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-sm border p-3"><b>Expected:</b><p className="mt-1 whitespace-pre-wrap break-words">{selectedBug.expectedResult || "-"}</p></div>
+                  <div className="rounded-sm border p-3"><b>Actual:</b><p className="mt-1 whitespace-pre-wrap break-words">{selectedBug.actualResult || "-"}</p></div>
                 </div>
-
-                <p className="text-sm text-gray-700 break-words">{bug.description}</p>
-                {bug.stepsToReproduce && <p className="text-sm text-gray-600 break-words"><b>Steps:</b> {bug.stepsToReproduce}</p>}
-                {(bug.expectedResult || bug.actualResult) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
-                    <p><b>Expected:</b> {bug.expectedResult || "-"}</p>
-                    <p><b>Actual:</b> {bug.actualResult || "-"}</p>
-                  </div>
-                )}
-
-                {[...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {[...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].map((item, index) => (
+              )}
+              {[...(selectedBug.screenshots || []), ...(selectedBug.assigneeAttachments || [])].length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Screenshots</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {[...(selectedBug.screenshots || []), ...(selectedBug.assigneeAttachments || [])].map((item, index) => (
                       <button
                         key={`${item.url}-${index}`}
                         type="button"
-                        onClick={() => setPreview({ title: item.name || bug.title || "Bug screenshot", url: item.url })}
-                        className="block h-20 w-20 overflow-hidden rounded-sm border bg-white"
-                        title="Open screenshot"
+                        onClick={() => setPreview({ title: item.name || selectedBug.title || "Bug screenshot", url: item.url })}
+                        className="aspect-square overflow-hidden rounded-sm border bg-white"
                       >
                         <img src={item.url} alt={item.name || "Bug attachment"} className="h-full w-full object-cover" />
                       </button>
                     ))}
                   </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Status
-                    <select value={bug.status} onChange={(e) => updateBugInline(bug._id, "status", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
-                      {Object.entries(statusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-gray-700">
-                    Add Images
-                    <ScreenshotDropzone
-                      images={bug.newAttachments || []}
-                      onChange={(newAttachments) => updateBugInline(bug._id, "newAttachments", newAttachments)}
-                      onPreview={setPreview}
-                      compact
-                    />
-                  </label>
-                  <label className="text-sm font-medium text-gray-700">
-                    Reply
-                    <textarea value={bug.reply || ""} onChange={(e) => updateBugInline(bug._id, "reply", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[76px]" />
-                  </label>
-                  <label className="text-sm font-medium text-gray-700">
-                    Fix Note
-                    <textarea value={bug.fixNote || ""} onChange={(e) => updateBugInline(bug._id, "fixNote", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[76px]" />
-                  </label>
                 </div>
-                <Button text="Update Bug" loading={savingId === bug._id} onClick={() => updateBug(bug)} />
-              </article>
-            ))}
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Status
+                  <select value={selectedBug.status} onChange={(e) => updateBugInline(selectedBug._id, "status", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+                    {Object.entries(statusLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <ScreenshotDropzone
+                  label="Add Images"
+                  images={selectedBug.newAttachments || []}
+                  onChange={(newAttachments) => updateBugInline(selectedBug._id, "newAttachments", newAttachments)}
+                  onPreview={setPreview}
+                  compact
+                />
+                <label className="text-sm font-medium text-gray-700">
+                  Reply
+                  <textarea value={selectedBug.reply || ""} onChange={(e) => updateBugInline(selectedBug._id, "reply", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Fix Note
+                  <textarea value={selectedBug.fixNote || ""} onChange={(e) => updateBugInline(selectedBug._id, "fixNote", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]" />
+                </label>
+              </div>
+            </div>
+            <div className="border-t p-4 flex justify-end gap-2">
+              <Button text="Close" variant="secondary" onClick={() => setSelectedBugId("")} />
+              <Button text="Update Bug" loading={savingId === selectedBug._id} onClick={() => updateBug(selectedBug)} />
+            </div>
           </div>
-        )}
-      </section>
+        </div>
+      )}
       {preview && (
         <FilePreviewModal
           title={preview.title}
