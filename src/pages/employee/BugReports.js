@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { employeeApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import FilePreviewModal from "../../components/common/FilePreviewModal";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -65,6 +66,7 @@ const BugReports = ({ scope = "employee" }) => {
   const [bugs, setBugs] = useState([]);
   const [form, setForm] = useState(defaultForm);
   const [status, setStatus] = useState("");
+  const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingId, setSavingId] = useState("");
@@ -327,9 +329,15 @@ const BugReports = ({ scope = "employee" }) => {
                 {[...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {[...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].map((item, index) => (
-                      <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block h-20 w-20 overflow-hidden rounded-sm border">
+                      <button
+                        key={`${item.url}-${index}`}
+                        type="button"
+                        onClick={() => setPreview({ title: item.name || bug.title || "Bug screenshot", url: item.url })}
+                        className="block h-20 w-20 overflow-hidden rounded-sm border bg-white"
+                        title="Open screenshot"
+                      >
                         <img src={item.url} alt={item.name || "Bug attachment"} className="h-full w-full object-cover" />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -365,6 +373,13 @@ const BugReports = ({ scope = "employee" }) => {
           </div>
         )}
       </section>
+      {preview && (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 };
