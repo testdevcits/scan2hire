@@ -306,6 +306,7 @@ const TaskManagement = () => {
   const downloadMonthlySheet = () => {
     const rows = tasks.map((task, index) => ({
       "S.NO": index + 1,
+      "HANDEL BY": task.assignedBy?.name || "",
       "ASSIGNED TO": task.handledBy || task.assignedTo?.name || "",
       PHASES: task.phase || "",
       PROJECT: task.project || "",
@@ -319,7 +320,6 @@ const TaskManagement = () => {
       REPLY: task.reply || "",
       BILLING: task.billing || "",
       PRIORITY: task.priority || "",
-      "ASSIGNED BY": task.assignedBy?.name || "",
       "TASK SOURCE": task.taskSource || "",
       REMARK: task.remark || "",
     }));
@@ -756,7 +756,7 @@ const TaskManagement = () => {
             <table className="min-w-[1680px] w-full text-sm">
               <thead className="bg-[#f6b15f] text-xs uppercase text-gray-900">
                 <tr>
-                  {["S.NO", "Assigned To", "Phases", "Project", "Task Title", "URL", "Task Description", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Assigned By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                  {["S.NO", "Handel By", "Assigned To", "Phases", "Project", "Task Title", "URL", "Task Description", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
                     <th key={item} className="px-2 py-2 text-left border border-[#d99a4d]">{item}</th>
                   ))}
                 </tr>
@@ -767,6 +767,7 @@ const TaskManagement = () => {
                   return (
                     <tr key={task._id} className={`align-middle ${important ? "bg-red-50/70" : ""}`}>
                       <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{index + 1}</td>
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 min-w-[150px] whitespace-nowrap">{task.handledBy || task.assignedTo?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.phase || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 max-w-[190px]">
@@ -808,7 +809,6 @@ const TaskManagement = () => {
                       </td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.billing || "-"}</td>
                       <td className={`px-2 py-2 border border-gray-200 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
-                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 max-w-[160px]">
                         <span className="block truncate" title={task.taskSource || ""}>{task.taskSource || "-"}</span>
                       </td>
