@@ -170,12 +170,13 @@ const EmployeeCredentials = () => {
 
   if (!pageUnlocked) {
     return (
-      <div className="space-y-5">
-        <div>
+      <div className="min-h-[calc(100vh-160px)] flex items-center justify-center">
+        <div className="w-full max-w-xl space-y-5">
+        <div className="text-center">
           <h1 className="text-2xl font-bold">Employee Credentials</h1>
           <p className="text-sm text-gray-500">Enter your login password to open saved credentials.</p>
         </div>
-        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">
+        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
           <label className="block text-sm font-medium">
             Login Password
             <input
@@ -189,6 +190,7 @@ const EmployeeCredentials = () => {
           </label>
           <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
         </form>
+        </div>
       </div>
     );
   }
