@@ -10,6 +10,9 @@ const EmployeeCredentials = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const canOpenEmployeeVault = user?.role === "superadmin";
+  const [pageUnlocked, setPageUnlocked] = useState(false);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [unlockingPage, setUnlockingPage] = useState(false);
   const [vaultPassword, setVaultPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,9 +34,28 @@ const EmployeeCredentials = () => {
   const [showMyCredentialForm, setShowMyCredentialForm] = useState(false);
 
   useEffect(() => {
-    loadMyCredentials();
+    if (pageUnlocked) loadMyCredentials();
     // eslint-disable-next-line
-  }, []);
+  }, [pageUnlocked]);
+
+  const unlockPage = async (e) => {
+    e.preventDefault();
+    setUnlockingPage(true);
+    try {
+      const res = await authApi.verifyMyPassword({ password: loginPassword });
+      if (!res.data.data?.isValid) {
+        toast.error("Invalid login password");
+        return;
+      }
+      setPageUnlocked(true);
+      setLoginPassword("");
+      toast.success("Credentials unlocked");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to verify password");
+    } finally {
+      setUnlockingPage(false);
+    }
+  };
 
   const loadMyCredentials = async () => {
     try {
@@ -145,6 +167,31 @@ const EmployeeCredentials = () => {
   };
 
   if (loading && !unlocked) return <CommonLoader text="Opening credentials vault..." />;
+
+  if (!pageUnlocked) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold">Employee Credentials</h1>
+          <p className="text-sm text-gray-500">Enter your login password to open saved credentials.</p>
+        </div>
+        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">
+          <label className="block text-sm font-medium">
+            Login Password
+            <input
+              type="password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="mt-1 w-full border rounded-sm px-3 py-2"
+              required
+              autoFocus
+            />
+          </label>
+          <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

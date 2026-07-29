@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
-import { employeeApi } from "../../api";
+import { authApi, employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -16,6 +16,9 @@ const emptyForm = {
 const EmployeeSavedCredentials = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
+  const [pageUnlocked, setPageUnlocked] = useState(false);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [unlockingPage, setUnlockingPage] = useState(false);
   const [credentials, setCredentials] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -35,8 +38,27 @@ const EmployeeSavedCredentials = () => {
   }, [toast]);
 
   useEffect(() => {
-    loadCredentials();
-  }, [loadCredentials]);
+    if (pageUnlocked) loadCredentials();
+  }, [loadCredentials, pageUnlocked]);
+
+  const unlockPage = async (e) => {
+    e.preventDefault();
+    setUnlockingPage(true);
+    try {
+      const res = await authApi.verifyMyPassword({ password: loginPassword });
+      if (!res.data.data?.isValid) {
+        toast.error("Invalid login password");
+        return;
+      }
+      setPageUnlocked(true);
+      setLoginPassword("");
+      toast.success("Credentials unlocked");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to verify password");
+    } finally {
+      setUnlockingPage(false);
+    }
+  };
 
   const saveCredential = async (e) => {
     e.preventDefault();
@@ -72,6 +94,31 @@ const EmployeeSavedCredentials = () => {
       toast.error("Unable to copy");
     }
   };
+
+  if (!pageUnlocked) {
+    return (
+      <div className="space-y-5">
+        <section className="bg-white rounded-sm shadow p-5">
+          <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
+          <p className="text-sm text-gray-500 mt-1">Enter your login password to open saved credentials.</p>
+        </section>
+        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 max-w-xl space-y-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Login Password
+            <input
+              type="password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+              required
+              autoFocus
+            />
+          </label>
+          <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
+        </form>
+      </div>
+    );
+  }
 
   if (loading) return <CommonLoader text="Loading credentials..." />;
 

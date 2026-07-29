@@ -18,6 +18,7 @@ const AdminSettings = () => {
     officeLocation: {
       latitude: "",
       longitude: "",
+      radiusMeters: 100,
     },
   });
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,7 @@ const AdminSettings = () => {
           officeLocation: {
             latitude: data.officeLocation?.latitude ?? "",
             longitude: data.officeLocation?.longitude ?? "",
+            radiusMeters: data.officeLocation?.radiusMeters ?? 100,
           },
         }));
         setHasVaultPassword(Boolean(data.hasEmployeeVaultPassword));
@@ -107,10 +109,15 @@ const AdminSettings = () => {
     try {
       const latitude = String(form.officeLocation.latitude || "").trim();
       const longitude = String(form.officeLocation.longitude || "").trim();
+      const radiusMeters = String(form.officeLocation.radiusMeters || "").trim();
       const hasOfficeLocationInput = latitude || longitude;
 
       if (hasOfficeLocationInput && (!latitude || !longitude)) {
         toast.error("Office latitude and longitude are required");
+        return;
+      }
+      if (hasOfficeLocationInput && (!radiusMeters || Number(radiusMeters) < 25)) {
+        toast.error("Office radius must be at least 25 meters");
         return;
       }
 
@@ -126,6 +133,7 @@ const AdminSettings = () => {
         payload.officeLocation = {
           latitude,
           longitude,
+          radiusMeters,
         };
       }
 
@@ -137,6 +145,7 @@ const AdminSettings = () => {
         officeLocation: {
           latitude: res.data.data?.officeLocation?.latitude ?? prev.officeLocation.latitude,
           longitude: res.data.data?.officeLocation?.longitude ?? prev.officeLocation.longitude,
+          radiusMeters: res.data.data?.officeLocation?.radiusMeters ?? prev.officeLocation.radiusMeters,
         },
       }));
       toast.success(res.data.message || "Settings updated");
@@ -398,7 +407,7 @@ const AdminSettings = () => {
             <div>
               <h2 className="font-semibold">Office Attendance Location</h2>
               <p className="text-sm text-gray-500 mt-1">
-                App check-in will match employees within 100 meters of this location.
+                Office-mode check-in will match employees within the selected radius.
               </p>
             </div>
             <button
@@ -411,7 +420,7 @@ const AdminSettings = () => {
               {locatingOffice ? "Detecting..." : "Use Current Location"}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <label className="block text-sm font-medium">
               Latitude
               <input
@@ -431,6 +440,18 @@ const AdminSettings = () => {
                 value={form.officeLocation.longitude}
                 onChange={(e) => updateOfficeLocation("longitude", e.target.value)}
                 placeholder="75.8577"
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Radius (meters)
+              <input
+                type="number"
+                min="25"
+                step="1"
+                value={form.officeLocation.radiusMeters}
+                onChange={(e) => updateOfficeLocation("radiusMeters", e.target.value)}
+                placeholder="300"
                 className="mt-1 w-full border rounded-sm px-3 py-2"
               />
             </label>

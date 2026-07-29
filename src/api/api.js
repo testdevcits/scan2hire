@@ -10,6 +10,7 @@ export const authApi = {
   getSettings: () => API.get("/users/settings"),
   updateSettings: (payload) => API.put("/users/settings", payload),
   verifyVaultPassword: (payload) => API.post("/users/settings/verify-vault", payload),
+  verifyMyPassword: (payload) => API.post("/users/me/verify-password", payload),
   updateMyDocuments: (payload) => API.patch("/users/me/documents", payload),
   getMyAccountCredentials: () => API.get("/users/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/users/me/account-credentials", payload),

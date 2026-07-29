@@ -218,7 +218,8 @@ const EmployeeTasks = () => {
                 <label className="text-sm font-medium text-gray-700">
                   Time
                   <input
-                    type="time"
+                    type="text"
+                    placeholder="2h 30m / 02:30 / 45m"
                     value={task.timing || ""}
                     onChange={(e) => handleInline(task._id, "timing", e.target.value)}
                     className="mt-1 w-full border rounded-sm px-3 py-2"

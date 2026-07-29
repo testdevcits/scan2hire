@@ -125,6 +125,14 @@ const TaskManagement = () => {
     [projects, selectedProjectId]
   );
 
+  const findProjectForTask = (task) =>
+    projects.find(
+      (project) =>
+        project.name === task.project &&
+        (!task.phase || project.phase === task.phase) &&
+        (!task.url || project.url === task.url)
+    ) || projects.find((project) => project.name === task.project);
+
   useEffect(() => {
     if (!selectedProject) return;
     setTaskForm((prev) => ({
@@ -237,7 +245,7 @@ const TaskManagement = () => {
   };
 
   const editTask = (task) => {
-    const project = projects.find((item) => item.name === task.project);
+    const project = findProjectForTask(task);
     setSelectedProjectId(project?._id || "");
     setEditingTaskId(task._id);
     setTaskForm({
@@ -350,7 +358,7 @@ const TaskManagement = () => {
           <form onSubmit={saveProject} className="bg-white rounded-sm shadow p-4 space-y-3">
             <div>
               <h2 className="font-semibold text-gray-900">Project Master</h2>
-              <p className="text-xs text-gray-500 mt-1">{editingProjectId ? "Project details update karo." : "Project information yaha add karo. Task row me project select hoga."}</p>
+              <p className="text-xs text-gray-500 mt-1">{editingProjectId ? "Project details update karo." : isProjectCoordinator ? "All TL projects yaha visible hain. New project bhi add kar sakte ho." : "Project information yaha add karo. Task row me project select hoga."}</p>
             </div>
             <label className="text-sm font-medium text-gray-700">
               Project Name
@@ -412,7 +420,7 @@ const TaskManagement = () => {
             </div>
             {projects.length > 0 && (
               <div className="border-t pt-3 space-y-2">
-                <p className="text-xs font-semibold uppercase text-gray-500">Your Projects</p>
+                <p className="text-xs font-semibold uppercase text-gray-500">{isProjectCoordinator ? "Available Projects" : "Your Projects"}</p>
                 <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
                   {projects.map((project) => (
                     <button
@@ -423,6 +431,9 @@ const TaskManagement = () => {
                     >
                       <span className="block font-semibold text-gray-900">{project.name}</span>
                       <span className="block text-xs text-gray-500">{project.phase || "-"} | {project.environment || "-"}</span>
+                      {project.teamLead?.name ? (
+                        <span className="block text-xs text-gray-500">TL: {project.teamLead.name}</span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -489,7 +500,8 @@ const TaskManagement = () => {
                 <label className="text-sm font-medium text-gray-700">
                   Time
                   <input
-                    type="time"
+                    type="text"
+                    placeholder="2h 30m / 02:30 / 45m"
                     value={taskForm.timing}
                     onChange={(e) => setTaskForm((prev) => ({ ...prev, timing: e.target.value }))}
                     className="mt-1 w-full border rounded-sm px-3 py-2"
@@ -723,10 +735,11 @@ const TaskManagement = () => {
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-[150px]">
                           <input
-                            type="time"
+                            type="text"
+                            placeholder="2h 30m"
                             value={task.timing || ""}
                             onChange={(e) => updateTaskInline(task._id, "timing", e.target.value)}
-                            className="w-24 border rounded-sm px-2 py-1.5"
+                            className="w-32 border rounded-sm px-2 py-1.5"
                           />
                           <Button
                             text="Save"
