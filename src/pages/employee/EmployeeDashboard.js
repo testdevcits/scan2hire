@@ -4,17 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { useToast } from "../../contexts/ToastContext";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -545,41 +536,16 @@ const EmployeeDashboard = ({ section = "all" }) => {
                       No attendance recorded this month.
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlyChartData} barCategoryGap={18}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          vertical={false}
-                          stroke="#f1ece9"
-                        />
-                        <XAxis dataKey="date" tickLine={false} axisLine={false} />
-                        <YAxis
-                          allowDecimals={false}
-                          tickLine={false}
-                          axisLine={false}
-                          label={{
-                            value: "Hours",
-                            angle: -90,
-                            position: "insideLeft",
-                            style: { textAnchor: "middle" },
-                          }}
-                        />
-                        <Tooltip formatter={(value, name) => [`${value}h`, name]} />
-                        <Legend />
-                        <Bar
-                          name="Work Hours"
-                          dataKey="workHours"
-                          radius={[4, 4, 0, 0]}
-                          fill="#f84525"
-                        />
-                        <Bar
-                          name="Break Hours"
-                          dataKey="breakHours"
-                          radius={[4, 4, 0, 0]}
-                          fill="#6b7280"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <TrendAreaChart
+                      data={monthlyChartData}
+                      xKey="date"
+                      yLabel="Hours"
+                      tooltipFormatter={(value, name) => [`${value}h`, name]}
+                      series={[
+                        { key: "workHours", name: "Work Hours", color: "#f84525" },
+                        { key: "breakHours", name: "Break Hours", color: "#ffa826" },
+                      ]}
+                    />
                   )}
                 </div>
                 <div className="space-y-3">

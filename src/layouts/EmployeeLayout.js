@@ -11,7 +11,7 @@ const EmployeeLayout = () => {
 
   useEffect(() => {
     let active = true;
-    if (!["employee", "teamlead"].includes(user?.role)) return undefined;
+    if (!["employee", "teamlead"].includes(user?.role) && user?.effectiveRole !== "project_coordinator") return undefined;
 
     employeeApi
       .getMyAccess()
@@ -25,11 +25,11 @@ const EmployeeLayout = () => {
     return () => {
       active = false;
     };
-  }, [user?.role]);
+  }, [user?.effectiveRole, user?.role]);
 
   useEffect(() => {
     let active = true;
-    if (!["employee", "teamlead"].includes(user?.role)) return undefined;
+    if (!["employee", "teamlead"].includes(user?.role) && user?.effectiveRole !== "project_coordinator") return undefined;
 
     employeeApi
       .getBugs()
@@ -47,7 +47,7 @@ const EmployeeLayout = () => {
     return () => {
       active = false;
     };
-  }, [user?.role]);
+  }, [user?.effectiveRole, user?.role]);
 
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
@@ -69,7 +69,14 @@ const EmployeeLayout = () => {
     { label: "Settings", path: "/employee/settings", icon: <FiSettings /> },
   ];
 
-  return <SidebarLayout title={(user?.effectiveRole || user?.role) === "teamlead" ? "Team Lead Panel" : "Employee Panel"} navItems={navItems} />;
+  const effectiveRole = user?.effectiveRole || user?.role;
+  const title = effectiveRole === "teamlead"
+    ? "Team Lead Panel"
+    : effectiveRole === "project_coordinator"
+    ? "Project Coordinator Panel"
+    : "Employee Panel";
+
+  return <SidebarLayout title={title} navItems={navItems} />;
 };
 
 export default EmployeeLayout;

@@ -6,7 +6,9 @@ import { employeeApi } from "../api";
 
 const HRLayout = () => {
   const { user } = useContext(AuthContext);
-  const isTeamLead = (user?.effectiveRole || user?.role) === "teamlead";
+  const effectiveRole = user?.effectiveRole || user?.role;
+  const isTeamLead = effectiveRole === "teamlead";
+  const isProjectCoordinator = effectiveRole === "project_coordinator";
   const isHr = user?.role === "hr";
   const [access, setAccess] = useState(null);
 
@@ -32,27 +34,40 @@ const HRLayout = () => {
   }, [isTeamLead]);
 
   const canViewSystemAllotments = isHr || Boolean(access?.systemAllotment);
+  const panelTitle = isProjectCoordinator
+    ? "Project Coordinator Panel"
+    : isTeamLead
+    ? "Team Lead Panel"
+    : "HR Panel";
 
   const navItems = [
-    { label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> },
+    ...(!isProjectCoordinator
+      ? [{ label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> }]
+      : []),
     ...(isTeamLead ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
-    { label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> },
+    ...(!isProjectCoordinator
+      ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
+      : []),
     { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
-    { label: "Bugs", path: "/hr/bugs", icon: <FiAlertTriangle /> },
-    { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
-    { label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> },
-    { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },
-    { label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> },
+    ...(!isProjectCoordinator
+      ? [
+          { label: "Bugs", path: "/hr/bugs", icon: <FiAlertTriangle /> },
+          { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
+          { label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> },
+          { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },
+          { label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> },
+        ]
+      : []),
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
     { label: "Credentials", path: "/hr/credentials", icon: <FiLock /> },
     ...(isHr ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
-    { label: "Documents", path: "/hr/documents", icon: <FiFolder /> },
+    ...(!isProjectCoordinator ? [{ label: "Documents", path: "/hr/documents", icon: <FiFolder /> }] : []),
     { label: "Profile", path: "/hr/profile", icon: <FiUser /> },
   ];
 
-  return <SidebarLayout title={isTeamLead ? "Team Lead Panel" : "HR Panel"} navItems={navItems} />;
+  return <SidebarLayout title={panelTitle} navItems={navItems} />;
 };
 
 export default HRLayout;

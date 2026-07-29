@@ -1,22 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { FiClock, FiUserCheck, FiUsers } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
+import TrendAreaChart from "../../components/common/TrendAreaChart";
+import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const ORANGE = "#f84525";
@@ -28,11 +16,13 @@ const RED = "#ef4444";
 const HRDashboard = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useContext(AuthContext);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [candidates, setCandidates] = useState([]);
 
   useEffect(() => {
+    if ((user?.effectiveRole || user?.role) === "project_coordinator") return undefined;
     const month = new Date().toISOString().slice(0, 7);
     Promise.all([hrApi.getAttendance(month), hrApi.getLeaves(), hrApi.getCandidates()])
       .then(([attendanceRes, leavesRes, candidatesRes]) => {
@@ -41,7 +31,7 @@ const HRDashboard = () => {
         setCandidates(candidatesRes.data.data || []);
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load HR dashboard"));
-  }, [toast]);
+  }, [toast, user?.effectiveRole, user?.role]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -123,6 +113,10 @@ const HRDashboard = () => {
     },
   ];
 
+  if ((user?.effectiveRole || user?.role) === "project_coordinator") {
+    return <Navigate to="/hr/tasks" replace />;
+  }
+
   return (
     <div className="space-y-5">
       <section className="bg-white rounded-sm shadow p-4 md:p-5">
@@ -181,26 +175,13 @@ const HRDashboard = () => {
             </div>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activityTrend}>
-                <defs>
-                  <linearGradient id="hrInterviews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ORANGE} stopOpacity={0.45} />
-                    <stop offset="100%" stopColor={ORANGE} stopOpacity={0.03} />
-                  </linearGradient>
-                  <linearGradient id="hrLeaves" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ORANGE_SOFT} stopOpacity={0.35} />
-                    <stop offset="100%" stopColor={ORANGE_SOFT} stopOpacity={0.04} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3e3dc" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="interviews" stroke={ORANGE} fill="url(#hrInterviews)" strokeWidth={3} />
-                <Area type="monotone" dataKey="leaves" stroke={ORANGE_SOFT} fill="url(#hrLeaves)" strokeWidth={3} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={activityTrend}
+              series={[
+                { key: "interviews", name: "Interviews", color: ORANGE },
+                { key: "leaves", name: "Leaves", color: ORANGE_SOFT },
+              ]}
+            />
           </div>
         </div>
 
@@ -212,16 +193,10 @@ const HRDashboard = () => {
             </div>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={interviewStageData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={96} paddingAngle={2}>
-                  {interviewStageData.map((item) => (
-                    <Cell key={item.name} fill={item.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={interviewStageData}
+              series={[{ key: "value", name: "Candidates", color: ORANGE }]}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
             {interviewStageData.map((item) => (
@@ -244,19 +219,10 @@ const HRDashboard = () => {
             </div>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={leaveStatusData} barCategoryGap={28}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f6e8e0" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {leaveStatusData.map((entry, index) => (
-                    <Cell key={entry.name} fill={[ORANGE, ORANGE_SOFT, RED][index % 3]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={leaveStatusData}
+              series={[{ key: "value", name: "Leaves", color: ORANGE }]}
+            />
           </div>
         </div>
 

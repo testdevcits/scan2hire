@@ -1,27 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { useToast } from "../../contexts/ToastContext";
 
 const ORANGE = "#f84525";
 const ORANGE_SOFT = "#ffa826";
-const SLATE = "#1f2937";
 const RED = "#ef4444";
 
 const AdminDashboard = () => {
@@ -253,26 +239,13 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyFlow}>
-                <defs>
-                  <linearGradient id="adminLogins" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ORANGE} stopOpacity={0.45} />
-                    <stop offset="100%" stopColor={ORANGE} stopOpacity={0.03} />
-                  </linearGradient>
-                  <linearGradient id="adminCandidates" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ORANGE_SOFT} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={ORANGE_SOFT} stopOpacity={0.04} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3e3dc" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="logins" stroke={ORANGE} fill="url(#adminLogins)" strokeWidth={3} />
-                <Area type="monotone" dataKey="candidates" stroke={ORANGE_SOFT} fill="url(#adminCandidates)" strokeWidth={3} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={monthlyFlow}
+              series={[
+                { key: "logins", name: "Logins", color: ORANGE },
+                { key: "candidates", name: "Candidates", color: ORANGE_SOFT },
+              ]}
+            />
           </div>
         </div>
 
@@ -284,16 +257,10 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={candidateMix} dataKey="value" nameKey="name" innerRadius={58} outerRadius={96} paddingAngle={2}>
-                  {candidateMix.map((item) => (
-                    <Cell key={item.name} fill={item.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={candidateMix}
+              series={[{ key: "value", name: "Candidates", color: ORANGE }]}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
             {candidateMix.map((item) => (
@@ -317,19 +284,10 @@ const AdminDashboard = () => {
             <Button text="Reports" variant="secondary" onClick={() => navigate("/admin/reports")} />
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={attendanceBreakdown} barCategoryGap={28}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f6e8e0" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {attendanceBreakdown.map((entry, index) => (
-                    <Cell key={entry.name} fill={[ORANGE, ORANGE_SOFT, SLATE][index % 3]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <TrendAreaChart
+              data={attendanceBreakdown}
+              series={[{ key: "value", name: "Attendance", color: ORANGE }]}
+            />
           </div>
         </div>
 

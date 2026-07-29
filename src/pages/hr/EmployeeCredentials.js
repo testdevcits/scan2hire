@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const EmployeeCredentials = () => {
   const toast = useToast();
+  const { user } = useContext(AuthContext);
+  const canOpenEmployeeVault = user?.role === "superadmin";
   const [vaultPassword, setVaultPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -147,14 +150,16 @@ const EmployeeCredentials = () => {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Employee Credentials</h1>
-        <p className="text-sm text-gray-500">Protected employee login records for HR and super admin use.</p>
+        <p className="text-sm text-gray-500">
+          Save your own account logins. Employee-wise credential vault is visible only to admin.
+        </p>
       </div>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">My Saved Credentials</h2>
-            <p className="text-sm text-gray-500 mt-1">Save your own HR/admin account logins.</p>
+            <p className="text-sm text-gray-500 mt-1">Save your own account logins securely.</p>
           </div>
           <button type="button" onClick={() => setShowMyCredentialForm((prev) => !prev)} className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center" aria-label="Add my credential">
             <FiPlus />
@@ -201,7 +206,7 @@ const EmployeeCredentials = () => {
         )}
       </section>
 
-      {!unlocked ? (
+      {canOpenEmployeeVault && !unlocked ? (
         <form onSubmit={unlockVault} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">
           <label className="block text-sm font-medium">
             Vault Password
@@ -215,7 +220,7 @@ const EmployeeCredentials = () => {
           </label>
           <Button text={loading ? "Opening..." : "Open Credentials"} loading={loading} type="submit" />
         </form>
-      ) : (
+      ) : canOpenEmployeeVault ? (
         <div className="space-y-4">
           <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
             <label className="text-sm font-medium">
@@ -287,6 +292,10 @@ const EmployeeCredentials = () => {
             )}
           </section>
         </div>
+      ) : (
+        <section className="bg-white rounded-sm shadow p-4 text-sm text-gray-600">
+          Employee credential vault is admin-only. Your own saved credentials are available above.
+        </section>
       )}
     </div>
   );

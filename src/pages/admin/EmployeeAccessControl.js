@@ -74,6 +74,7 @@ const EmployeeAccessControl = () => {
       total: rows.length,
       teamLeads: teamLeads.length,
       testers: rows.filter((row) => row.isTester).length,
+      projectCoordinators: rows.filter((row) => row.isProjectCoordinator).length,
       assigned: employees.filter((row) => row.teamLead).length,
       unassigned: employees.filter((row) => !row.teamLead).length,
     }),
@@ -202,6 +203,39 @@ const EmployeeAccessControl = () => {
     }
   };
 
+  const setProjectCoordinator = async (allowed) => {
+    if (!selectedEmployeeId) {
+      toast.error("Select employee first");
+      return;
+    }
+
+    const ok = await confirm({
+      title: allowed ? "Make Project Coordinator" : "Remove Project Coordinator",
+      message: `${selectedEmployee?.employee?.name || "This employee"} ${
+        allowed
+          ? "will be able to create project task sheets, assign tasks, and export monthly reports."
+          : "will no longer manage task sheets."
+      }`,
+      confirmText: allowed ? "Make Coordinator" : "Remove",
+      tone: allowed ? "primary" : "danger",
+    });
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+        isProjectCoordinator: allowed,
+        modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
+      });
+      toast.success(allowed ? "Employee is now Project Coordinator" : "Project Coordinator access removed");
+      await loadAccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update Project Coordinator access");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const setSystemAllotmentAccess = async (allowed) => {
     if (!selectedEmployeeId) {
       toast.error("Select employee first");
@@ -241,14 +275,15 @@ const EmployeeAccessControl = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Roles & Access Control</h1>
             <p className="text-sm text-gray-500 mt-1">
-              HR can make employees Team Leads or Testers, assign team members, and manage System Allotment access.
+              HR can make employees Team Leads, Testers, Project Coordinators, assign team members, and manage System Allotment access.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
               ["Staff", stats.total, "bg-gray-900 text-white"],
               ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border border-blue-200"],
               ["Testers", stats.testers, "bg-amber-50 text-amber-700 border border-amber-200"],
+              ["Coordinators", stats.projectCoordinators, "bg-purple-50 text-purple-700 border border-purple-200"],
               ["Assigned", stats.assigned, "bg-green-50 text-green-700 border border-green-200"],
               ["Unassigned", stats.unassigned, "bg-gray-100 text-gray-700 border border-gray-200"],
             ].map(([label, value, className]) => (
@@ -373,7 +408,7 @@ const EmployeeAccessControl = () => {
         <div className="bg-white rounded-sm shadow overflow-hidden h-fit">
           <div className="px-4 py-3 border-b bg-gray-50">
             <h2 className="font-semibold text-gray-900">Employee Roles</h2>
-            <p className="text-xs text-gray-500 mt-1">Select an employee to make/remove Team Lead, Tester, or System Allotment access.</p>
+            <p className="text-xs text-gray-500 mt-1">Select an employee to make/remove Team Lead, Tester, Project Coordinator, or System Allotment access.</p>
           </div>
           <div className="p-4 space-y-3">
             <label className="text-sm font-medium text-gray-700">
@@ -418,6 +453,13 @@ const EmployeeAccessControl = () => {
                   }`}>
                     {selectedEmployee.isTester ? "Tester" : "Not Tester"}
                   </span>
+                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
+                    selectedEmployee.isProjectCoordinator
+                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                      : "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}>
+                    {selectedEmployee.isProjectCoordinator ? "Project Coordinator" : "Not Coordinator"}
+                  </span>
                 </div>
               </div>
             )}
@@ -461,6 +503,32 @@ const EmployeeAccessControl = () => {
                   onClick={() => setTester(false)}
                   loading={saving}
                   disabled={!selectedEmployeeId || !selectedEmployee?.isTester}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-3 space-y-2">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Project Coordinator Access</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Project Coordinator can create project task sheets, assign tasks, and export monthly task reports.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  text="Make Coordinator"
+                  onClick={() => setProjectCoordinator(true)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || selectedEmployee?.isProjectCoordinator}
+                  className="w-full"
+                />
+                <Button
+                  text="Remove"
+                  variant="secondary"
+                  onClick={() => setProjectCoordinator(false)}
+                  loading={saving}
+                  disabled={!selectedEmployeeId || !selectedEmployee?.isProjectCoordinator}
                   className="w-full"
                 />
               </div>

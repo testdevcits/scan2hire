@@ -63,6 +63,8 @@ const TaskManagement = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const isHr = user?.role === "hr";
+  const effectiveRole = user?.effectiveRole || user?.role;
+  const isProjectCoordinator = effectiveRole === "project_coordinator";
   const [employees, setEmployees] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -75,6 +77,8 @@ const TaskManagement = () => {
   const [taskViewMode, setTaskViewMode] = useState("date");
   const [projectFilter, setProjectFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [editingTaskId, setEditingTaskId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,12 +88,20 @@ const TaskManagement = () => {
     setLoading(true);
     try {
       const params = isHr
-        ? { month, employeeId: employeeFilter || undefined, project: projectFilter || undefined }
+        ? {
+            month,
+            employeeId: employeeFilter || undefined,
+            project: projectFilter || undefined,
+            status: statusFilter || undefined,
+            search: search.trim() || undefined,
+          }
         : {
             date: taskViewMode === "date" ? date : undefined,
             month: taskViewMode === "month" ? month : undefined,
             employeeId: employeeFilter || undefined,
             project: projectFilter || undefined,
+            status: statusFilter || undefined,
+            search: search.trim() || undefined,
           };
       const requests = [hrApi.getEmployees(), hrApi.getTasks(params)];
       if (!isHr) requests.push(hrApi.getTaskProjects());
@@ -102,7 +114,7 @@ const TaskManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [date, employeeFilter, isHr, month, projectFilter, taskViewMode, toast]);
+  }, [date, employeeFilter, isHr, month, projectFilter, search, statusFilter, taskViewMode, toast]);
 
   useEffect(() => {
     loadData();
@@ -129,6 +141,19 @@ const TaskManagement = () => {
       completed: tasks.filter((task) => task.status === "completed").length,
     }),
     [tasks]
+  );
+
+  const projectOptions = useMemo(
+    () =>
+      [
+        ...projects.map((project) => project.name),
+        ...tasks.map((task) => task.project),
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+        .filter((value, index, values) => values.indexOf(value) === index)
+        .sort(),
+    [projects, tasks]
   );
 
   const saveProject = async (e) => {
@@ -267,22 +292,23 @@ const TaskManagement = () => {
       "TASK TITLE": task.title || "",
       URL: task.url || "",
       "TASK DESCRIPTION": task.description || "",
-      "TASK TECH": task.tech || "",
-      "TASK TIME": task.timing || "",
+      "TASK ETC": task.tech || "",
+      "TASK TIMING": task.timing || "",
       "TASK COLLABORATOR": task.collaborator || "",
       STATUS: statusLabels[task.status] || task.status || "",
       REPLY: task.reply || "",
       BILLING: task.billing || "",
       PRIORITY: task.priority || "",
-      "HANDLED BY": task.assignedTo?.name || "",
+      "HANDEL BY": task.assignedBy?.name || "",
       "TASK SOURCE": task.taskSource || "",
       REMARK: task.remark || "",
     }));
     const sheet = XLSX.utils.json_to_sheet(rows);
     const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, "Monthly Tasks");
+    XLSX.utils.book_append_sheet(book, sheet, "Task Sheet");
     const safeProject = projectFilter ? `-${projectFilter.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}` : "";
-    XLSX.writeFile(book, `task-sheet-${month}${safeProject}.xlsx`);
+    const safeStatus = statusFilter ? `-${statusFilter}` : "";
+    XLSX.writeFile(book, `task-sheet-${month}${safeProject}${safeStatus}.xlsx`);
   };
 
   if (loading) return <CommonLoader text="Loading tasks..." />;
@@ -292,9 +318,15 @@ const TaskManagement = () => {
       <section className="bg-white rounded-sm shadow p-4">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{isHr ? "Monthly Task Sheet" : "Team Task Management"}</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              {isHr ? "Monthly Task Sheet" : isProjectCoordinator ? "Project Coordinator Task Sheet" : "Team Task Management"}
+            </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {isHr ? "Download monthly task sheet." : "Add projects first, then assign sheet-style tasks to your team."}
+              {isHr
+                ? "Filter and download monthly task sheet."
+                : isProjectCoordinator
+                ? "Create project sheets, assign tasks, filter reports, and export the full monthly sheet."
+                : "Add projects first, then assign sheet-style tasks to your team."}
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -536,7 +568,7 @@ const TaskManagement = () => {
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className={`p-4 border-b bg-gray-50 grid grid-cols-1 gap-3 ${isHr ? "md:grid-cols-[180px_minmax(0,1fr)_auto]" : "lg:grid-cols-[150px_180px_minmax(0,1fr)_minmax(0,1fr)_auto]"}`}>
+        <div className="p-4 border-b bg-gray-50 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[150px_180px_minmax(0,1fr)_minmax(0,1fr)_180px_minmax(0,1.2fr)_auto]">
           {!isHr && (
             <select value={taskViewMode} onChange={(e) => setTaskViewMode(e.target.value)} className="border rounded-sm px-3 py-2">
               <option value="date">Daily View</option>
@@ -548,16 +580,15 @@ const TaskManagement = () => {
           ) : (
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border rounded-sm px-3 py-2" />
           )}
-          {!isHr && (
-            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="border rounded-sm px-3 py-2">
-              <option value="">All projects</option>
-              {projects.map((project) => (
-                <option key={project._id} value={project.name}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          )}
+          {isHr && <div className="hidden xl:block" />}
+          <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="border rounded-sm px-3 py-2">
+            <option value="">All projects</option>
+            {projectOptions.map((project) => (
+              <option key={project} value={project}>
+                {project}
+              </option>
+            ))}
+          </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="border rounded-sm px-3 py-2">
             <option value="">All employees</option>
             {employees.map((employee) => (
@@ -566,19 +597,28 @@ const TaskManagement = () => {
               </option>
             ))}
           </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded-sm px-3 py-2">
+            <option value="">All status</option>
+            {Object.entries(statusLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search task, employee, project, reply"
+            className="border rounded-sm px-3 py-2"
+          />
           {(isHr || taskViewMode === "month") && (
             <Button
               text={isHr ? "Download Excel" : "Export Monthly Sheet"}
               onClick={downloadMonthlySheet}
-              disabled={tasks.length === 0 || (!isHr && !projectFilter)}
+              disabled={tasks.length === 0}
             />
           )}
         </div>
-        {!isHr && taskViewMode === "month" && !projectFilter && (
-          <div className="border-b bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Select a project to export the full monthly sheet with employee time.
-          </div>
-        )}
 
         {tasks.length === 0 ? (
           <p className="p-6 text-center text-gray-500">No tasks found.</p>
@@ -651,16 +691,17 @@ const TaskManagement = () => {
             <table className="min-w-[1500px] w-full text-sm">
               <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                 <tr>
-                  {["Employee", "Phase", "Project", "Task Title", "URL", "Description", "Images", "Tech", "Time", "Collaborator", "Status", "Reply", "Billing", "Priority", "Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                  {["S.NO", "Task Handle By", "Phases", "Project", "Task Title", "URL", "Task Description", "Images", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Handel By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
                     <th key={item} className="px-3 py-3 text-left">{item}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task) => {
+                {tasks.map((task, index) => {
                   const important = ["important", "urgent"].includes(task.priority);
                   return (
                     <tr key={task._id} className={`border-t align-top ${important ? "bg-red-50/70" : ""}`}>
+                      <td className="px-3 py-3">{index + 1}</td>
                       <td className="px-3 py-3 min-w-[150px]">{task.assignedTo?.name || "-"}</td>
                       <td className="px-3 py-3">{task.phase || "-"}</td>
                       <td className="px-3 py-3">{task.project || "-"}</td>
@@ -700,6 +741,7 @@ const TaskManagement = () => {
                       <td className="px-3 py-3 max-w-[180px] break-words">{task.reply || "-"}</td>
                       <td className="px-3 py-3">{task.billing || "-"}</td>
                       <td className={`px-3 py-3 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
+                      <td className="px-3 py-3">{task.assignedBy?.name || "-"}</td>
                       <td className="px-3 py-3">{task.taskSource || "-"}</td>
                       <td className="px-3 py-3 max-w-[180px] break-words">{task.remark || "-"}</td>
                       {!isHr && (

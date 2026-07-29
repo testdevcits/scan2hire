@@ -21,6 +21,8 @@ const Login = () => {
       const routeRole = res.data.effectiveRole || res.data.role;
       if (routeRole === "superadmin") {
         navigate("/admin");
+      } else if (routeRole === "project_coordinator") {
+        navigate("/hr/tasks");
       } else if (routeRole === "hr" || routeRole === "teamlead") {
         navigate("/hr");
       } else if (routeRole === "employee" || routeRole === "tester") {
