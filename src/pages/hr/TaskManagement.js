@@ -306,7 +306,7 @@ const TaskManagement = () => {
   const downloadMonthlySheet = () => {
     const rows = tasks.map((task, index) => ({
       "S.NO": index + 1,
-      "TASK HANDLE BY": task.handledBy || task.assignedTo?.name || "",
+      "ASSIGNED TO": task.handledBy || task.assignedTo?.name || "",
       PHASES: task.phase || "",
       PROJECT: task.project || "",
       "TASK TITLE": task.title || "",
@@ -319,7 +319,7 @@ const TaskManagement = () => {
       REPLY: task.reply || "",
       BILLING: task.billing || "",
       PRIORITY: task.priority || "",
-      "HANDEL BY": task.assignedBy?.name || "",
+      "ASSIGNED BY": task.assignedBy?.name || "",
       "TASK SOURCE": task.taskSource || "",
       REMARK: task.remark || "",
     }));
@@ -756,7 +756,7 @@ const TaskManagement = () => {
             <table className="min-w-[1680px] w-full text-sm">
               <thead className="bg-[#f6b15f] text-xs uppercase text-gray-900">
                 <tr>
-                  {["S.NO", "Task Handle By", "Phases", "Project", "Task Title", "URL", "Task Description", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Handel By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                  {["S.NO", "Assigned To", "Phases", "Project", "Task Title", "URL", "Task Description", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Assigned By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
                     <th key={item} className="px-2 py-2 text-left border border-[#d99a4d]">{item}</th>
                   ))}
                 </tr>
