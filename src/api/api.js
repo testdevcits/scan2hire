@@ -89,6 +89,7 @@ export const hrApi = {
     API.put(`/hr/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/hr/system-allotments/${allotmentId}`),
   getTasks: (params) => API.get("/hr/tasks", { params }),
+  mailTaskSheet: (payload) => API.post("/hr/tasks/export-mail", payload),
   getTaskProjects: () => API.get("/hr/tasks/projects"),
   createTaskProject: (payload) => API.post("/hr/tasks/projects", payload),
   updateTaskProject: (projectId, payload) => API.put(`/hr/tasks/projects/${projectId}`, payload),

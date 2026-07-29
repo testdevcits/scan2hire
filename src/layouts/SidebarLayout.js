@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { FiBell, FiLogOut, FiMenu, FiMoon, FiSun, FiTrash2, FiX } from "react-icons/fi";
+import { FiBell, FiLogOut, FiMenu, FiMoon, FiSun, FiTrash2, FiUser, FiX } from "react-icons/fi";
 import { authApi } from "../api";
 import { AuthContext } from "../contexts/AuthContext";
 import { ThemeContext } from "../contexts/ThemeContext";
@@ -14,14 +14,28 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const handleLogout = () => {
+    setProfileMenuOpen(false);
     logout();
     navigate("/login");
+  };
+
+  const getProfilePath = () => {
+    const effectiveRole = user?.effectiveRole || user?.role;
+    if (user?.role === "superadmin") return "/admin/settings";
+    if (effectiveRole === "employee" || effectiveRole === "tester") return "/employee/settings";
+    return "/hr/profile";
+  };
+
+  const openProfile = () => {
+    setProfileMenuOpen(false);
+    navigate(getProfilePath());
   };
 
   const closeMobileSidebar = () => setSidebarOpen(false);
@@ -209,7 +223,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-3 shrink-0">
-            <div className="hidden sm:flex items-center gap-3 min-w-0">
+            <div className="relative hidden sm:flex items-center gap-3 min-w-0">
               <div className="text-right min-w-0">
                 <p className={`text-sm font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
                   {user?.name}
@@ -218,13 +232,82 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                   {user?.role}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen((prev) => !prev);
+                  setNotificationOpen(false);
+                }}
+                className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0"
+                aria-label="Open profile menu"
+              >
                 {profileImage ? (
                   <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
                 ) : (
                   initials || "U"
                 )}
-              </div>
+              </button>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-12 w-56 rounded-sm border bg-white shadow-xl z-50 overflow-hidden text-left">
+                  <div className="px-4 py-3 border-b">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
+                  >
+                    <FiUser /> Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t"
+                  >
+                    <FiLogOut /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="relative sm:hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen((prev) => !prev);
+                  setNotificationOpen(false);
+                }}
+                className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold"
+                aria-label="Open profile menu"
+              >
+                {profileImage ? (
+                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
+                ) : (
+                  initials || "U"
+                )}
+              </button>
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-sm border bg-white shadow-xl z-50 overflow-hidden text-left">
+                  <div className="px-4 py-3 border-b">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
+                  >
+                    <FiUser /> Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t"
+                  >
+                    <FiLogOut /> Logout
+                  </button>
+                </div>
+              )}
             </div>
             <div className="relative shrink-0">
             <button

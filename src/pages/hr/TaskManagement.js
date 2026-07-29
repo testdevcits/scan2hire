@@ -13,6 +13,11 @@ const getExternalUrl = (value) => {
   if (!url) return "";
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
 };
+const truncateText = (value, limit = 90) => {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
+};
 const fileToDataUri = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -83,11 +88,11 @@ const TaskManagement = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingTimeId, setSavingTimeId] = useState("");
+  const [mailing, setMailing] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = isHr
+  const getTaskFilters = useCallback(
+    () =>
+      isHr
         ? {
             month,
             employeeId: employeeFilter || undefined,
@@ -102,7 +107,14 @@ const TaskManagement = () => {
             project: projectFilter || undefined,
             status: statusFilter || undefined,
             search: search.trim() || undefined,
-          };
+          },
+    [date, employeeFilter, isHr, month, projectFilter, search, statusFilter, taskViewMode]
+  );
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = getTaskFilters();
       const requests = [hrApi.getEmployees(), hrApi.getTasks(params)];
       if (!isHr) requests.push(hrApi.getTaskProjects());
       const [employeeRes, taskRes, projectRes] = await Promise.all(requests);
@@ -114,7 +126,7 @@ const TaskManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [date, employeeFilter, isHr, month, projectFilter, search, statusFilter, taskViewMode, toast]);
+  }, [getTaskFilters, isHr, toast]);
 
   useEffect(() => {
     loadData();
@@ -299,7 +311,7 @@ const TaskManagement = () => {
       PROJECT: task.project || "",
       "TASK TITLE": task.title || "",
       URL: task.url || "",
-      "TASK DESCRIPTION": task.description || "",
+      "TASK DESCRIPTION": truncateText(task.description, 120),
       "TASK ETC": task.tech || "",
       "TASK TIMING": task.timing || "",
       "TASK COLLABORATOR": task.collaborator || "",
@@ -312,11 +324,42 @@ const TaskManagement = () => {
       REMARK: task.remark || "",
     }));
     const sheet = XLSX.utils.json_to_sheet(rows);
+    sheet["!cols"] = [
+      { wch: 7 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 24 },
+      { wch: 32 },
+      { wch: 18 },
+      { wch: 44 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 24 },
+    ];
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Task Sheet");
     const safeProject = projectFilter ? `-${projectFilter.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}` : "";
     const safeStatus = statusFilter ? `-${statusFilter}` : "";
     XLSX.writeFile(book, `task-sheet-${month}${safeProject}${safeStatus}.xlsx`);
+  };
+
+  const mailMonthlySheet = async () => {
+    setMailing(true);
+    try {
+      await hrApi.mailTaskSheet({ ...getTaskFilters(), descriptionLimit: 120 });
+      toast.success("Task sheet mailed to your login email");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to mail task sheet");
+    } finally {
+      setMailing(false);
+    }
   };
 
   if (loading) return <CommonLoader text="Loading tasks..." />;
@@ -624,11 +667,20 @@ const TaskManagement = () => {
             className="border rounded-sm px-3 py-2"
           />
           {(isHr || taskViewMode === "month") && (
-            <Button
-              text={isHr ? "Download Excel" : "Export Monthly Sheet"}
-              onClick={downloadMonthlySheet}
-              disabled={tasks.length === 0}
-            />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                text={isHr ? "Download Excel" : "Export Sheet"}
+                onClick={downloadMonthlySheet}
+                disabled={tasks.length === 0}
+              />
+              <Button
+                text="Mail Export"
+                variant="secondary"
+                onClick={mailMonthlySheet}
+                loading={mailing}
+                disabled={tasks.length === 0}
+              />
+            </div>
           )}
         </div>
 
@@ -700,7 +752,7 @@ const TaskManagement = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1500px] w-full text-sm">
+            <table className="min-w-[1680px] w-full text-sm">
               <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                 <tr>
                   {["S.NO", "Task Handle By", "Phases", "Project", "Task Title", "URL", "Task Description", "Images", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Handel By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
@@ -712,14 +764,22 @@ const TaskManagement = () => {
                 {tasks.map((task, index) => {
                   const important = ["important", "urgent"].includes(task.priority);
                   return (
-                    <tr key={task._id} className={`border-t align-top ${important ? "bg-red-50/70" : ""}`}>
+                    <tr key={task._id} className={`border-t align-middle ${important ? "bg-red-50/70" : ""}`}>
                       <td className="px-3 py-3">{index + 1}</td>
-                      <td className="px-3 py-3 min-w-[150px]">{task.assignedTo?.name || "-"}</td>
-                      <td className="px-3 py-3">{task.phase || "-"}</td>
-                      <td className="px-3 py-3">{task.project || "-"}</td>
-                      <td className="px-3 py-3 font-medium max-w-[180px] break-words">{task.title}</td>
+                      <td className="px-3 py-3 min-w-[150px] whitespace-nowrap">{task.assignedTo?.name || "-"}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{task.phase || "-"}</td>
+                      <td className="px-3 py-3 max-w-[190px]">
+                        <span className="block truncate" title={task.project || ""}>{task.project || "-"}</span>
+                      </td>
+                      <td className="px-3 py-3 font-medium max-w-[210px]">
+                        <span className="block truncate" title={task.title || ""}>{task.title || "-"}</span>
+                      </td>
                       <td className="px-3 py-3">{task.url ? <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
-                      <td className="px-3 py-3 max-w-[260px] break-words">{task.description || "-"}</td>
+                      <td className="px-3 py-3 w-[240px] max-w-[240px]">
+                        <span className="block truncate text-gray-700" title={task.description || ""}>
+                          {truncateText(task.description, 70) || "-"}
+                        </span>
+                      </td>
                       <td className="px-3 py-3">
                         {[...(task.attachments || []), ...(task.responseAttachments || [])].length ? (
                           <div className="flex gap-1">
@@ -731,7 +791,7 @@ const TaskManagement = () => {
                           </div>
                         ) : "-"}
                       </td>
-                      <td className="px-3 py-3">{task.tech || "-"}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{task.tech || "-"}</td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-[150px]">
                           <input
@@ -749,14 +809,22 @@ const TaskManagement = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-3 py-3">{task.collaborator || "-"}</td>
-                      <td className="px-3 py-3">{statusLabels[task.status] || task.status}</td>
-                      <td className="px-3 py-3 max-w-[180px] break-words">{task.reply || "-"}</td>
-                      <td className="px-3 py-3">{task.billing || "-"}</td>
+                      <td className="px-3 py-3 max-w-[180px]">
+                        <span className="block truncate" title={task.collaborator || ""}>{task.collaborator || "-"}</span>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">{statusLabels[task.status] || task.status}</td>
+                      <td className="px-3 py-3 max-w-[180px]">
+                        <span className="block truncate" title={task.reply || ""}>{truncateText(task.reply, 55) || "-"}</span>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">{task.billing || "-"}</td>
                       <td className={`px-3 py-3 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
-                      <td className="px-3 py-3">{task.assignedBy?.name || "-"}</td>
-                      <td className="px-3 py-3">{task.taskSource || "-"}</td>
-                      <td className="px-3 py-3 max-w-[180px] break-words">{task.remark || "-"}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
+                      <td className="px-3 py-3 max-w-[160px]">
+                        <span className="block truncate" title={task.taskSource || ""}>{task.taskSource || "-"}</span>
+                      </td>
+                      <td className="px-3 py-3 max-w-[180px]">
+                        <span className="block truncate" title={task.remark || ""}>{truncateText(task.remark, 55) || "-"}</span>
+                      </td>
                       {!isHr && (
                         <td className="px-3 py-3">
                           <div className="flex gap-2">
