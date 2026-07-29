@@ -324,6 +324,7 @@ const TaskManagement = () => {
       REMARK: task.remark || "",
     }));
     const sheet = XLSX.utils.json_to_sheet(rows);
+    sheet["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 16 } }) };
     sheet["!cols"] = [
       { wch: 7 },
       { wch: 20 },
@@ -753,10 +754,10 @@ const TaskManagement = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[1680px] w-full text-sm">
-              <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+              <thead className="bg-[#f6b15f] text-xs uppercase text-gray-900">
                 <tr>
-                  {["S.NO", "Task Handle By", "Phases", "Project", "Task Title", "URL", "Task Description", "Images", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Handel By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
-                    <th key={item} className="px-3 py-3 text-left">{item}</th>
+                  {["S.NO", "Task Handle By", "Phases", "Project", "Task Title", "URL", "Task Description", "Task ETC", "Task Timing", "Task Collaborator", "Status", "Reply", "Billing", "Priority", "Handel By", "Task Source", "Remark", ...(!isHr ? ["Actions"] : [])].map((item) => (
+                    <th key={item} className="px-2 py-2 text-left border border-[#d99a4d]">{item}</th>
                   ))}
                 </tr>
               </thead>
@@ -764,35 +765,24 @@ const TaskManagement = () => {
                 {tasks.map((task, index) => {
                   const important = ["important", "urgent"].includes(task.priority);
                   return (
-                    <tr key={task._id} className={`border-t align-middle ${important ? "bg-red-50/70" : ""}`}>
-                      <td className="px-3 py-3">{index + 1}</td>
-                      <td className="px-3 py-3 min-w-[150px] whitespace-nowrap">{task.assignedTo?.name || "-"}</td>
-                      <td className="px-3 py-3 whitespace-nowrap">{task.phase || "-"}</td>
-                      <td className="px-3 py-3 max-w-[190px]">
+                    <tr key={task._id} className={`align-middle ${important ? "bg-red-50/70" : ""}`}>
+                      <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{index + 1}</td>
+                      <td className="px-2 py-2 border border-gray-200 min-w-[150px] whitespace-nowrap">{task.handledBy || task.assignedTo?.name || "-"}</td>
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.phase || "-"}</td>
+                      <td className="px-2 py-2 border border-gray-200 max-w-[190px]">
                         <span className="block truncate" title={task.project || ""}>{task.project || "-"}</span>
                       </td>
-                      <td className="px-3 py-3 font-medium max-w-[210px]">
+                      <td className="px-2 py-2 border border-gray-200 font-medium max-w-[210px]">
                         <span className="block truncate" title={task.title || ""}>{task.title || "-"}</span>
                       </td>
-                      <td className="px-3 py-3">{task.url ? <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
-                      <td className="px-3 py-3 w-[240px] max-w-[240px]">
+                      <td className="px-2 py-2 border border-gray-200">{task.url ? <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-[#f84525] underline">Open</a> : "-"}</td>
+                      <td className="px-2 py-2 border border-gray-200 w-[240px] max-w-[240px]">
                         <span className="block truncate text-gray-700" title={task.description || ""}>
                           {truncateText(task.description, 70) || "-"}
                         </span>
                       </td>
-                      <td className="px-3 py-3">
-                        {[...(task.attachments || []), ...(task.responseAttachments || [])].length ? (
-                          <div className="flex gap-1">
-                            {[...(task.attachments || []), ...(task.responseAttachments || [])].slice(0, 3).map((item, index) => (
-                              <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="h-10 w-10 overflow-hidden rounded-sm border block">
-                                <img src={item.url} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
-                              </a>
-                            ))}
-                          </div>
-                        ) : "-"}
-                      </td>
-                      <td className="px-3 py-3 whitespace-nowrap">{task.tech || "-"}</td>
-                      <td className="px-3 py-3">
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.tech || "-"}</td>
+                      <td className="px-2 py-2 border border-gray-200">
                         <div className="flex items-center gap-2 min-w-[150px]">
                           <input
                             type="text"
@@ -809,24 +799,24 @@ const TaskManagement = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-3 py-3 max-w-[180px]">
+                      <td className="px-2 py-2 border border-gray-200 max-w-[180px]">
                         <span className="block truncate" title={task.collaborator || ""}>{task.collaborator || "-"}</span>
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap">{statusLabels[task.status] || task.status}</td>
-                      <td className="px-3 py-3 max-w-[180px]">
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{statusLabels[task.status] || task.status}</td>
+                      <td className="px-2 py-2 border border-gray-200 max-w-[180px]">
                         <span className="block truncate" title={task.reply || ""}>{truncateText(task.reply, 55) || "-"}</span>
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap">{task.billing || "-"}</td>
-                      <td className={`px-3 py-3 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
-                      <td className="px-3 py-3 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
-                      <td className="px-3 py-3 max-w-[160px]">
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.billing || "-"}</td>
+                      <td className={`px-2 py-2 border border-gray-200 capitalize font-semibold ${important ? "text-red-700" : ""}`}>{task.priority}</td>
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
+                      <td className="px-2 py-2 border border-gray-200 max-w-[160px]">
                         <span className="block truncate" title={task.taskSource || ""}>{task.taskSource || "-"}</span>
                       </td>
-                      <td className="px-3 py-3 max-w-[180px]">
+                      <td className="px-2 py-2 border border-gray-200 max-w-[180px]">
                         <span className="block truncate" title={task.remark || ""}>{truncateText(task.remark, 55) || "-"}</span>
                       </td>
                       {!isHr && (
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-2 border border-gray-200">
                           <div className="flex gap-2">
                             <Button text="Edit" className="text-xs px-3 py-1.5" onClick={() => editTask(task)} />
                             <Button text="Delete" variant="danger" className="text-xs px-3 py-1.5" onClick={() => deleteTask(task._id)} />
