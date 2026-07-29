@@ -623,6 +623,7 @@ const TaskManagement = () => {
         </section>
       )}
 
+      {!isProjectCoordinator && (
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b bg-gray-50 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[150px_180px_minmax(0,1fr)_minmax(0,1fr)_180px_minmax(0,1.2fr)_auto]">
           {!isHr && (
@@ -831,6 +832,7 @@ const TaskManagement = () => {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 };

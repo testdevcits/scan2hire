@@ -49,6 +49,9 @@ const HRLayout = () => {
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
       : []),
     { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
+    ...(isProjectCoordinator
+      ? [{ label: "Task Sheet", path: "/hr/task-sheet", icon: <FiCalendar /> }]
+      : []),
     ...(!isProjectCoordinator
       ? [
           { label: "Bugs", path: "/hr/bugs", icon: <FiAlertTriangle /> },

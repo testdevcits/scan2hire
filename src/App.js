@@ -41,6 +41,7 @@ import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials"
 import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
 import EmployeeLeaveCalendar from "./pages/employee/EmployeeLeaveCalendar";
 import TaskManagement from "./pages/hr/TaskManagement";
+import TaskSheetReport from "./pages/hr/TaskSheetReport";
 import EmployeeTasks from "./pages/employee/EmployeeTasks";
 import BugReports from "./pages/employee/BugReports";
 import ApiTester from "./pages/employee/ApiTester";
@@ -105,6 +106,7 @@ function App() {
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="tasks" element={<TaskManagement />} />
+          <Route path="task-sheet" element={<TaskSheetReport />} />
           <Route path="bugs" element={<BugReports scope="managed" />} />
           <Route path="reports" element={<ViewReports />} />
           <Route path="today-checkins" element={<TodayCheckIns />} />

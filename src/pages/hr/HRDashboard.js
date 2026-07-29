@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { FiClock, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiClock, FiGift, FiUserCheck, FiUsers } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
@@ -20,20 +20,41 @@ const HRDashboard = () => {
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [candidates, setCandidates] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
     if ((user?.effectiveRole || user?.role) === "project_coordinator") return undefined;
     const month = new Date().toISOString().slice(0, 7);
-    Promise.all([hrApi.getAttendance(month), hrApi.getLeaves(), hrApi.getCandidates()])
-      .then(([attendanceRes, leavesRes, candidatesRes]) => {
+    Promise.all([hrApi.getAttendance(month), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
+      .then(([attendanceRes, leavesRes, candidatesRes, employeeRes]) => {
         setAttendance(attendanceRes.data.data || []);
         setLeaves(leavesRes.data.data || []);
         setCandidates(candidatesRes.data.data || []);
+        setEmployees(employeeRes.data.data || []);
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load HR dashboard"));
   }, [toast, user?.effectiveRole, user?.role]);
 
   const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date;
+  }, []);
+  const tomorrowMonth = tomorrow.getMonth();
+  const tomorrowDate = tomorrow.getDate();
+
+  const birthdayReminders = useMemo(
+    () =>
+      employees
+        .filter((employee) => {
+          if (!employee.isActive || !employee.dob) return false;
+          const dob = new Date(employee.dob);
+          return dob.getMonth() === tomorrowMonth && dob.getDate() === tomorrowDate;
+        })
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
+    [employees, tomorrowDate, tomorrowMonth]
+  );
 
   const statCards = useMemo(
     () => [
@@ -165,6 +186,33 @@ const HRDashboard = () => {
           </div>
         ))}
       </section>
+
+      {birthdayReminders.length > 0 && (
+        <section className="bg-white rounded-sm shadow p-4 border-l-4 border-[#f84525]">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#fff5f3] text-[#f84525] flex items-center justify-center">
+                <FiGift className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">Birthday Reminder</h2>
+                <p className="text-sm text-gray-500">Kal birthday hai. HR aaj wish/plan kar sakta hai.</p>
+              </div>
+            </div>
+            <Button text="Employees" variant="secondary" onClick={() => navigate("/hr/employees")} />
+          </div>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {birthdayReminders.map((employee) => (
+              <div key={employee._id} className="rounded-sm border border-red-100 bg-[#fff8f6] px-3 py-2">
+                <p className="font-semibold text-gray-900">{employee.name}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {employee.employeeId || "-"} | {employee.department || "No department"} | {employee.designation || "No designation"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.95fr] gap-4">
         <div className="bg-white rounded-sm shadow p-4">
