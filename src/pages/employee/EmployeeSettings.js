@@ -132,6 +132,7 @@ const EmployeeSettings = () => {
               <p><b>Name:</b> {profile?.name || "N/A"}</p>
               <p><b>Email:</b> {profile?.email || "N/A"}</p>
               <p><b>Department:</b> {profile?.department || "N/A"}</p>
+              <p><b>Designation:</b> {profile?.designation || "N/A"}</p>
             </div>
           </div>
         </div>

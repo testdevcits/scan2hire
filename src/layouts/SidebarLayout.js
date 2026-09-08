@@ -18,6 +18,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [profileImage, setProfileImage] = useState("");
+  const [profileSummary, setProfileSummary] = useState(null);
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const handleLogout = () => {
@@ -65,6 +66,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
       .then((res) => {
         if (!mounted) return;
         const data = res.data.data || {};
+        setProfileSummary(data);
         setProfileImage(
           data.profileImage ||
             data.documents?.photo?.url ||
@@ -73,7 +75,10 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
         );
       })
       .catch(() => {
-        if (mounted) setProfileImage("");
+        if (mounted) {
+          setProfileImage("");
+          setProfileSummary(null);
+        }
       });
     return () => {
       mounted = false;
@@ -95,6 +100,14 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
     const parts = String(user?.name || "U").trim().split(/\s+/);
     return parts.slice(0, 2).map((item) => item[0]?.toUpperCase() || "").join("");
   }, [user?.name]);
+
+  const employeeProfile = profileSummary?.employeeProfile || profileSummary;
+  const designationLabel =
+    employeeProfile?.designation ||
+    user?.designation ||
+    user?.effectiveRole ||
+    user?.role;
+  const departmentLabel = employeeProfile?.department || user?.department || "";
 
   const deleteNotification = async (notificationId) => {
     try {
@@ -123,10 +136,10 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
 
   const isAdmin = variant === "admin";
   const asideClass = isAdmin
-    ? "bg-[#0b1220] text-white border-r-4 border-[#f84525]"
+    ? "bg-[#0b1220] text-white border border-[#f84525]/50"
     : mode === "dark"
-    ? "bg-gray-900 text-white border-r-2 border-gray-700"
-    : "bg-white border-r-2 border-gray-200";
+    ? "bg-gray-900 text-white border border-gray-700"
+    : "bg-white border border-gray-200";
   const activeClass = isAdmin
     ? "bg-[#f84525] text-white border border-[#ff896f] shadow-sm"
     : "bg-header text-white border border-header";
@@ -137,18 +150,18 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
     : "text-gray-700 border border-transparent hover:bg-red-50 hover:text-[#f84525] hover:border-red-100";
 
   return (
-    <div className={`flex h-screen font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}>
+    <div className={`flex h-screen gap-3 overflow-hidden p-3 font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}>
       <aside
-        className={`fixed top-0 left-0 h-full w-64 ${asideClass} shadow-xl p-4 flex flex-col transform transition-transform duration-300 z-40 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 md:relative`}
+        className={`fixed left-3 top-3 h-[calc(100vh-1.5rem)] w-64 ${asideClass} rounded-[18px] shadow-[0_18px_45px_rgba(15,23,42,0.12)] p-4 flex flex-col transform transition-transform duration-300 z-40 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-[110%]"
+        } md:relative md:left-auto md:top-auto md:translate-x-0`}
       >
         <div className="shrink-0">
           <div className={`flex items-center gap-2 mb-5 pb-4 border-b ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
             <img src={logo} alt="Scan2Hire" className="w-7 h-7" />
             <div>
               <h1 className={`text-lg font-bold ${isAdmin ? "text-white" : "text-header"}`}>{title}</h1>
-              <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>{user?.role}</p>
+              <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>{designationLabel}</p>
             </div>
           </div>
         </div>
@@ -161,7 +174,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
               end={item.end}
               onClick={closeMobileSidebar}
               className={({ isActive }) =>
-                `px-3 py-2.5 rounded-sm text-[15px] font-semibold transition-colors shrink-0 ${
+                `px-3 py-2.5 rounded-[12px] text-[15px] font-semibold transition-colors shrink-0 ${
                   isActive ? activeClass : inactiveClass
                 }`
               }
@@ -182,7 +195,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
         <div className={`shrink-0 space-y-2 pt-3 mt-3 border-t ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
           <button
             onClick={toggleMode}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm ${
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
               isAdmin ? "bg-zinc-900 hover:bg-zinc-800 text-white" : "bg-gray-100 hover:bg-gray-200"
             }`}
           >
@@ -190,7 +203,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
           </button>
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm ${
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
               isAdmin ? "bg-white text-black hover:bg-gray-200" : "text-red-600 bg-red-50 hover:bg-red-100"
             }`}
           >
@@ -206,8 +219,8 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} shadow-sm px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className={`${mode === "dark" ? "bg-gray-900 text-white border-gray-700" : "bg-white border-gray-200"} rounded-[18px] border shadow-[0_12px_30px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}>
           <button
             className="md:hidden text-xl text-[#f84525]"
             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -229,7 +242,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                   {user?.name}
                 </p>
                 <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                  {user?.role}
+                  {[designationLabel, departmentLabel].filter(Boolean).join(" / ")}
                 </p>
               </div>
               <button
@@ -238,7 +251,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                   setProfileMenuOpen((prev) => !prev);
                   setNotificationOpen(false);
                 }}
-                className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0"
+                className="w-10 h-10 rounded-[14px] overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0"
                 aria-label="Open profile menu"
               >
                 {profileImage ? (
@@ -248,7 +261,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 )}
               </button>
               {profileMenuOpen && (
-                <div className="absolute right-0 top-12 w-56 rounded-sm border bg-white shadow-xl z-50 overflow-hidden text-left">
+                <div className="absolute right-0 top-12 w-56 rounded-[16px] border bg-white shadow-xl z-50 overflow-hidden text-left">
                   <div className="px-4 py-3 border-b">
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
@@ -277,7 +290,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                   setProfileMenuOpen((prev) => !prev);
                   setNotificationOpen(false);
                 }}
-                className="w-10 h-10 rounded-sm overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold"
+                className="w-10 h-10 rounded-[14px] overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold"
                 aria-label="Open profile menu"
               >
                 {profileImage ? (
@@ -287,7 +300,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 )}
               </button>
               {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-sm border bg-white shadow-xl z-50 overflow-hidden text-left">
+                <div className="absolute right-0 mt-2 w-56 rounded-[16px] border bg-white shadow-xl z-50 overflow-hidden text-left">
                   <div className="px-4 py-3 border-b">
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
@@ -315,7 +328,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 setNotificationOpen((prev) => !prev);
                 loadNotifications();
               }}
-              className={`relative w-10 h-10 rounded-sm border flex items-center justify-center hover:text-[#f84525] ${mode === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-white text-gray-800"}`}
+              className={`relative w-10 h-10 rounded-[14px] border flex items-center justify-center hover:text-[#f84525] ${mode === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-white text-gray-800"}`}
               aria-label="Notifications"
             >
               <FiBell />
@@ -326,7 +339,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
               )}
             </button>
             {notificationOpen && (
-              <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-sm z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-[16px] z-50 overflow-hidden">
                 <div className="px-4 py-3 border-b flex items-center justify-between">
                   <h3 className="font-semibold">Notifications</h3>
                   <button onClick={() => setNotificationOpen(false)} className="text-gray-500 hover:text-gray-900">
@@ -376,7 +389,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
           </div>
         </header>
 
-        <main className={`flex-1 overflow-auto p-3 md:p-5 ${mode === "dark" ? "bg-gray-950" : ""}`}>
+        <main className={`flex-1 overflow-auto pt-3 ${mode === "dark" ? "bg-gray-950" : ""}`}>
           <Outlet />
         </main>
       </div>

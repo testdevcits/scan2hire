@@ -144,7 +144,8 @@ const EmployeeDocuments = () => {
           const latestRequest = getLatestRequest(name);
           const isApproved = latestRequest?.status === "approved";
           const isPending = latestRequest?.status === "pending";
-          const canUpload = !hasDocument || isApproved;
+          const needsApproval = name !== "photo";
+          const canUpload = !needsApproval || !hasDocument || isApproved;
           const uploadedUrl = profile?.documents?.[name]?.url;
 
           return (
@@ -160,7 +161,7 @@ const EmployeeDocuments = () => {
                 <FileUploadField
                   label={label}
                   accept=".pdf,.jpg,.jpeg,.png"
-                  hint={hasDocument ? "Upload approved replacement" : "Upload JPG, PNG, PDF"}
+                  hint={hasDocument && needsApproval ? "Upload approved replacement" : "Upload JPG, PNG, PDF"}
                   onChange={(e) => handleFile(name, e.target.files?.[0])}
                   fileName={docs[name]?.name}
                   selectedPreviewUrl={docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined}
@@ -194,7 +195,7 @@ const EmployeeDocuments = () => {
                   </div>
                 </div>
               )}
-              {hasDocument && isApproved ? (
+              {hasDocument && needsApproval && isApproved ? (
                 <p className="mt-2 text-xs font-semibold text-green-700">HR approved. Upload replacement now.</p>
               ) : null}
             </div>

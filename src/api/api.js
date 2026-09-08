@@ -17,6 +17,7 @@ export const authApi = {
   deleteMyAccountCredential: (credentialId) => API.delete(`/users/me/account-credentials/${credentialId}`),
   getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
   createHr: (payload) => API.post("/users/hrs", payload),
+  assignEmployeeAsHr: (payload) => API.post("/users/hrs/assign-employee", payload),
   updateUser: (userId, payload) => API.put(`/users/${userId}`, payload),
   deactivateUser: (userId) => API.patch(`/users/${userId}/deactivate`),
   activateUser: (userId) => API.patch(`/users/${userId}/activate`),

@@ -18,7 +18,12 @@ export const ToastProvider = ({ children }) => {
       if (notify.isActive(toastId)) return;
       const progressStyle =
         type === "error" ? { background: "#dc2626" } : { background: "#f84525" };
-      notify[type](message, { toastId, ...baseToastOptions, progressStyle });
+      notify[type](message, {
+        toastId,
+        ...baseToastOptions,
+        progressStyle,
+        className: `scan2hire-toast scan2hire-toast-${type}`,
+      });
     };
 
     return {
@@ -33,7 +38,7 @@ export const ToastProvider = ({ children }) => {
     <ToastContext.Provider value={toast}>
       {children}
       <ToastContainer
-        position="top-right"
+        position="bottom-center"
         autoClose={3000}
         limit={3}
         toastClassName="scan2hire-toast"

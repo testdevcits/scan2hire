@@ -490,7 +490,7 @@ const EmployeeDetail = () => {
           <div className="space-y-2">
             {documentItems.map(([key, label]) => {
               const hasDocument = Boolean(employee.documents?.[key]?.url);
-              const latestRequest = getLatestDocumentRequest(key);
+              const latestRequest = key === "photo" ? null : getLatestDocumentRequest(key);
               const status = latestRequest?.status;
               return (
                 <div key={key} className="flex items-center justify-between gap-3 rounded-sm border border-gray-100 bg-gray-50 px-3 py-2 text-sm">

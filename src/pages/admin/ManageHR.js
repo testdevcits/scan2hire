@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { authApi } from "../../api";
+import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
-const emptyForm = { name: "", email: "", mobile: "", password: "" };
+const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
 
 const ManageHR = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const [hrs, setHrs] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -21,8 +22,12 @@ const ManageHR = () => {
   const loadHrs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authApi.getHrs();
-      setHrs(res.data.data || []);
+      const [hrRes, employeeRes] = await Promise.all([
+        authApi.getHrs(),
+        hrApi.getEmployees(),
+      ]);
+      setHrs(hrRes.data.data || []);
+      setEmployees(employeeRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || `Unable to load ${roleLabel} users`);
     } finally {
@@ -49,8 +54,8 @@ const ManageHR = () => {
       title: editingId ? `Update ${roleLabel}` : `Create ${roleLabel}`,
       message: editingId
         ? `Are you sure you want to update this ${roleLabel} account?`
-        : `Are you sure you want to create this ${roleLabel} account?`,
-      confirmText: editingId ? "Update" : "Create",
+        : `Are you sure you want to give HR access to this employee?`,
+      confirmText: editingId ? "Update" : "Give Access",
     });
     if (!ok) return;
     setSaving(true);
@@ -60,12 +65,15 @@ const ManageHR = () => {
         if (!payload.password) delete payload.password;
         await authApi.updateUser(editingId, payload);
       } else {
-        await authApi.createHr({ ...form, role: "hr" });
+        await authApi.assignEmployeeAsHr({
+          employeeId: form.employeeId,
+          password: form.password || undefined,
+        });
       }
       setForm(emptyForm);
       setEditingId("");
       setShowForm(false);
-      toast.success(`${roleLabel} account ${editingId ? "updated" : "created"}`);
+      toast.success(`${roleLabel} access ${editingId ? "updated" : "assigned"}`);
       await loadHrs();
     } catch (err) {
       toast.error(err.response?.data?.message || `Unable to save ${roleLabel}`);
@@ -82,7 +90,7 @@ const ManageHR = () => {
     });
     if (!ok) return;
     setEditingId(hr._id);
-    setForm({ name: hr.name || "", email: hr.email || "", mobile: hr.mobile || "", password: "" });
+    setForm({ name: hr.name || "", email: hr.email || "", mobile: hr.mobile || "", password: "", employeeId: hr.employeeProfile?._id || "" });
     setShowForm(true);
   };
 
@@ -132,10 +140,10 @@ const ManageHR = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Manage {roleLabel}</h1>
-            <p className="text-sm text-gray-500 mt-1">Create, view, update, activate, deactivate, and delete {roleLabel} accounts.</p>
+            <p className="text-sm text-gray-500 mt-1">Select an existing employee and give HR access from here.</p>
           </div>
           <Button
-            text={showForm ? "Close Form" : `Add New ${roleLabel}`}
+            text={showForm ? "Close Form" : `Add ${roleLabel} Access`}
             variant={showForm ? "secondary" : "primary"}
             onClick={() => {
               setShowForm((prev) => !prev);
@@ -148,27 +156,64 @@ const ManageHR = () => {
 
       {showForm && (
       <section className="bg-white rounded-sm shadow p-4">
-        <h2 className="font-semibold mb-3">{editingId ? "Update" : "Create"} {roleLabel} Login</h2>
+        <h2 className="font-semibold mb-3">{editingId ? "Update" : "Assign"} {roleLabel} Access</h2>
         <form onSubmit={saveHr} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {[
-            ["name", "Full Name"],
-            ["email", "Email"],
-            ["mobile", "Mobile"],
-            ["password", "Temporary Password"],
-          ].map(([name, label]) => (
-            <label key={name} className="text-sm font-medium text-gray-700">
-              {label}
-              <input
-                type={name === "password" ? "password" : name === "email" ? "email" : "text"}
-                name={name}
-                value={form[name]}
-                onChange={handleChange}
-                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-                required={name !== "password" || !editingId}
-              />
-            </label>
-          ))}
-          <Button text={editingId ? `Update ${roleLabel}` : `Create ${roleLabel}`} type="submit" loading={saving} className="md:col-span-4" />
+          {!editingId ? (
+            <>
+              <label className="text-sm font-medium text-gray-700 md:col-span-3">
+                Select Employee
+                <select
+                  name="employeeId"
+                  value={form.employeeId}
+                  onChange={handleChange}
+                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  required
+                >
+                  <option value="">Select employee</option>
+                  {employees
+                    .filter((employee) => !hrs.some((hr) => String(hr.employeeProfile?._id || hr.employeeProfile) === String(employee._id)))
+                    .map((employee) => (
+                      <option key={employee._id} value={employee._id}>
+                        {employee.employeeId || "EMP"} - {employee.name} ({employee.email})
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-700">
+                Temp Password
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  placeholder="Only if no login"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              {[
+                ["name", "Full Name"],
+                ["email", "Email"],
+                ["mobile", "Mobile"],
+                ["password", "New Password"],
+              ].map(([name, label]) => (
+                <label key={name} className="text-sm font-medium text-gray-700">
+                  {label}
+                  <input
+                    type={name === "password" ? "password" : name === "email" ? "email" : "text"}
+                    name={name}
+                    value={form[name]}
+                    onChange={handleChange}
+                    className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                    required={name !== "password"}
+                  />
+                </label>
+              ))}
+            </>
+          )}
+          <Button text={editingId ? `Update ${roleLabel}` : `Give ${roleLabel} Access`} type="submit" loading={saving} className="md:col-span-4" />
         </form>
       </section>
       )}
