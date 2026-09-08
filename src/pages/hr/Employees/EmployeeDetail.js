@@ -105,6 +105,7 @@ const EmployeeDetail = () => {
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [approvingDocument, setApprovingDocument] = useState("");
 
   const loadEmployee = async () => {
     setLoading(true);
@@ -219,6 +220,24 @@ const EmployeeDetail = () => {
       toast.error(err.response?.data?.message || "Unable to update employee");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const getLatestDocumentRequest = (docKey) =>
+    (employee?.documentUpdateRequests || [])
+      .filter((item) => item.documentKey === docKey)
+      .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0))[0];
+
+  const approveDocumentUpdate = async (docKey) => {
+    setApprovingDocument(docKey);
+    try {
+      const res = await hrApi.approveDocumentUpdateRequest(employeeId, { documents: [docKey] });
+      setEmployee(res.data.data || employee);
+      toast.success(res.data.message || "Document update request approved");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to approve document request");
+    } finally {
+      setApprovingDocument("");
     }
   };
 
@@ -471,23 +490,47 @@ const EmployeeDetail = () => {
           <div className="space-y-2">
             {documentItems.map(([key, label]) => {
               const hasDocument = Boolean(employee.documents?.[key]?.url);
+              const latestRequest = getLatestDocumentRequest(key);
+              const status = latestRequest?.status;
               return (
                 <div key={key} className="flex items-center justify-between gap-3 rounded-sm border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
                   <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-gray-800">
                     <FiFileText className={hasDocument ? "text-[#f84525]" : "text-gray-400"} />
                     {label}
                   </span>
-                  {hasDocument ? (
-                    <button
-                      type="button"
-                      onClick={() => setPreview({ title: label, url: employee.documents[key].url })}
-                      className="shrink-0 rounded-sm border border-[#ffd0c7] bg-white px-3 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed]"
-                    >
-                      View
-                    </button>
-                  ) : (
-                    <span className="shrink-0 rounded-sm bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">Missing</span>
-                  )}
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    {status ? (
+                      <span className={`rounded-sm px-2 py-1 text-xs font-semibold capitalize ${
+                        status === "pending"
+                          ? "bg-yellow-50 text-yellow-700"
+                          : status === "approved"
+                          ? "bg-green-50 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {status}
+                      </span>
+                    ) : null}
+                    {status === "pending" && user?.role === "hr" ? (
+                      <Button
+                        text="Approve"
+                        type="button"
+                        variant="success"
+                        loading={approvingDocument === key}
+                        onClick={() => approveDocumentUpdate(key)}
+                      />
+                    ) : null}
+                    {hasDocument ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreview({ title: label, url: employee.documents[key].url })}
+                        className="rounded-sm border border-[#ffd0c7] bg-white px-3 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed]"
+                      >
+                        View
+                      </button>
+                    ) : (
+                      <span className="rounded-sm bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">Missing</span>
+                    )}
+                  </div>
                 </div>
               );
             })}

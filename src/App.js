@@ -40,11 +40,6 @@ import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
 import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
 import EmployeeLeaveCalendar from "./pages/employee/EmployeeLeaveCalendar";
-import TaskManagement from "./pages/hr/TaskManagement";
-import TaskSheetReport from "./pages/hr/TaskSheetReport";
-import EmployeeTasks from "./pages/employee/EmployeeTasks";
-import BugReports from "./pages/employee/BugReports";
-import ApiTester from "./pages/employee/ApiTester";
 
 function App() {
   return (
@@ -105,9 +100,9 @@ function App() {
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
-          <Route path="tasks" element={<TaskManagement />} />
-          <Route path="task-sheet" element={<TaskSheetReport />} />
-          <Route path="bugs" element={<BugReports scope="managed" />} />
+          <Route path="tasks" element={<Navigate to="dashboard" replace />} />
+          <Route path="task-sheet" element={<Navigate to="dashboard" replace />} />
+          <Route path="bugs" element={<Navigate to="dashboard" replace />} />
           <Route path="reports" element={<ViewReports />} />
           <Route path="today-checkins" element={<TodayCheckIns />} />
           <Route path="leave-reports" element={<LeaveReports />} />
@@ -136,11 +131,7 @@ function App() {
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
-          <Route path="tasks" element={<EmployeeTasks />} />
-          <Route path="bugs" element={<BugReports />} />
-          <Route path="api-tester" element={<ApiTester />} />
-          <Route path="candidates" element={<EmployeeDashboard section="candidates" />} />
-          <Route path="system-allotments" element={<SystemAllotments />} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
 
         {/* Unauthorized route */}

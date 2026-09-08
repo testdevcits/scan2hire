@@ -12,6 +12,7 @@ const FileUploadField = ({
   previewText,
   onPreview,
   selectedPreviewUrl,
+  disabled = false,
 }) => {
   const acceptsImage = /image|jpg|jpeg|png|webp/i.test(String(accept || ""));
 
@@ -59,7 +60,8 @@ const FileUploadField = ({
           accept={accept}
           onChange={onChange}
           required={required}
-          className="w-full min-w-0 text-xs sm:text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-[#f84525] file:px-3 file:py-2 file:text-white"
+          disabled={disabled}
+          className="w-full min-w-0 text-xs sm:text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-[#f84525] file:px-3 file:py-2 file:text-white disabled:cursor-not-allowed disabled:opacity-60"
         />
         {acceptsImage ? (
           <p className="text-xs text-gray-500 mt-2">You can paste a copied image here.</p>

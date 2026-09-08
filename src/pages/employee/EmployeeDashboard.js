@@ -94,13 +94,12 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
-  const [candidates, setCandidates] = useState([]);
-  const [interviewLogs, setInterviewLogs] = useState([]);
+  const [candidates] = useState([]);
+  const [interviewLogs] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState("");
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [roundSaving, setRoundSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -108,7 +107,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
     newPassword: "",
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [breakType, setBreakType] = useState("lunch");
   const [leaveForm, setLeaveForm] = useState({
     type: "earned_leave",
     title: "",
@@ -122,7 +120,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const yesterdayKey = toDateKey(addDays(new Date(), -1));
   const currentMonthKey = todayKey.slice(0, 7);
   const [attendanceDate, setAttendanceDate] = useState(yesterdayKey);
-  const [accountCredentials, setAccountCredentials] = useState([]);
+  const [accountCredentials] = useState([]);
   const [credentialForm, setCredentialForm] = useState({
     accountType: "Email",
     title: "",
@@ -164,28 +162,17 @@ const EmployeeDashboard = ({ section = "all" }) => {
     try {
       const [
         profileRes,
-        candidatesRes,
-        interviewLogsRes,
         attendanceRes,
         leavesRes,
-        ,
-        credentialsRes,
       ] = await Promise.all([
         employeeApi.getProfile(),
-        employeeApi.getAssignedCandidates(),
-        employeeApi.getInterviewLogs(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
-        employeeApi.getCalendar(null, new Date().getFullYear()),
-        employeeApi.getMyAccountCredentials(),
       ]);
       setProfile(profileRes.data.data);
-      setCandidates(candidatesRes.data.data || []);
-      setInterviewLogs(interviewLogsRes.data.data?.logs || []);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
-      setAccountCredentials(credentialsRes.data.data || []);
     } finally {
       setPageLoading(false);
     }
@@ -198,58 +185,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
       )
     );
   }, [fetchData, toast]);
-
-  const runAttendanceAction = async (action, successMessage, payload, key) => {
-    setActionLoading(key);
-    try {
-      await action(payload);
-      await fetchData();
-      toast.success(successMessage);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Attendance action failed");
-    } finally {
-      setActionLoading("");
-    }
-  };
-
-  const getCurrentLocationPayload = () =>
-    new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Location is not supported in this browser"));
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) =>
-          resolve({
-            location: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-            },
-          }),
-        () => reject(new Error("Please allow location access to start work")),
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0,
-        }
-      );
-    });
-
-  const startWork = async () => {
-    let payload;
-    try {
-      payload = await getCurrentLocationPayload();
-    } catch (err) {
-      if (profile?.attendanceMode !== "work_from_home") {
-        toast.error(err.message || "Please allow location access to start work");
-        return;
-      }
-    }
-
-    await runAttendanceAction(employeeApi.startDay, "Work started", payload, "start");
-  };
 
   const applyLeave = async (e) => {
     e.preventDefault();
@@ -392,22 +327,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const show = (name) => section === name;
   const isDashboard = section === "all";
-  const todayTimeline = useMemo(() => {
-    if (!todayAttendance) return [];
-    const items = [];
-    if (todayAttendance.loginAt) {
-      items.push({ label: "Login", time: todayAttendance.loginAt });
-    }
-    todayAttendance.breaks?.forEach((item) => {
-      items.push({ label: `${item.type} break start`, time: item.startAt });
-      if (item.endAt)
-        items.push({ label: `${item.type} break end`, time: item.endAt });
-    });
-    if (todayAttendance.logoutAt) {
-      items.push({ label: "Logout", time: todayAttendance.logoutAt });
-    }
-    return items.sort((a, b) => new Date(a.time) - new Date(b.time));
-  }, [todayAttendance]);
 
   const currentMonthAttendance = useMemo(
     () => attendance.filter((item) => item.dateKey?.startsWith(currentMonthKey)),
@@ -491,15 +410,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Today attendance, monthly report, and assigned interview work in
-                one place.
+                Today attendance, monthly report, and leave activity in one place.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="bg-[#fff5f3] text-[#f84525] rounded-sm px-4 py-3">
-                <p className="font-bold text-xl">{pendingInterviews.length}</p>
-                <p>Pending Interviews</p>
-              </div>
+            <div className="grid grid-cols-1 gap-2 text-sm">
               <div className="bg-gray-900 text-white rounded-sm px-4 py-3">
                 <p className="font-bold text-xl">
                   {todayAttendance?.status || "Not started"}
@@ -617,8 +531,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
             ))}
           </div>
         </section>
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
+        <section className="grid grid-cols-1 gap-4">
+          <div className="bg-white rounded-sm shadow p-4">
             <h2 className="font-semibold mb-3">My Profile</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[15px]">
               <p>
@@ -642,103 +556,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   ? new Date(profile.dateOfJoining).toLocaleDateString()
                   : "N/A"}
               </p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-sm shadow p-4">
-            <h2 className="font-semibold mb-3">Today Attendance</h2>
-            <p className="text-sm">
-              <b>Status:</b> {todayAttendance?.status || "Not started"}
-            </p>
-            <p className="text-sm">
-              <b>Work:</b>{" "}
-              {secondsToClock(liveAttendance.workSeconds)}
-            </p>
-            <p className="text-sm">
-              <b>Break:</b>{" "}
-              {secondsToClock(liveAttendance.breakSeconds)}
-            </p>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <Button
-                text="Start Work"
-                loading={actionLoading === "start"}
-                disabled={dayStarted}
-                onClick={startWork}
-              />
-              <Button
-                text="End Work"
-                variant="danger"
-                loading={actionLoading === "end"}
-                disabled={!dayStarted || dayEnded}
-                onClick={() =>
-                  runAttendanceAction(
-                    employeeApi.endDay,
-                    "Work ended",
-                    undefined,
-                    "end"
-                  )
-                }
-              />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <select
-                value={breakType}
-                onChange={(e) => setBreakType(e.target.value)}
-                disabled={!dayStarted || dayEnded || runningBreak}
-                className="flex-1 border rounded-md px-3 py-2 text-sm"
-              >
-                <option value="lunch">Lunch</option>
-                <option value="call">Call</option>
-                <option value="tea">Tea</option>
-                <option value="personal">Personal</option>
-                <option value="other">Other</option>
-              </select>
-              <Button
-                text="Start Break"
-                variant="secondary"
-                loading={actionLoading === "breakStart"}
-                disabled={!dayStarted || dayEnded || runningBreak}
-                onClick={() =>
-                  runAttendanceAction(
-                    employeeApi.startBreak,
-                    "Break started",
-                    { type: breakType },
-                    "breakStart"
-                  )
-                }
-              />
-              <Button
-                text="End Break"
-                variant="success"
-                loading={actionLoading === "breakEnd"}
-                disabled={!runningBreak}
-                onClick={() =>
-                  runAttendanceAction(
-                    employeeApi.endBreak,
-                    "Break ended",
-                    undefined,
-                    "breakEnd"
-                  )
-                }
-              />
-            </div>
-            <div className="mt-4 border-t pt-3">
-              <h3 className="font-semibold text-sm mb-2">Today Timeline</h3>
-              {todayTimeline.length === 0 ? (
-                <p className="text-xs text-gray-500">No timeline yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {todayTimeline.map((item, index) => (
-                    <div
-                      key={`${item.label}-${index}`}
-                      className="flex justify-between text-xs bg-gray-50 p-2 rounded-sm"
-                    >
-                      <span>{item.label}</span>
-                      <span>{new Date(item.time).toLocaleTimeString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </section>

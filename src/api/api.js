@@ -59,6 +59,8 @@ export const hrApi = {
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
+  approveDocumentUpdateRequest: (employeeId, payload) =>
+    API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
   getEmployeeAccountCredentials: (employeeId) =>
     API.get(`/hr/employees/${employeeId}/account-credentials`),
   deactivateEmployee: (employeeId) =>
@@ -108,7 +110,7 @@ export const employeeApi = {
   getMyAccountCredentials: () => API.get("/employees/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/employees/me/account-credentials", payload),
   deleteMyAccountCredential: (credentialId) => API.delete(`/employees/me/account-credentials/${credentialId}`),
-  requestDocumentOtp: () => API.post("/employees/me/documents/otp"),
+  requestDocumentUpdate: (payload) => API.post("/employees/me/documents/request", payload),
   updateDocuments: (payload) => API.patch("/employees/me/documents", payload),
   getAttendance: () => API.get("/employees/attendance"),
   startDay: (payload) => API.post("/employees/attendance/start", payload),
