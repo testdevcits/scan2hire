@@ -9,6 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 
 const assetTabs = [
   { key: "assign", label: "Assign" },
+  { key: "my-assets", label: "My Assigned Assets" },
   { key: "allotments", label: "Allotments" },
   { key: "system", label: "Systems" },
   { key: "monitor", label: "Monitors" },
@@ -98,7 +99,7 @@ const assignmentTitle = (item) => {
   return system || "System assignment";
 };
 
-const SystemAllotments = () => {
+const SystemAllotments = ({ selfOnly = false }) => {
   const { user } = useContext(AuthContext);
   const toast = useToast();
   const { confirm } = useModal();
@@ -135,7 +136,7 @@ const SystemAllotments = () => {
         employeesReq,
         api.getSystemAllotments(),
       ]);
-      const allowed = !isEmployeeRoute || Boolean(accessRes?.data?.data?.systemAllotmentManage);
+      const allowed = !selfOnly && (!isEmployeeRoute || Boolean(accessRes?.data?.data?.systemAllotmentManage));
       const assetResponses = allowed
         ? await Promise.all(inventoryTypes.map((type) => api.getSystemAssets(type)))
         : [];
@@ -155,7 +156,7 @@ const SystemAllotments = () => {
     } finally {
       setLoading(false);
     }
-  }, [api, isEmployeeRoute, toast]);
+  }, [api, isEmployeeRoute, selfOnly, toast]);
 
   useEffect(() => {
     loadData();
@@ -428,6 +429,8 @@ const SystemAllotments = () => {
 
   const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
 
+  const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
+
   if (!canEdit) {
     return (
       <div className="space-y-4">
@@ -448,12 +451,12 @@ const SystemAllotments = () => {
           </div>
         </section>
 
-        {filteredAllotments.length === 0 ? (
+        {personalAllotments.length === 0 ? (
           <section className="bg-white rounded-lg shadow-sm border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
             No system or accessories are assigned to you yet.
           </section>
         ) : (
-          filteredAllotments.map((item) => (
+          personalAllotments.map((item) => (
             <section key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
               <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-gray-100 pb-3">
                 <div>
@@ -521,7 +524,7 @@ const SystemAllotments = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 p-3 bg-gray-50">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 p-3 bg-gray-50">
           {visibleTabs.map((tab) => (
             <button
               key={tab.key}

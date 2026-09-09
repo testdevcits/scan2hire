@@ -28,7 +28,10 @@ const EmployeeLayout = () => {
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
     { label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
-    { label: access.systemAllotmentManage ? "System Allotments" : "My System", path: "/employee/system-allotments", icon: <FiMonitor /> },
+    { label: "My System", path: "/employee/my-system", icon: <FiMonitor /> },
+    ...(access.systemAllotmentManage
+      ? [{ label: "System Allotments", path: "/employee/system-allotments", icon: <FiMonitor /> }]
+      : []),
     { label: "Documents", path: "/employee/documents", icon: <FiFolder /> },
     { label: "Credentials", path: "/employee/credentials", icon: <FiLock /> },
     { label: "Settings", path: "/employee/settings", icon: <FiSettings /> },

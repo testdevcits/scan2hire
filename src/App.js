@@ -129,6 +129,7 @@ function App() {
           <Route path="documents" element={<EmployeeDocuments />} />
           <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
+          <Route path="my-system" element={<SystemAllotments selfOnly />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
