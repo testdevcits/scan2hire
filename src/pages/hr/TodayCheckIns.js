@@ -4,6 +4,7 @@ import { hrApi } from "../../api";
 import { createSocket } from "../../api/socket";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { useToast } from "../../contexts/ToastContext";
 
 const getDateKey = (date = new Date()) =>
@@ -69,6 +70,7 @@ const TodayCheckIns = () => {
         .sort((a, b) => new Date(b.loginAt) - new Date(a.loginAt)),
     [attendance, todayKey]
   );
+  const checkInsPagination = usePagination(todayCheckIns, [todayKey]);
 
   if (loading) return <CommonLoader text="Loading today's check-ins..." />;
 
@@ -137,7 +139,7 @@ const TodayCheckIns = () => {
                   </td>
                 </tr>
               ) : (
-                todayCheckIns.map((item) => (
+                checkInsPagination.pageItems.map((item) => (
                   <tr key={item._id} className="border-t">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
@@ -207,6 +209,7 @@ const TodayCheckIns = () => {
             </tbody>
           </table>
         </div>
+        <Pagination {...checkInsPagination} />
       </section>
 
       {preview && (

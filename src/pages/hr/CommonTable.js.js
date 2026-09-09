@@ -1,6 +1,10 @@
 import React from "react";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 
 function CommonTable({ columns, data, actions }) {
+  const tablePagination = usePagination(data || []);
+  const pageData = tablePagination.pageItems;
+
   return (
     <div className="bg-white shadow rounded-sm overflow-hidden">
       <div className="hidden md:block overflow-x-auto">
@@ -24,7 +28,7 @@ function CommonTable({ columns, data, actions }) {
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => (
+              pageData.map((row, index) => (
                 <tr
                   key={row._id || index}
                   className="border-t hover:bg-[#fff8f6]"
@@ -65,7 +69,7 @@ function CommonTable({ columns, data, actions }) {
         {data.length === 0 ? (
           <p className="text-center text-gray-500">No data found</p>
         ) : (
-          data.map((row, index) => (
+          pageData.map((row, index) => (
             <div
               key={row._id || index}
               className="border rounded-sm p-3 shadow-sm bg-gray-50"
@@ -106,6 +110,7 @@ function CommonTable({ columns, data, actions }) {
           ))
         )}
       </div>
+      <Pagination {...tablePagination} />
     </div>
   );
 }

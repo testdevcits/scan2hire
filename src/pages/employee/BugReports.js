@@ -4,6 +4,7 @@ import { employeeApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -185,7 +186,6 @@ const BugReports = ({ scope = "employee" }) => {
   const [preview, setPreview] = useState(null);
   const [selectedBugId, setSelectedBugId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingId, setSavingId] = useState("");
@@ -234,20 +234,12 @@ const BugReports = ({ scope = "employee" }) => {
     [bugs]
   );
 
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(bugs.length / pageSize));
-  const pagedBugs = useMemo(
-    () => bugs.slice((page - 1) * pageSize, page * pageSize),
-    [bugs, page]
-  );
+  const bugPagination = usePagination(bugs, [status]);
+  const pagedBugs = bugPagination.pageItems;
   const selectedBug = useMemo(
     () => bugs.find((bug) => bug._id === selectedBugId) || null,
     [bugs, selectedBugId]
   );
-
-  useEffect(() => {
-    setPage(1);
-  }, [status]);
 
   const createBug = async (e) => {
     e.preventDefault();
@@ -488,13 +480,7 @@ const BugReports = ({ scope = "employee" }) => {
               </tbody>
             </table>
           </div>
-          <div className="border-t px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
-            <div className="flex gap-2">
-              <Button text="Previous" variant="secondary" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))} />
-              <Button text="Next" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} />
-            </div>
-          </div>
+          <Pagination {...bugPagination} />
           </>
         )}
       </section>

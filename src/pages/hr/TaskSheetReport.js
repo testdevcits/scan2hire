@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -88,6 +89,7 @@ const TaskSheetReport = () => {
         .sort(),
     [projects, tasks]
   );
+  const taskPagination = usePagination(tasks, [date, month, viewMode, projectFilter, employeeFilter, statusFilter, search]);
 
   const exportRows = () =>
     tasks.map((task, index) => ({
@@ -241,11 +243,11 @@ const TaskSheetReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task, index) => {
+                {taskPagination.pageItems.map((task, index) => {
                   const important = ["important", "urgent"].includes(task.priority);
                   return (
                     <tr key={task._id} className={`align-middle ${important ? "bg-red-50/70" : ""}`}>
-                      <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{index + 1}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{(taskPagination.page - 1) * taskPagination.pageSize + index + 1}</td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 min-w-[150px] whitespace-nowrap">{task.handledBy || task.assignedTo?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.phase || "-"}</td>
@@ -303,6 +305,7 @@ const TaskSheetReport = () => {
             </table>
           </div>
         )}
+        <Pagination {...taskPagination} />
       </section>
     </div>
   );

@@ -3,6 +3,7 @@ import { FiCopy, FiEdit2, FiEye, FiPlus, FiRefreshCw, FiTrash2, FiX } from "reac
 import { employeeApi, hrApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
+import Pagination, { usePagination } from "../components/common/Pagination";
 import { AuthContext } from "../contexts/AuthContext";
 import { useModal } from "../contexts/ModalContext";
 import { useToast } from "../contexts/ToastContext";
@@ -34,7 +35,6 @@ const emptyAssignment = {
   assignmentType: "office",
   assignedDate: new Date().toISOString().slice(0, 10),
   returnDate: "",
-  locationDept: "",
 };
 
 const emptyAsset = {
@@ -51,7 +51,6 @@ const emptyAsset = {
   purchaseDate: "",
   warrantyExpiry: "",
   cost: "",
-  locationDept: "",
 };
 
 const titleCase = (value = "") => value.charAt(0).toUpperCase() + value.slice(1);
@@ -277,7 +276,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
       assignmentType: item.assignmentType || "office",
       assignedDate: formatDate(item.assignedDate) || emptyAssignment.assignedDate,
       returnDate: formatDate(item.returnDate),
-      locationDept: item.locationDept || "",
     });
     setActiveTab("assign");
   };
@@ -356,7 +354,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
       purchaseDate: formatDate(asset.purchaseDate),
       warrantyExpiry: formatDate(asset.warrantyExpiry),
       cost: asset.cost || "",
-      locationDept: asset.locationDept || "",
     });
   };
 
@@ -376,7 +373,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
       purchaseDate: formatDate(asset.purchaseDate),
       warrantyExpiry: formatDate(asset.warrantyExpiry),
       cost: asset.cost || "",
-      locationDept: asset.locationDept || "",
     });
     toast.success("Asset copied. Add serial number and save.");
   };
@@ -420,7 +416,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
     if (!ok) return;
     try {
       await api.deleteSystemAsset(activeTab, asset._id);
-      toast.success("Asset removed");
+      toast.success("Asset deleted");
       await loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to remove asset");
@@ -429,6 +425,12 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
   const fieldClass = "mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10";
   const labelClass = "text-sm font-medium text-gray-700";
+  const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
+  const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
+  const personalPagination = usePagination(personalAllotments, [selfOnly, search]);
+  const myAssetsPagination = usePagination(myAllotments, [activeTab]);
+  const allotmentsPagination = usePagination(filteredAllotments, [activeTab, search]);
+  const assetsPagination = usePagination(currentAssets, [activeTab]);
 
   if (loading) return <CommonLoader text="Loading system allotments..." />;
   if (accessDenied) {
@@ -439,10 +441,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
       </section>
     );
   }
-
-  const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
-
-  const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
 
   if (!canEdit) {
     return (
@@ -469,7 +467,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
             No system or accessories are assigned to you yet.
           </section>
         ) : (
-          personalAllotments.map((item) => (
+          <>
+          {personalPagination.pageItems.map((item) => (
             <section key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
               <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-gray-100 pb-3">
                 <div>
@@ -495,7 +494,11 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 ))}
               </div>
             </section>
-          ))
+          ))}
+          <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <Pagination {...personalPagination} />
+          </section>
+          </>
         )}
       </div>
     );
@@ -633,15 +636,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 disabled={!canEdit}
               />
             </label>
-            <label className={labelClass}>
-              Location / Dept
-              <input
-                value={assignmentForm.locationDept}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, locationDept: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              />
-            </label>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
@@ -696,7 +690,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {myAllotments.map((item) => (
+                {myAssetsPagination.pageItems.map((item) => (
                   <div key={item._id} className="space-y-3">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                       <p className="text-sm font-semibold text-gray-900">{assignmentTitle(item)}</p>
@@ -718,6 +712,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                     </div>
                   </div>
                 ))}
+                <Pagination {...myAssetsPagination} />
               </div>
             )}
           </div>
@@ -753,7 +748,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {filteredAllotments.map((item) => (
+                  {allotmentsPagination.pageItems.map((item) => (
                     <article key={item._id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 border-b border-gray-100 pb-3">
                         <div>
@@ -778,17 +773,14 @@ const SystemAllotments = ({ selfOnly = false }) => {
                           </div>
                         ))}
                       </div>
-                      {item.locationDept && (
-                        <div className="mt-4 rounded-md bg-[#fff5f3] p-3 text-sm text-gray-700">
-                          <p><b>Location:</b> {item.locationDept}</p>
-                        </div>
-                      )}
                     </article>
                   ))}
+                  <Pagination {...allotmentsPagination} />
                 </div>
               )}
             </div>
           ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
@@ -807,7 +799,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                     <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No allotments found.</td>
                   </tr>
                 ) : (
-                  filteredAllotments.map((item) => (
+                  allotmentsPagination.pageItems.map((item) => (
                     <tr key={item._id} className="border-t">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-gray-900">{item.employee?.name || "Inventory"}</p>
@@ -855,6 +847,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </tbody>
             </table>
           </div>
+          <Pagination {...allotmentsPagination} />
+          </>
           )}
         </section>
       )}
@@ -925,7 +919,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
               {[
                 ["cost", "Cost"],
-                ["locationDept", "Location / Dept"],
               ].map(([field, label]) => (
                 <label key={field} className={labelClass}>
                   {label}
@@ -962,7 +955,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                       <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No {activeTab} assets found.</td>
                     </tr>
                   ) : (
-                    currentAssets.map((asset) => (
+                    assetsPagination.pageItems.map((asset) => (
                       <tr key={asset._id} className="border-t">
                         <td className="px-4 py-3 font-semibold text-gray-900">{asset.assetId}</td>
                         <td className="px-4 py-3">
@@ -975,7 +968,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                             ? [asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
                             : activeTab === "monitor"
                             ? asset.displaySize || "-"
-                            : asset.locationDept || "-"}
+                            : "-"}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[asset.status] || statusTone.inactive}`}>
@@ -1003,6 +996,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 </tbody>
               </table>
             </div>
+            <Pagination {...assetsPagination} />
           </div>
         </section>
       )}
@@ -1033,10 +1027,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
                   <p className="mt-1 font-semibold text-gray-900">
                     {displayDate(viewingAllotment.assignedDate)} to {displayDate(viewingAllotment.returnDate)}
                   </p>
-                </div>
-                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-gray-500">Location</p>
-                  <p className="mt-1 font-semibold text-gray-900">{viewingAllotment.locationDept || "-"}</p>
                 </div>
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
                   <p className="text-xs font-semibold uppercase text-gray-500">Status</p>

@@ -3,6 +3,7 @@ import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { downloadCsv } from "../../utils/csvExport";
@@ -33,6 +34,8 @@ const EmployeeCredentials = () => {
   });
   const [myCredentialSaving, setMyCredentialSaving] = useState(false);
   const [showMyCredentialForm, setShowMyCredentialForm] = useState(false);
+  const myCredentialsPagination = usePagination(myCredentials);
+  const selectedAccountsPagination = usePagination(selectedAccounts, [selectedEmployeeId]);
 
   useEffect(() => {
     if (pageUnlocked) loadMyCredentials();
@@ -338,7 +341,8 @@ const EmployeeCredentials = () => {
         {myCredentials.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">No saved credentials yet.</p>
         ) : (
-          myCredentials.map((item) => (
+          <>
+          {myCredentialsPagination.pageItems.map((item) => (
             <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="font-semibold">{item.title}</p>
@@ -353,7 +357,9 @@ const EmployeeCredentials = () => {
                 <button type="button" onClick={() => deleteMyCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">Delete</button>
               </div>
             </div>
-          ))
+          ))}
+          <Pagination {...myCredentialsPagination} />
+          </>
         )}
       </section>
 
@@ -420,7 +426,8 @@ const EmployeeCredentials = () => {
             ) : selectedAccounts.length === 0 ? (
               <p className="p-4 text-sm text-gray-500">No saved account credentials found.</p>
             ) : (
-              selectedAccounts.map((item) => (
+              <>
+              {selectedAccountsPagination.pageItems.map((item) => (
                 <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold">{item.title}</p>
@@ -441,7 +448,9 @@ const EmployeeCredentials = () => {
                     </button>
                   </div>
                 </div>
-              ))
+              ))}
+              <Pagination {...selectedAccountsPagination} />
+              </>
             )}
           </section>
         </div>

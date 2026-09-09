@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -175,6 +176,7 @@ const TaskManagement = () => {
         .sort(),
     [projects, tasks]
   );
+  const taskPagination = usePagination(tasks, [date, month, taskViewMode, projectFilter, employeeFilter, statusFilter, search]);
 
   const saveProject = async (e) => {
     e.preventDefault();
@@ -690,7 +692,7 @@ const TaskManagement = () => {
           <p className="p-6 text-center text-gray-500">No tasks found.</p>
         ) : isHr ? (
           <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {tasks.map((task) => {
+            {taskPagination.pageItems.map((task) => {
               const important = ["important", "urgent"].includes(task.priority);
               const attachments = [...(task.attachments || []), ...(task.responseAttachments || [])];
               return (
@@ -763,11 +765,11 @@ const TaskManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task, index) => {
+                {taskPagination.pageItems.map((task, index) => {
                   const important = ["important", "urgent"].includes(task.priority);
                   return (
                     <tr key={task._id} className={`align-middle ${important ? "bg-red-50/70" : ""}`}>
-                      <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{index + 1}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-center font-semibold">{(taskPagination.page - 1) * taskPagination.pageSize + index + 1}</td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.assignedBy?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 min-w-[150px] whitespace-nowrap">{task.handledBy || task.assignedTo?.name || "-"}</td>
                       <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">{task.phase || "-"}</td>
@@ -831,6 +833,7 @@ const TaskManagement = () => {
             </table>
           </div>
         )}
+        <Pagination {...taskPagination} />
       </section>
       )}
     </div>

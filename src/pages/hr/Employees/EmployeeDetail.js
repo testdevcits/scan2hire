@@ -24,6 +24,7 @@ import { authApi, hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
 import FilePreviewModal from "../../../components/common/FilePreviewModal";
+import Pagination, { usePagination } from "../../../components/common/Pagination";
 import FileUploadField from "../../../components/common/FileUploadField";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useModal } from "../../../contexts/ModalContext";
@@ -300,6 +301,9 @@ const EmployeeDetail = () => {
     if (!reportDate) return attendance;
     return attendance.filter((item) => item.dateKey === reportDate);
   }, [attendance, reportDate]);
+  const documentHistory = useMemo(() => employee?.documentHistory?.slice().reverse() || [], [employee?.documentHistory]);
+  const historyPagination = usePagination(documentHistory);
+  const attendancePagination = usePagination(filteredAttendance, [reportDate, month]);
 
   const downloadEmployeeReport = () => {
     const rows = filteredAttendance
@@ -727,17 +731,17 @@ const EmployeeDetail = () => {
         <div className="p-4 border-b">
           <h2 className="font-semibold">Document Update History</h2>
         </div>
-        {employee.documentHistory?.length ? (
-          employee.documentHistory
-            .slice()
-            .reverse()
-            .map((item, index) => (
+        {documentHistory.length ? (
+          <>
+          {historyPagination.pageItems.map((item, index) => (
               <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-t px-4 py-3 text-sm">
                 <span>{new Date(item.updatedAt).toLocaleString()}</span>
                 <span>{item.documents?.join(", ") || "Documents"}</span>
                 <span>{item.verifiedByEmail || "HR verified"}</span>
               </div>
-            ))
+            ))}
+          <Pagination {...historyPagination} />
+          </>
         ) : (
           <p className="p-4 text-sm text-gray-500">No document update history.</p>
         )}
@@ -759,7 +763,8 @@ const EmployeeDetail = () => {
         {filteredAttendance.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">No attendance found.</p>
         ) : (
-          filteredAttendance.map((item) => (
+          <>
+          {attendancePagination.pageItems.map((item) => (
             <div key={item._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm">
               <span>{item.dateKey}</span>
               <span>{item.status}</span>
@@ -767,7 +772,9 @@ const EmployeeDetail = () => {
               <span>Break: {minutesToHours(item.totalBreakMinutes)}</span>
               <span>{item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "Running"}</span>
             </div>
-          ))
+          ))}
+          <Pagination {...attendancePagination} />
+          </>
         )}
       </section>
 

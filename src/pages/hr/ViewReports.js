@@ -4,6 +4,7 @@ import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -195,6 +196,8 @@ const ViewReports = () => {
       return matchesEmployee && matchesDate && matchesSearch;
     });
   }, [attendance, reportView, search, selectedDate, selectedEmployeeId]);
+  const summaryPagination = usePagination(filteredEmployeeSummary, [month, selectedEmployeeId, search]);
+  const attendancePagination = usePagination(filteredAttendance, [month, reportView, selectedEmployeeId, selectedDate, search]);
 
   const saveCalendar = async (e) => {
     e.preventDefault();
@@ -493,7 +496,7 @@ const ViewReports = () => {
                   <td colSpan="8" className="p-4 text-center text-gray-500">No employee data found</td>
                 </tr>
               ) : (
-                filteredEmployeeSummary.map((item) => (
+                summaryPagination.pageItems.map((item) => (
                   <tr key={item.employee?._id || item.employee?.email} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium">{item.employee?.employeeId || "-"}</td>
                     <td className="px-4 py-3">
@@ -512,6 +515,7 @@ const ViewReports = () => {
             </tbody>
           </table>
         </div>
+        <Pagination {...summaryPagination} />
       </section>
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -539,7 +543,7 @@ const ViewReports = () => {
                   <td colSpan="9" className="p-4 text-center text-gray-500">No attendance found</td>
                 </tr>
               ) : (
-                filteredAttendance.map((item) => (
+                attendancePagination.pageItems.map((item) => (
                   <tr key={item._id} className="border-t hover:bg-gray-50 align-middle">
                     <td className="px-4 py-3 whitespace-nowrap font-medium">{item.dateKey}</td>
                     <td className="px-4 py-3 min-w-44">
@@ -587,6 +591,7 @@ const ViewReports = () => {
             </tbody>
           </table>
         </div>
+        <Pagination {...attendancePagination} />
       </section>
 
       {preview && (

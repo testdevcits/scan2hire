@@ -11,6 +11,7 @@ import {
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -124,6 +125,8 @@ const EmployeeAccessControl = () => {
 
   const filteredRoleRows = useMemo(() => filterRows(rows, roleSearch), [roleSearch, rows]);
   const filteredEmployees = useMemo(() => filterRows(employees, search), [employees, search]);
+  const roleRowsPagination = usePagination(filteredRoleRows, [roleSearch]);
+  const employeesPagination = usePagination(filteredEmployees, [search, selectedTeamLeadId]);
 
   const stats = useMemo(
     () => ({
@@ -360,11 +363,11 @@ const EmployeeAccessControl = () => {
                 />
               </label>
 
-              <div className="max-h-[520px] overflow-auto rounded-md border border-gray-200">
+              <div className="rounded-md border border-gray-200 overflow-hidden">
                 {filteredRoleRows.length === 0 ? (
                   <p className="p-4 text-center text-sm text-gray-500">No employees found.</p>
                 ) : (
-                  filteredRoleRows.map((row) => {
+                  roleRowsPagination.pageItems.map((row) => {
                     const active = row.employee?._id === selectedEmployeeId;
                     return (
                       <button
@@ -390,6 +393,7 @@ const EmployeeAccessControl = () => {
                     );
                   })
                 )}
+                <Pagination {...roleRowsPagination} />
               </div>
             </div>
 
@@ -499,11 +503,11 @@ const EmployeeAccessControl = () => {
               <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
             </div>
 
-            <div className="max-h-[440px] overflow-auto rounded-md border border-gray-200">
+            <div className="rounded-md border border-gray-200 overflow-hidden">
               {filteredEmployees.length === 0 ? (
                 <p className="p-4 text-center text-sm text-gray-500">No assignable employees found.</p>
               ) : (
-                filteredEmployees.map((row) => {
+                employeesPagination.pageItems.map((row) => {
                   const employeeId = row.employee?._id;
                   const checked = assignedEmployeeIds.includes(employeeId);
                   const currentTlId = String(row.teamLead?._id || row.teamLead || "");
@@ -537,6 +541,7 @@ const EmployeeAccessControl = () => {
                   );
                 })
               )}
+              <Pagination {...employeesPagination} />
             </div>
 
             <Button

@@ -4,6 +4,7 @@ import { useEmployee } from "../../contexts/Hr/EmployeeContext";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FileUploadField from "../../components/common/FileUploadField";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { useToast } from "../../contexts/ToastContext";
 import { AuthContext } from "../../contexts/AuthContext";
 import { authApi } from "../../api";
@@ -73,6 +74,8 @@ const ManageEmployees = () => {
   const displayEmployees = ["hr", "superadmin"].includes(user?.role)
     ? [...hrRows, ...nonHrEmployees]
     : employees;
+  const employeePagination = usePagination(displayEmployees, [viewMode, user?.role]);
+  const pagedEmployees = employeePagination.pageItems;
   const departmentOptions = [
     ...new Set(departments.map((department) => String(department.name || "").trim()).filter(Boolean)),
   ].sort();
@@ -315,7 +318,7 @@ const ManageEmployees = () => {
           {displayEmployees.length === 0 ? (
             <p className="p-4 text-center text-gray-500">No employees found</p>
           ) : (
-            displayEmployees.map((employee) => (
+            pagedEmployees.map((employee) => (
               <div
                 key={employee._id}
                 className="grid grid-cols-1 md:grid-cols-7 gap-2 border-t px-4 py-3 text-sm md:items-center"
@@ -330,6 +333,7 @@ const ManageEmployees = () => {
               </div>
             ))
           )}
+          <Pagination {...employeePagination} />
         </div>
       ) : displayEmployees.length === 0 ? (
         <div className="bg-white rounded-sm shadow p-8 text-center text-gray-500">
@@ -337,7 +341,7 @@ const ManageEmployees = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
-          {displayEmployees.map((employee) => (
+          {pagedEmployees.map((employee) => (
             <button
               key={employee._id}
               type="button"
@@ -368,6 +372,9 @@ const ManageEmployees = () => {
               </div>
             </button>
           ))}
+          <div className="col-span-full">
+            <Pagination {...employeePagination} />
+          </div>
         </div>
       )}
 

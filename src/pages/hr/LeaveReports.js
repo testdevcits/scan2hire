@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -61,6 +62,7 @@ const LeaveReports = () => {
     }),
     [leaves]
   );
+  const leavePagination = usePagination(leaves, [selectedDate, selectedEmployeeId, status, search]);
 
   const reviewLeave = async (leaveId, nextStatus) => {
     setUpdatingId(leaveId);
@@ -176,7 +178,7 @@ const LeaveReports = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.map((leave) => (
+                  {leavePagination.pageItems.map((leave) => (
                     <tr key={leave._id} className="border-t align-top">
                       <td className="px-4 py-3 whitespace-nowrap">{leave.employee?.employeeId || "-"}</td>
                       <td className="px-4 py-3 min-w-[150px] font-medium">{leave.employee?.name || "N/A"}</td>
@@ -212,7 +214,7 @@ const LeaveReports = () => {
             </div>
 
             <div className="lg:hidden divide-y">
-              {leaves.map((leave) => (
+              {leavePagination.pageItems.map((leave) => (
                 <article key={leave._id} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -247,6 +249,7 @@ const LeaveReports = () => {
                 </article>
               ))}
             </div>
+            <Pagination {...leavePagination} />
           </>
         )}
       </section>
