@@ -43,6 +43,7 @@ const emptyAsset = {
   model: "",
   serialNumber: "",
   status: "available",
+  systemType: "desktop",
   processor: "",
   ram: "",
   storage: "",
@@ -247,6 +248,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
         assetId: asset?.assetId || "",
         serialNumber: asset?.serialNumber || "",
         details: [
+          asset?.assetType === "system" && asset?.systemType,
           asset?.processor,
           asset?.ram,
           asset?.storage,
@@ -346,6 +348,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
       model: asset.model || "",
       serialNumber: asset.serialNumber || "",
       status: asset.status || "available",
+      systemType: asset.systemType || "desktop",
       processor: asset.processor || "",
       ram: asset.ram || "",
       storage: asset.storage || "",
@@ -365,6 +368,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
       model: asset.model || "",
       serialNumber: "",
       status: "available",
+      systemType: asset.systemType || "desktop",
       processor: asset.processor || "",
       ram: asset.ram || "",
       storage: asset.storage || "",
@@ -808,6 +812,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                       <td className="px-4 py-3">
                         <p className="font-medium">{assignmentTitle(item)}</p>
                         <p className="text-xs text-gray-500">{item.systemAsset?.assetId || item.assetTag || item.serialNumber || "-"}</p>
+                        <p className="text-xs text-gray-500 capitalize">{item.systemType || item.systemAsset?.systemType || "-"}</p>
                       </td>
                       <td className="px-4 py-3">
                         {[
@@ -875,6 +880,15 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
               {activeTab === "system" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
+                  <label className={labelClass}>
+                    System Type
+                    <select value={assetForm.systemType} onChange={(e) => setAssetForm((prev) => ({ ...prev, systemType: e.target.value }))} className={fieldClass} disabled={!canEdit}>
+                      <option value="desktop">Desktop</option>
+                      <option value="laptop">Laptop</option>
+                      <option value="server">Server</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
                   {[
                     ["processor", "Processor"],
                     ["ram", "RAM"],
@@ -965,7 +979,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         <td className="px-4 py-3">{asset.serialNumber || "-"}</td>
                         <td className="px-4 py-3">
                           {activeTab === "system"
-                            ? [asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
+                            ? [asset.systemType, asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
                             : activeTab === "monitor"
                             ? asset.displaySize || "-"
                             : "-"}
