@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiRefreshCw } from "react-icons/fi";
 import { hrApi } from "../../api";
+import { createSocket } from "../../api/socket";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
 import { useToast } from "../../contexts/ToastContext";
@@ -45,6 +46,21 @@ const TodayCheckIns = () => {
   useEffect(() => {
     loadCheckIns();
   }, [loadCheckIns]);
+
+  useEffect(() => {
+    const socket = createSocket();
+    socket.emit("attendance:join");
+    socket.on("attendance:update", (payload) => {
+      const updated = payload?.attendance;
+      if (!updated?._id) return;
+      setAttendance((prev) => {
+        const exists = prev.some((item) => item._id === updated._id);
+        if (!exists) return [updated, ...prev];
+        return prev.map((item) => (item._id === updated._id ? updated : item));
+      });
+    });
+    return () => socket.disconnect();
+  }, []);
 
   const todayCheckIns = useMemo(
     () =>

@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FiCalendar, FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
+import {
+  FiCalendar,
+  FiCopy,
+  FiEye,
+  FiEyeOff,
+  FiPlus,
+  FiClock,
+  FiCoffee,
+  FiUsers,
+  FiBriefcase,
+  FiKey,
+} from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
@@ -90,6 +101,86 @@ const calculateLiveAttendance = (attendanceRecord, currentTime = new Date()) => 
   };
 };
 
+// ---- shared dashboard shell pieces --------------------------------------
+
+const Card = ({ className = "", children }) => (
+  <div
+    className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm ${className}`}
+  >
+    {children}
+  </div>
+);
+
+const CardHeader = ({ title, subtitle, action }) => (
+  <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+    <div>
+      <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{title}</h2>
+      {subtitle && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>
+      )}
+    </div>
+    {action}
+  </div>
+);
+
+// KPI tile with an icon chip — the "dashboard" look
+const Kpi = ({ icon, label, value, tone = "brand" }) => {
+  const tones = {
+    brand: "bg-[#fff5f3] text-[#f84525] dark:bg-[#2a1712]",
+    dark: "bg-gray-900 text-white dark:bg-black",
+    neutral: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200",
+  };
+  return (
+    <Card className="p-4 flex items-center gap-3 min-w-0 flex-1">
+      <span
+        className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${tones[tone]}`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
+        <p className="text-lg font-bold text-gray-900 dark:text-gray-100 tabular-nums truncate">
+          {value}
+        </p>
+      </div>
+    </Card>
+  );
+};
+
+// A card whose body scrolls internally so the page shell never has to
+const ScrollCard = ({ title, subtitle, action, children, className = "" }) => (
+  <Card className={`flex flex-col min-h-0 ${className}`}>
+    <CardHeader title={title} subtitle={subtitle} action={action} />
+    <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+  </Card>
+);
+
+const EmptyState = ({ text }) => (
+  <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">{text}</p>
+);
+
+const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
+  const cls = runningBreak
+    ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800"
+    : dayStarted && !dayEnded
+    ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+    : dayEnded
+    ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+    : "bg-[#fff5f3] text-[#f84525] border-[#ffd8cf] dark:bg-[#2a1712] dark:border-[#5c2c1f]";
+  const label = runningBreak
+    ? "On Break"
+    : dayStarted && !dayEnded
+    ? "Working"
+    : dayEnded
+    ? "Work Ended"
+    : "Not Started";
+  return (
+    <span className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize w-fit border ${cls}`}>
+      {label}
+    </span>
+  );
+};
+
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const navigate = useNavigate();
@@ -139,10 +230,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [clockNow, setClockNow] = useState(new Date());
 
   const todayAttendance = useMemo(
-    () =>
-      attendance.find(
-        (item) => item.dateKey === todayKey
-      ),
+    () => attendance.find((item) => item.dateKey === todayKey),
     [attendance, todayKey]
   );
   const dayStarted = Boolean(todayAttendance?.loginAt);
@@ -160,11 +248,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [
-        profileRes,
-        attendanceRes,
-        leavesRes,
-      ] = await Promise.all([
+      const [profileRes, attendanceRes, leavesRes] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
@@ -180,9 +264,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   useEffect(() => {
     fetchData().catch((err) =>
-      toast.error(
-        err.response?.data?.message || "Unable to load employee dashboard"
-      )
+      toast.error(err.response?.data?.message || "Unable to load employee dashboard")
     );
   }, [fetchData, toast]);
 
@@ -372,246 +454,257 @@ const EmployeeDashboard = ({ section = "all" }) => {
         })),
     [currentMonthAttendance]
   );
+
   const filteredAttendance = useMemo(() => {
     if (!attendanceDate) return attendance.slice(0, 8);
-    const matched = attendance.filter(
-      (item) => item.dateKey === attendanceDate
-    );
-    return matched;
+    return attendance.filter((item) => item.dateKey === attendanceDate);
   }, [attendance, attendanceDate]);
+
   const missingDocuments = useMemo(() => {
-    const required = [
-      "photo",
-      "aadhaarCard",
-      "panCard",
-      "passbook",
-      "degree",
-      "resume",
-    ];
+    const required = ["photo", "aadhaarCard", "panCard", "passbook", "degree", "resume"];
     return required.filter((key) => !profile?.documents?.[key]?.url);
   }, [profile]);
 
   if (pageLoading) return <CommonLoader text="Loading employee dashboard..." />;
 
   return (
-    <div className="space-y-5">
+    <div className="h-full flex flex-col gap-4 overflow-hidden">
       {missingDocuments.length > 0 && (
-        <section className="bg-[#fff5f3] dark:bg-gray-900 border border-[#ffd8cf] dark:border-gray-800 rounded-sm p-4">
-          <h2 className="font-semibold text-[#f84525]">Documents Pending</h2>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-            Please upload all required documents. Missing:{" "}
+        <div className="flex-shrink-0 flex items-start gap-3 bg-[#fff5f3] dark:bg-[#2a1712] border border-[#ffd8cf] dark:border-[#5c2c1f] rounded-2xl px-4 py-3">
+          <span className="mt-1 w-2 h-2 rounded-full bg-[#f84525] flex-shrink-0" />
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            <span className="font-semibold text-[#f84525]">Documents pending — </span>
             {missingDocuments.join(", ")}.
           </p>
-        </section>
+        </div>
       )}
+
       {isDashboard && (
-        <section className="space-y-4">
-          <div className="bg-white rounded-sm shadow p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          {/* header row */}
+          <Card className="flex-shrink-0 px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Today attendance, monthly report, and leave activity in one place.
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {profile?.name ? `Welcome, ${profile.name}` : "My Dashboard"}
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {profile?.designation || "Employee"} &middot; {profile?.department || "N/A"}
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              <div className="bg-gray-900 text-white rounded-sm px-4 py-3">
-                <p className="font-bold text-xl">
-                  {todayAttendance?.status || "Not started"}
-                </p>
-                <p>Today Status</p>
-              </div>
-            </div>
+            <StatusPill runningBreak={runningBreak} dayStarted={dayStarted} dayEnded={dayEnded} />
+          </Card>
+
+          {/* KPI row */}
+          <div className="flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Kpi icon={<FiClock />} label="Live Work Time" value={secondsToClock(liveAttendance.workSeconds)} />
+            <Kpi icon={<FiCoffee />} label="Live Break Time" value={secondsToClock(liveAttendance.breakSeconds)} />
+            <Kpi icon={<FiCalendar />} label="Present Days" value={monthlySummary.present} tone="dark" />
+            <Kpi icon={<FiCalendar />} label="Half Days" value={monthlySummary.halfDay} tone="neutral" />
           </div>
-          <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            {[
-              ["Work Time", minutesToHours(monthlySummary.work)],
-              ["Break Time", minutesToHours(monthlySummary.breaks)],
-              ["Present Days", monthlySummary.present],
-              ["Half Days", monthlySummary.halfDay],
-            ].map(([label, value]) => (
-              <div key={label} className="bg-white rounded-sm shadow p-4">
-                <p className="text-sm text-gray-500">{label}</p>
-                <p className="text-2xl font-bold text-[#f84525] mt-1">
-                  {value}
-                </p>
+
+          {/* main widget row */}
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="lg:col-span-2 flex flex-col min-h-0">
+              <CardHeader
+                title="Monthly Work & Break Hours"
+                subtitle={`Daily hours for ${currentMonthKey}`}
+              />
+              <div className="flex-1 min-h-0 p-4">
+                {monthlyChartData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                    No attendance recorded this month.
+                  </div>
+                ) : (
+                  <TrendAreaChart
+                    data={monthlyChartData}
+                    xKey="date"
+                    yLabel="Hours"
+                    tooltipFormatter={(value, name) => [`${value}h`, name]}
+                    series={[
+                      { key: "workHours", name: "Work Hours", color: "#f84525" },
+                      { key: "breakHours", name: "Break Hours", color: "#ffa826" },
+                    ]}
+                  />
+                )}
               </div>
-            ))}
-            <div className="bg-white rounded-sm shadow p-4 lg:col-span-4">
-              <div className="mb-3">
-                <h2 className="font-semibold">Monthly Work & Break Hours</h2>
-                <p className="text-xs text-gray-500 mt-1">
-                  Daily hours for {currentMonthKey}. Orange is work time, gray is break time.
+            </Card>
+
+            <div className="flex flex-col gap-4 min-h-0">
+              <Card className="p-4 flex-shrink-0">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Time Today</p>
+                <p className="text-3xl font-bold text-[#f84525] mt-1 tabular-nums">
+                  {secondsToClock(liveAttendance.totalSeconds)}
                 </p>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4 items-center">
-                <div className="h-64">
-                  {monthlyChartData.length === 0 ? (
-                    <div className="h-full flex items-center justify-center rounded-sm border border-dashed text-sm text-gray-500">
-                      No attendance recorded this month.
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login to now/end</p>
+              </Card>
+
+              <Card className="p-4 flex-1 min-h-0 overflow-y-auto">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-3">
+                  My Profile
+                </h2>
+                <div className="space-y-2.5 text-sm">
+                  {[
+                    ["Employee ID", profile?.employeeId],
+                    ["Email", profile?.email],
+                    ["Mobile", profile?.mobile],
+                    [
+                      "Joining",
+                      profile?.dateOfJoining
+                        ? new Date(profile.dateOfJoining).toLocaleDateString()
+                        : null,
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {value || "N/A"}
+                      </span>
                     </div>
-                  ) : (
-                    <TrendAreaChart
-                      data={monthlyChartData}
-                      xKey="date"
-                      yLabel="Hours"
-                      tooltipFormatter={(value, name) => [`${value}h`, name]}
-                      series={[
-                        { key: "workHours", name: "Work Hours", color: "#f84525" },
-                        { key: "breakHours", name: "Break Hours", color: "#ffa826" },
-                      ]}
-                    />
-                  )}
+                  ))}
                 </div>
-                <div className="space-y-3">
-                  <div className="bg-[#fff5f3] rounded-sm p-3">
-                    <p className="text-xs text-gray-500">Total Work Time</p>
-                    <p className="text-xl font-bold text-[#f84525] mt-1">
-                      {minutesToHours(monthlySummary.work)}
-                    </p>
-                  </div>
-                  <div className="bg-[#fff5f3] rounded-sm p-3">
-                    <p className="text-xs text-gray-500">Total Break Time</p>
-                    <p className="text-xl font-bold text-[#f84525] mt-1">
-                      {minutesToHours(monthlySummary.breaks)}
-                    </p>
-                  </div>
-                  <div className="bg-[#fff5f3] rounded-sm p-3">
-                    <p className="text-xs text-gray-500">Attendance Mix</p>
-                    <p className="text-sm text-gray-700 mt-1">
-                      Present {monthlySummary.present} | Half Day{" "}
-                      {monthlySummary.halfDay} | Running {monthlySummary.running}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              </Card>
             </div>
-          </section>
-        </section>
+          </div>
+        </div>
       )}
 
-      {(show("attendance") || isDashboard) && (
-        <>
-        <section className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <h2 className="font-semibold text-gray-900">Attendance Timer</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Live counter for today's total time, work time, and break time.
-              </p>
+      {show("attendance") && (
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          <Card className="flex-shrink-0">
+            <CardHeader
+              title="Attendance Timer"
+              subtitle="Live counter for today's total time, work time, and break time."
+              action={
+                <StatusPill runningBreak={runningBreak} dayStarted={dayStarted} dayEnded={dayEnded} />
+              }
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-5">
+              {[
+                ["Total Time", secondsToClock(liveAttendance.totalSeconds), "Login to now/end"],
+                ["Work Time", secondsToClock(liveAttendance.workSeconds), "Total minus breaks"],
+                [
+                  "Break Time",
+                  secondsToClock(liveAttendance.breakSeconds),
+                  runningBreak ? "Break running now" : "Total break used",
+                ],
+              ].map(([label, value, hint]) => (
+                <div
+                  key={label}
+                  className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/60 dark:bg-gray-800/40"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {label}
+                  </p>
+                  <p className="text-3xl font-bold text-[#f84525] mt-2 tabular-nums">{value}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{hint}</p>
+                </div>
+              ))}
             </div>
-            <span className={`px-3 py-2 rounded-sm text-xs font-semibold capitalize w-fit ${
-              runningBreak
-                ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
-                : dayStarted && !dayEnded
-                ? "bg-green-50 text-green-700 border border-green-200"
-                : dayEnded
-                ? "bg-gray-100 text-gray-700 border border-gray-200"
-                : "bg-[#fff5f3] text-[#f84525] border border-[#ffd8cf]"
-            }`}>
-              {runningBreak
-                ? "On Break"
-                : dayStarted && !dayEnded
-                ? "Working"
-                : dayEnded
-                ? "Work Ended"
-                : "Not Started"}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4">
-            {[
-              ["Total Time", secondsToClock(liveAttendance.totalSeconds), "Login to now/end"],
-              ["Work Time", secondsToClock(liveAttendance.workSeconds), "Total minus breaks"],
-              ["Break Time", secondsToClock(liveAttendance.breakSeconds), runningBreak ? "Break running now" : "Total break used"],
-            ].map(([label, value, hint]) => (
-              <div key={label} className="border border-gray-100 rounded-sm p-4 bg-white">
-                <p className="text-xs font-semibold uppercase text-gray-500">{label}</p>
-                <p className="text-3xl font-bold text-[#f84525] mt-2 tabular-nums">{value}</p>
-                <p className="text-xs text-gray-500 mt-1">{hint}</p>
+          </Card>
+
+          <ScrollCard
+            className="flex-1"
+            title="Attendance History"
+            subtitle="Default view shows yesterday's attendance."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAttendanceDate(yesterdayKey)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                    attendanceDate === yesterdayKey
+                      ? "bg-[#f84525] text-white border-[#f84525]"
+                      : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700"
+                  }`}
+                >
+                  Yesterday
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttendanceDate(todayKey)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                    attendanceDate === todayKey
+                      ? "bg-[#f84525] text-white border-[#f84525]"
+                      : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700"
+                  }`}
+                >
+                  Today
+                </button>
+                <input
+                  type="date"
+                  value={attendanceDate}
+                  onChange={(e) => setAttendanceDate(e.target.value)}
+                  className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm"
+                />
               </div>
-            ))}
-          </div>
-        </section>
-        <section className="grid grid-cols-1 gap-4">
-          <div className="bg-white rounded-sm shadow p-4">
-            <h2 className="font-semibold mb-3">My Profile</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[15px]">
-              <p>
-                <b>Employee ID:</b> {profile?.employeeId || "N/A"}
-              </p>
-              <p>
-                <b>Email:</b> {profile?.email || "N/A"}
-              </p>
-              <p>
-                <b>Mobile:</b> {profile?.mobile || "N/A"}
-              </p>
-              <p>
-                <b>Department:</b> {profile?.department || "N/A"}
-              </p>
-              <p>
-                <b>Designation:</b> {profile?.designation || "N/A"}
-              </p>
-              <p>
-                <b>Joining:</b>{" "}
-                {profile?.dateOfJoining
-                  ? new Date(profile.dateOfJoining).toLocaleDateString()
-                  : "N/A"}
-              </p>
+            }
+          >
+            <div className="grid grid-cols-4 gap-2 px-5 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 sticky top-0">
+              <span>Date</span>
+              <span>Status</span>
+              <span>Work</span>
+              <span>Break</span>
             </div>
-          </div>
-        </section>
-        </>
+            {filteredAttendance.length === 0 ? (
+              <EmptyState text={`No attendance found for ${attendanceDate || "selected date"}.`} />
+            ) : (
+              filteredAttendance.map((item) => (
+                <div
+                  key={item._id}
+                  className="grid grid-cols-4 gap-2 border-t border-gray-100 dark:border-gray-800 px-5 py-3 text-sm text-gray-800 dark:text-gray-200"
+                >
+                  <span>{item.dateKey}</span>
+                  <span className="capitalize">{item.status?.replace("_", " ")}</span>
+                  <span>{minutesToHours(item.totalWorkMinutes)}</span>
+                  <span>{minutesToHours(item.totalBreakMinutes)}</span>
+                </div>
+              ))
+            )}
+          </ScrollCard>
+        </div>
       )}
 
-      {(show("profile") || show("leaves")) && (
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {show("profile") && (
-            <div className="bg-white rounded-sm shadow p-4 lg:col-span-2">
-              <h2 className="font-semibold mb-3">My Profile</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                <p>
-                  <b>Employee ID:</b> {profile?.employeeId || "N/A"}
-                </p>
-                <p>
-                  <b>Email:</b> {profile?.email || "N/A"}
-                </p>
-                <p>
-                  <b>Mobile:</b> {profile?.mobile || "N/A"}
-                </p>
-                <p>
-                  <b>Department:</b> {profile?.department || "N/A"}
-                </p>
-                <p>
-                  <b>Designation:</b> {profile?.designation || "N/A"}
-                </p>
-                <p>
-                  <b>Joining:</b>{" "}
-                  {profile?.dateOfJoining
+      {show("profile") && (
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="p-5 lg:col-span-2 flex-shrink-0">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">My Profile</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              {[
+                ["Employee ID", profile?.employeeId],
+                ["Email", profile?.email],
+                ["Mobile", profile?.mobile],
+                ["Department", profile?.department],
+                ["Designation", profile?.designation],
+                [
+                  "Joining",
+                  profile?.dateOfJoining
                     ? new Date(profile.dateOfJoining).toLocaleDateString()
-                    : "N/A"}
-                </p>
-              </div>
+                    : null,
+                ],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100 mt-0.5">
+                    {value || "N/A"}
+                  </p>
+                </div>
+              ))}
             </div>
-          )}
-          {show("profile") && (
-            <form
-              onSubmit={saveAccountCredential}
-              className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              <div className="md:col-span-2 flex items-center justify-between">
-                <h2 className="font-semibold">Saved Account Credentials</h2>
-                <FiPlus className="text-[#f84525]" />
-              </div>
-              <label className="text-sm font-medium text-gray-700">
+          </Card>
+
+          <ScrollCard
+            title="Saved Account Credentials"
+            action={<FiKey className="text-[#f84525]" />}
+          >
+            <form onSubmit={saveAccountCredential} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Account Type
                 <select
                   value={credentialForm.accountType}
                   onChange={(e) =>
-                    setCredentialForm((prev) => ({
-                      ...prev,
-                      accountType: e.target.value,
-                    }))
+                    setCredentialForm((prev) => ({ ...prev, accountType: e.target.value }))
                   }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                 >
                   <option>Email</option>
                   <option>Hosting</option>
@@ -620,60 +713,40 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   <option>Other</option>
                 </select>
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Title
                 <input
                   value={credentialForm.title}
-                  onChange={(e) =>
-                    setCredentialForm((prev) => ({
-                      ...prev,
-                      title: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  onChange={(e) => setCredentialForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                   required
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Login / Email
                 <input
                   value={credentialForm.loginId}
-                  onChange={(e) =>
-                    setCredentialForm((prev) => ({
-                      ...prev,
-                      loginId: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  onChange={(e) => setCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))}
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                   required
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Password
                 <input
                   type="password"
                   value={credentialForm.password}
-                  onChange={(e) =>
-                    setCredentialForm((prev) => ({
-                      ...prev,
-                      password: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))}
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                   required
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
                 Notes
                 <textarea
                   value={credentialForm.notes}
-                  onChange={(e) =>
-                    setCredentialForm((prev) => ({
-                      ...prev,
-                      notes: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                  onChange={(e) => setCredentialForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                 />
               </label>
               <Button
@@ -682,71 +755,56 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 loading={credentialSaving}
                 className="md:col-span-2 justify-self-start"
               />
-              <div className="md:col-span-2 space-y-2">
+              <div className="md:col-span-2 space-y-2.5">
                 {accountCredentials.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    No saved credentials yet.
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No saved credentials yet.</p>
                 ) : (
                   accountCredentials.map((item) => (
                     <div
                       key={item._id}
-                      className="border rounded-sm p-3 flex flex-col md:flex-row md:items-center gap-3"
+                      className="border border-gray-100 dark:border-gray-800 rounded-xl p-3.5 flex flex-col md:flex-row md:items-center gap-3"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900">
-                          {item.title}
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{item.title}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{item.accountType}</p>
+                        <p className="text-sm break-all mt-1 text-gray-800 dark:text-gray-200">
+                          {item.loginId}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {item.accountType}
-                        </p>
-                        <p className="text-sm break-all mt-1">{item.loginId}</p>
-                        <p className="text-sm mt-1">
-                          {revealedPasswords[item._id]
-                            ? item.password
-                            : "••••••••"}
+                        <p className="text-sm mt-1 tabular-nums text-gray-800 dark:text-gray-200">
+                          {revealedPasswords[item._id] ? item.password : "••••••••"}
                         </p>
                         {item.notes ? (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {item.notes}
-                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.notes}</p>
                         ) : null}
                       </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() =>
-                            setRevealedPasswords((prev) => ({
-                              ...prev,
-                              [item._id]: !prev[item._id],
-                            }))
+                            setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))
                           }
-                          className="border rounded-sm px-3 py-2 text-sm"
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
-                          {revealedPasswords[item._id] ? (
-                            <FiEyeOff />
-                          ) : (
-                            <FiEye />
-                          )}
+                          {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
                         </button>
                         <button
                           type="button"
                           onClick={() => copyValue(item.loginId, "Login")}
-                          className="border rounded-sm px-3 py-2 text-sm"
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                           <FiCopy />
                         </button>
                         <button
                           type="button"
                           onClick={() => copyValue(item.password, "Password")}
-                          className="border rounded-sm px-3 py-2 text-sm"
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                           <FiCopy />
                         </button>
                         <button
                           type="button"
                           onClick={() => deleteAccountCredential(item._id)}
-                          className="border rounded-sm px-3 py-2 text-sm text-red-600"
+                          className="border border-red-200 dark:border-red-900 rounded-lg px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           Delete
                         </button>
@@ -756,41 +814,32 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 )}
               </div>
             </form>
-          )}
+          </ScrollCard>
 
-          {show("profile") && (
-            <form
-              onSubmit={changePassword}
-              className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              <h2 className="font-semibold md:col-span-2">Update Password</h2>
-              <label className="text-sm font-medium text-gray-700">
+          <Card className="p-5">
+            <form onSubmit={changePassword} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100 md:col-span-2">
+                Update Password
+              </h2>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Current Password
                 <input
                   type="password"
                   value={passwordForm.currentPassword}
                   onChange={(e) =>
-                    setPasswordForm((prev) => ({
-                      ...prev,
-                      currentPassword: e.target.value,
-                    }))
+                    setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
                   }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                   required
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 New Password
                 <input
                   type="password"
                   value={passwordForm.newPassword}
-                  onChange={(e) =>
-                    setPasswordForm((prev) => ({
-                      ...prev,
-                      newPassword: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                  className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                   required
                 />
               </label>
@@ -801,23 +850,40 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 className="md:col-span-2 justify-self-start"
               />
             </form>
+          </Card>
+        </div>
+      )}
+
+      {show("leaves") && (
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          {leaveBalance && (
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                ["EL", leaveBalance.earned_leave],
+                ["SL", leaveBalance.sick_leave],
+                ["Urgent", leaveBalance.urgent_leave],
+              ].map(([label, item]) => (
+                <Card key={label} className="p-4">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Used {item.used} / {item.total} &middot; Remaining{" "}
+                    <span className="text-[#f84525] font-semibold">{item.remaining}</span>
+                  </p>
+                </Card>
+              ))}
+            </div>
           )}
 
-          {show("leaves") && (
-            <div className="bg-white rounded-sm shadow p-4 grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold">Apply Leave</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Open the form only when you want to send a leave mail and
-                    request.
-                  </p>
-                </div>
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ScrollCard
+              title="Apply Leave"
+              subtitle="Open the form only when you want to send a leave mail and request."
+              action={
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => navigate("/employee/leave-calendar")}
-                    className="w-10 h-10 rounded-sm border border-[#ffd8cf] text-[#f84525] flex items-center justify-center"
+                    className="w-10 h-10 rounded-lg border border-[#ffd8cf] dark:border-[#5c2c1f] text-[#f84525] flex items-center justify-center hover:bg-[#fff5f3] dark:hover:bg-[#2a1712]"
                     aria-label="Open leave calendar"
                   >
                     <FiCalendar />
@@ -828,23 +894,16 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     onClick={() => setShowLeaveForm((prev) => !prev)}
                   />
                 </div>
-              </div>
-              {showLeaveForm && (
-                <form
-                  onSubmit={applyLeave}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-3"
-                >
-                  <label className="text-sm font-medium">
+              }
+            >
+              {showLeaveForm ? (
+                <form onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Leave Type
                     <select
                       value={leaveForm.type}
-                      onChange={(e) =>
-                        setLeaveForm((prev) => ({
-                          ...prev,
-                          type: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full border rounded-md px-3 py-2"
+                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, type: e.target.value }))}
+                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                     >
                       <option value="earned_leave">EL - Earned Leave</option>
                       <option value="sick_leave">SL - Sick Leave</option>
@@ -853,80 +912,62 @@ const EmployeeDashboard = ({ section = "all" }) => {
                       <option value="half_day">Half Day</option>
                     </select>
                   </label>
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Mail Subject / Title
                     <input
                       value={leaveForm.title}
-                      onChange={(e) =>
-                        setLeaveForm((prev) => ({
-                          ...prev,
-                          title: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full border rounded-md px-3 py-2"
+                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, title: e.target.value }))}
+                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                       required
                     />
                   </label>
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     From Date
                     <input
                       type="date"
                       value={leaveForm.fromDate}
-                      onChange={(e) =>
-                        setLeaveForm((prev) => ({
-                          ...prev,
-                          fromDate: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full border rounded-md px-3 py-2"
+                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, fromDate: e.target.value }))}
+                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                       required
                     />
                   </label>
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     To Date
                     <input
                       type="date"
                       value={leaveForm.toDate}
-                      onChange={(e) =>
-                        setLeaveForm((prev) => ({
-                          ...prev,
-                          toDate: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full border rounded-md px-3 py-2"
+                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, toDate: e.target.value }))}
+                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                     />
                   </label>
-                  <label className="text-sm font-medium md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
                     Mail Content
                     <textarea
                       value={leaveForm.content}
-                      onChange={(e) =>
-                        setLeaveForm((prev) => ({
-                          ...prev,
-                          content: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full border rounded-md px-3 py-2"
+                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, content: e.target.value }))}
+                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                       required
                     />
                   </label>
-                  <label className="text-sm font-medium md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
                     Attachment Image
                     <div
                       tabIndex={0}
                       onPaste={handleLeaveAttachmentPaste}
-                      className="mt-1 rounded-md border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                      className="mt-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40"
                     >
                       <input
                         type="file"
                         accept="image/*"
                         onChange={(e) => handleLeaveAttachment(e.target.files?.[0])}
-                        className="w-full border rounded-md px-3 py-2 bg-white"
+                        className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 dark:text-gray-100 text-sm"
                       />
-                      <p className="mt-1 text-xs text-gray-500">Paste copied image here or choose file.</p>
+                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        Paste copied image here or choose file.
+                      </p>
                     </div>
                     {leaveForm.attachment?.name && (
-                      <span className="mt-1 block text-xs text-gray-500">
+                      <span className="mt-1.5 block text-xs text-gray-500 dark:text-gray-400">
                         Selected: {leaveForm.attachment.name}
                       </span>
                     )}
@@ -938,231 +979,139 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     className="md:col-span-2 justify-self-start"
                   />
                 </form>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      {(show("attendance") || show("leaves")) && (
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {show("leaves") && leaveBalance && (
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[
-                ["EL", leaveBalance.earned_leave],
-                ["SL", leaveBalance.sick_leave],
-                ["Urgent", leaveBalance.urgent_leave],
-              ].map(([label, item]) => (
-                <div key={label} className="bg-white rounded-sm shadow p-4">
-                  <p className="font-semibold">{label}</p>
-                  <p className="text-sm text-gray-500">
-                    Used {item.used} / {item.total} | Remaining {item.remaining}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          {show("attendance") && (
-            <div className="bg-white rounded-sm shadow overflow-hidden">
-              <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div>
-                  <h2 className="font-semibold">Attendance History</h2>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Default view shows yesterday's attendance.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAttendanceDate(yesterdayKey)}
-                    className={`px-3 py-2 rounded-sm border text-sm ${
-                      attendanceDate === yesterdayKey
-                        ? "bg-[#f84525] text-white border-[#f84525]"
-                        : "bg-white text-gray-700 border-gray-300"
-                    }`}
-                  >
-                    Yesterday
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAttendanceDate(todayKey)}
-                    className={`px-3 py-2 rounded-sm border text-sm ${
-                      attendanceDate === todayKey
-                        ? "bg-[#f84525] text-white border-[#f84525]"
-                        : "bg-white text-gray-700 border-gray-300"
-                    }`}
-                  >
-                    Today
-                  </button>
-                  <input
-                    type="date"
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="border rounded-sm px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-2 px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50">
-                <span>Date</span>
-                <span>Status</span>
-                <span>Work</span>
-                <span>Break</span>
-              </div>
-              {filteredAttendance.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">
-                  No attendance found for {attendanceDate || "selected date"}.
-                </p>
               ) : (
-                filteredAttendance.slice(0, 8).map((item) => (
-                  <div
-                    key={item._id}
-                    className="grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm"
-                  >
-                    <span>{item.dateKey}</span>
-                    <span className="capitalize">{item.status?.replace("_", " ")}</span>
-                    <span>{minutesToHours(item.totalWorkMinutes)}</span>
-                    <span>{minutesToHours(item.totalBreakMinutes)}</span>
-                  </div>
-                ))
+                <EmptyState text="Open the form to apply for leave." />
               )}
-            </div>
-          )}
+            </ScrollCard>
 
-          {show("leaves") && (
-            <div className="bg-white rounded-sm shadow overflow-hidden">
-              <div className="p-4 border-b">
-                <h2 className="font-semibold">My Leaves</h2>
-              </div>
+            <ScrollCard title="My Leaves">
               {leaves.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">No leaves applied</p>
+                <EmptyState text="No leaves applied." />
               ) : (
-                leaves.slice(0, 8).map((leave) => (
+                leaves.map((leave) => (
                   <button
                     type="button"
                     key={leave._id}
                     onClick={() => setSelectedLeave(leave)}
-                    className="w-full text-left grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm hover:bg-[#fff8f6] transition-colors"
+                    className="w-full text-left grid grid-cols-4 gap-2 border-t border-gray-100 dark:border-gray-800 px-5 py-3 text-sm text-gray-800 dark:text-gray-200 hover:bg-[#fff8f6] dark:hover:bg-gray-800/60 transition-colors"
                   >
-                    <span>{leave.title || leave.type.replace("_", " ")}</span>
+                    <span className="font-medium">{leave.title || leave.type.replace("_", " ")}</span>
                     <span>{new Date(leave.fromDate).toLocaleDateString()}</span>
-                    <span>{leave.status}</span>
-                    <span>{leave.hrComment || "-"}</span>
+                    <span className="capitalize">{leave.status}</span>
+                    <span className="truncate">{leave.hrComment || "-"}</span>
                   </button>
                 ))
               )}
-            </div>
-          )}
-        </section>
+            </ScrollCard>
+          </div>
+        </div>
       )}
 
       {show("candidates") && (
-        <section className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-white rounded-sm shadow p-4">
-            <p className="text-sm text-gray-500">Interviews Taken</p>
-            <p className="text-2xl font-bold text-[#f84525] mt-1">{interviewLogs.length}</p>
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Kpi icon={<FiBriefcase />} label="Interviews Taken" value={interviewLogs.length} />
+            <Kpi icon={<FiUsers />} label="Pending Interviews" value={pendingInterviews.length} />
+            <Kpi icon={<FiUsers />} label="Assigned Candidates" value={candidates.length} tone="neutral" />
           </div>
-          <div className="bg-white rounded-sm shadow p-4">
-            <p className="text-sm text-gray-500">Pending Interviews</p>
-            <p className="text-2xl font-bold text-[#f84525] mt-1">{pendingInterviews.length}</p>
-          </div>
-          <div className="bg-white rounded-sm shadow p-4">
-            <p className="text-sm text-gray-500">Assigned Candidates</p>
-            <p className="text-2xl font-bold text-[#f84525] mt-1">{candidates.length}</p>
+
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ScrollCard
+              title="Assigned Interviews"
+              subtitle="HR assigns the current round. You only add the review after taking the interview."
+            >
+              {candidates.length === 0 ? (
+                <EmptyState text="No assigned candidates." />
+              ) : (
+                candidates.map((candidate) => {
+                  const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
+                  const canEdit = canEmployeeEditReview(existingRound);
+
+                  return (
+                    <div
+                      key={candidate._id}
+                      className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{candidate.name}</span>
+                        <span className="px-2.5 py-1 bg-[#fff5f3] dark:bg-[#2a1712] text-[#f84525] rounded-full font-semibold text-xs">
+                          {formatRound(candidate.interviewStatus)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                        {candidate.email} &middot; {candidate.jobRole}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {existingRound
+                            ? canEdit
+                              ? "Submitted today"
+                              : "Review locked"
+                            : candidate.experienceType === "fresher"
+                            ? "Fresher"
+                            : `${candidate.experience || 0} yrs`}
+                        </span>
+                        <Button
+                          text={existingRound ? (canEdit ? "Edit Review" : "Locked") : "Add Review"}
+                          disabled={Boolean(existingRound && !canEdit)}
+                          onClick={() => openReview(candidate)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </ScrollCard>
+
+            <ScrollCard title="Interview Logs" subtitle="Completed interview reports submitted by you.">
+              {interviewLogs.length === 0 ? (
+                <EmptyState text="No interview logs yet." />
+              ) : (
+                interviewLogs.map((item) => (
+                  <div
+                    key={item._id}
+                    className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{item.candidateName}</span>
+                      <span>Score {item.score}/10</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.jobRole || "-"} &middot; {formatRound(item.round)} &middot;{" "}
+                      {item.roundType?.replace("_", " ")} &middot;{" "}
+                      {item.date ? new Date(item.date).toLocaleDateString() : "-"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </ScrollCard>
           </div>
         </div>
-        <section className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="p-4 border-b bg-gray-50">
-            <h2 className="font-semibold">Assigned Interviews</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              HR assigns the current round. You only add the review after taking
-              the interview.
-            </p>
-          </div>
-          {candidates.length === 0 ? (
-            <p className="p-4 text-center text-gray-500">
-              No assigned candidates
-            </p>
-          ) : (
-            candidates.map((candidate) => {
-                const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
-                const canEdit = canEmployeeEditReview(existingRound);
-
-                return (
-                  <div
-                    key={candidate._id}
-                    className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center"
-                  >
-                    <span className="font-medium">{candidate.name}</span>
-                    <span className="break-all">{candidate.email}</span>
-                    <span>{candidate.jobRole}</span>
-                    <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] rounded-sm font-semibold w-fit">
-                      {formatRound(candidate.interviewStatus)}
-                    </span>
-                    <span>
-                      {existingRound
-                        ? canEdit
-                          ? "Submitted today"
-                          : "Review locked"
-                        : candidate.experienceType === "fresher"
-                        ? "Fresher"
-                        : `${candidate.experience || 0} yrs`}
-                    </span>
-                    <Button
-                      text={existingRound ? (canEdit ? "Edit Review" : "Locked") : "Add Review"}
-                      disabled={Boolean(existingRound && !canEdit)}
-                      onClick={() => openReview(candidate)}
-                    />
-                  </div>
-                );
-              }
-            )
-          )}
-        </section>
-        <section className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="p-4 border-b bg-gray-50">
-            <h2 className="font-semibold">Interview Logs</h2>
-            <p className="text-xs text-gray-500 mt-1">Completed interview reports submitted by you.</p>
-          </div>
-          {interviewLogs.length === 0 ? (
-            <p className="p-4 text-center text-gray-500">No interview logs yet</p>
-          ) : (
-            interviewLogs.slice(0, 12).map((item) => (
-              <div key={item._id} className="grid grid-cols-1 md:grid-cols-6 gap-2 border-t px-4 py-3 text-sm md:items-center">
-                <span className="font-medium">{item.candidateName}</span>
-                <span>{item.jobRole || "-"}</span>
-                <span>{formatRound(item.round)}</span>
-                <span className="capitalize">{item.roundType?.replace("_", " ")}</span>
-                <span>Score {item.score}/10</span>
-                <span>{item.date ? new Date(item.date).toLocaleDateString() : "-"}</span>
-              </div>
-            ))
-          )}
-        </section>
-        </section>
       )}
 
       {selected && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <form
             onSubmit={updateRound}
-            className="bg-white rounded-sm shadow-xl w-full max-w-lg p-4 space-y-3"
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4"
           >
-            <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="font-semibold">{selected.name}</h2>
-              <button type="button" onClick={() => setSelected(null)}>
-                x
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{selected.name}</h2>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
+                aria-label="Close review form"
+              >
+                &times;
               </button>
             </div>
-            <div className="text-sm bg-gray-50 rounded-sm p-3">
+            <div className="text-sm bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3.5 text-gray-700 dark:text-gray-300">
               Current assigned round: <b>{formatRound(selected.interviewStatus)}</b>
-              {selected.currentRoundType
-                ? ` (${selected.currentRoundType.replace("_", " ")})`
-                : ""}
-              . HR will move this candidate to the next round after reviewing
-              your report.
+              {selected.currentRoundType ? ` (${selected.currentRoundType.replace("_", " ")})` : ""}. HR
+              will move this candidate to the next round after reviewing your report.
             </div>
-            <label className="block text-sm font-medium">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Score /10
               <input
                 type="number"
@@ -1170,84 +1119,76 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 max="10"
                 step="0.1"
                 value={roundForm.score}
-                onChange={(e) =>
-                  setRoundForm((prev) => ({ ...prev, score: e.target.value }))
-                }
-                className="mt-1 w-full border rounded-md px-3 py-2"
+                onChange={(e) => setRoundForm((prev) => ({ ...prev, score: e.target.value }))}
+                className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                 required
               />
             </label>
-            <label className="block text-sm font-medium">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Decision / Comments
               <textarea
                 value={roundForm.comments}
-                onChange={(e) =>
-                  setRoundForm((prev) => ({
-                    ...prev,
-                    comments: e.target.value,
-                  }))
-                }
-                className="mt-1 w-full border rounded-md px-3 py-2"
+                onChange={(e) => setRoundForm((prev) => ({ ...prev, comments: e.target.value }))}
+                className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                 required
               />
             </label>
-            <Button
-              text="Save Review"
-              type="submit"
-              loading={roundSaving}
-              className="justify-self-start"
-            />
+            <Button text="Save Review" type="submit" loading={roundSaving} className="justify-self-start" />
           </form>
         </div>
       )}
 
       {selectedLeave && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-sm shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="p-4 border-b flex items-start justify-between gap-3">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-3 flex-shrink-0">
               <div>
-                <p className="text-xs font-semibold uppercase text-[#f84525]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#f84525]">
                   {selectedLeave.type?.replace("_", " ")}
                 </p>
-                <h2 className="text-xl font-bold text-gray-900 mt-1">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">
                   {selectedLeave.title || "Leave Request"}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedLeave(null)}
-                className="text-gray-500 hover:text-[#f84525] text-lg px-2"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 text-lg"
                 aria-label="Close leave detail"
               >
-                x
+                &times;
               </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="border rounded-sm p-3">
-                  <p className="text-xs text-gray-500">From</p>
-                  <p className="font-semibold mt-1">
+                <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-3.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">From</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
                     {new Date(selectedLeave.fromDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="border rounded-sm p-3">
-                  <p className="text-xs text-gray-500">To</p>
-                  <p className="font-semibold mt-1">
+                <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-3.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">To</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
                     {new Date(selectedLeave.toDate || selectedLeave.fromDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="border rounded-sm p-3">
-                  <p className="text-xs text-gray-500">Status</p>
-                  <p className="font-semibold capitalize mt-1">{selectedLeave.status}</p>
+                <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-3.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                  <p className="font-semibold capitalize text-gray-900 dark:text-gray-100 mt-1">
+                    {selectedLeave.status}
+                  </p>
                 </div>
-                <div className="border rounded-sm p-3">
-                  <p className="text-xs text-gray-500">HR Comment</p>
-                  <p className="font-semibold mt-1">{selectedLeave.hrComment || "-"}</p>
+                <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-3.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">HR Comment</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                    {selectedLeave.hrComment || "-"}
+                  </p>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Reason / Content</p>
-                <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Reason / Content</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-wrap">
                   {selectedLeave.content || selectedLeave.reason || "No reason added."}
                 </p>
               </div>

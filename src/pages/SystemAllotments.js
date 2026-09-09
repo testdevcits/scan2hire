@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { FiEdit2, FiPlus, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
 import { employeeApi, hrApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
@@ -7,456 +7,347 @@ import { AuthContext } from "../contexts/AuthContext";
 import { useModal } from "../contexts/ModalContext";
 import { useToast } from "../contexts/ToastContext";
 
-const emptyForm = {
+const assetTabs = [
+  { key: "assign", label: "Assign" },
+  { key: "allotments", label: "Allotments" },
+  { key: "system", label: "Systems" },
+  { key: "monitor", label: "Monitors" },
+  { key: "keyboard", label: "Keyboards" },
+  { key: "mouse", label: "Mice" },
+  { key: "headphone", label: "Headphones" },
+];
+
+const inventoryTypes = ["system", "monitor", "keyboard", "mouse", "headphone"];
+
+const emptyAssignment = {
   employee: "",
-  systemName: "",
-  systemType: "laptop",
-  assetTag: "",
+  systemAsset: "",
+  monitorAsset: "",
+  keyboardAsset: "",
+  mouseAsset: "",
+  headphoneAsset: "",
+  assignedDate: new Date().toISOString().slice(0, 10),
+  locationDept: "",
+  notes: "",
+};
+
+const emptyAsset = {
+  name: "",
   brand: "",
   model: "",
   serialNumber: "",
+  status: "available",
   processor: "",
   ram: "",
   storage: "",
-  graphicCard: "",
-  storageType: "",
-  displaySize: "",
   operatingSystem: "",
-  assignedDate: new Date().toISOString().slice(0, 10),
-  locationDept: "",
+  displaySize: "",
   purchaseDate: "",
   warrantyExpiry: "",
-  purchaseSource: "",
-  shopPlatformName: "",
   cost: "",
+  locationDept: "",
   notes: "",
-  status: "available",
+};
+
+const titleCase = (value = "") => value.charAt(0).toUpperCase() + value.slice(1);
+
+const statusTone = {
+  available: "bg-blue-50 text-blue-700 border-blue-200",
+  allocated: "bg-green-50 text-green-700 border-green-200",
+  assigned: "bg-green-50 text-green-700 border-green-200",
+  repair: "bg-amber-50 text-amber-700 border-amber-200",
+  inactive: "bg-gray-100 text-gray-600 border-gray-200",
+  returned: "bg-slate-50 text-slate-700 border-slate-200",
+};
+
+const formatDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+};
+
+const assetName = (asset) =>
+  asset
+    ? asset.name ||
+      [asset.brand, asset.model].filter(Boolean).join(" ") ||
+      asset.assetId ||
+      asset.serialNumber ||
+      "Unnamed asset"
+    : "-";
+
+const assetOptionLabel = (asset) =>
+  `${asset.assetId || "-"} | ${assetName(asset)}${asset.serialNumber ? ` | SN ${asset.serialNumber}` : ""}`;
+
+const assignmentTitle = (item) => {
+  const system = item.systemAsset ? assetName(item.systemAsset) : item.systemName;
+  return system || "System assignment";
 };
 
 const SystemAllotments = () => {
   const { user } = useContext(AuthContext);
   const toast = useToast();
   const { confirm } = useModal();
-  const isEmployee = ["employee", "teamlead"].includes(user?.role);
-  const api = isEmployee ? employeeApi : hrApi;
+  const isEmployeeRoute = ["employee", "teamlead"].includes(user?.role);
+  const api = isEmployeeRoute ? employeeApi : hrApi;
+
+  const [activeTab, setActiveTab] = useState("assign");
   const [canEdit, setCanEdit] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [items, setItems] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState("");
-  const [filters, setFilters] = useState({ employeeId: "", status: "", search: "" });
-  const [employeeListFilter, setEmployeeListFilter] = useState("all");
+  const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [accessDenied, setAccessDenied] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [allotments, setAllotments] = useState([]);
+  const [assets, setAssets] = useState(() =>
+    inventoryTypes.reduce((acc, type) => ({ ...acc, [type]: [] }), {})
+  );
+  const [assignmentForm, setAssignmentForm] = useState(emptyAssignment);
+  const [editingAssignmentId, setEditingAssignmentId] = useState("");
+  const [assetForm, setAssetForm] = useState(emptyAsset);
+  const [editingAssetId, setEditingAssetId] = useState("");
+  const [search, setSearch] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setAccessDenied(false);
     try {
-      const accessReq = isEmployee
+      const accessReq = isEmployeeRoute
         ? employeeApi.getMyAccess()
-        : Promise.resolve({ data: { data: { systemAllotmentManage: false } } });
-      const allotmentsReq = api.getSystemAllotments({
-        employeeId: filters.employeeId || undefined,
-        status: filters.status || undefined,
-        search: filters.search.trim() || undefined,
-      });
-      const employeesReq = isEmployee ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
-      const [accessRes, employeesRes, allotmentsRes] = await Promise.all([accessReq, employeesReq, allotmentsReq]);
-      setCanEdit(isEmployee && Boolean(accessRes?.data?.data?.systemAllotmentManage));
+        : Promise.resolve({ data: { data: { systemAllotmentManage: true } } });
+      const employeesReq = isEmployeeRoute ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
+      const [accessRes, employeesRes, allotmentsRes, ...assetResponses] = await Promise.all([
+        accessReq,
+        employeesReq,
+        api.getSystemAllotments(),
+        ...inventoryTypes.map((type) => api.getSystemAssets(type)),
+      ]);
+      const allowed = !isEmployeeRoute || Boolean(accessRes?.data?.data?.systemAllotmentManage);
+      setCanEdit(allowed);
       setEmployees(employeesRes.data.data || []);
-      setItems(allotmentsRes.data.data || []);
-      setSelectedIds([]);
+      setAllotments(allotmentsRes.data.data || []);
+      setAssets(
+        inventoryTypes.reduce((acc, type, index) => {
+          acc[type] = assetResponses[index]?.data?.data || [];
+          return acc;
+        }, {})
+      );
     } catch (err) {
-      if (err.response?.status === 403) {
-        setAccessDenied(true);
-      } else {
-        toast.error(err.response?.data?.message || "Unable to load system allotments");
-      }
+      if (err.response?.status === 403) setAccessDenied(true);
+      else toast.error(err.response?.data?.message || "Unable to load system allotments");
     } finally {
       setLoading(false);
     }
-  }, [api, filters.employeeId, filters.search, filters.status, isEmployee, toast]);
+  }, [api, isEmployeeRoute, toast]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const selectedEmployee = useMemo(
-    () => employees.find((employee) => employee._id === form.employee),
-    [employees, form.employee]
+  const activeAssignments = useMemo(
+    () => allotments.filter((item) => item.status === "assigned" && item.employee),
+    [allotments]
   );
 
-  const employeeAllotmentCounts = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const id = item.employee?._id;
-      if (!id) return acc;
-      acc[id] = (acc[id] || 0) + 1;
-      return acc;
-    }, {});
-  }, [items]);
+  const assignedEmployeeIds = useMemo(
+    () => new Set(activeAssignments.map((item) => String(item.employee?._id))),
+    [activeAssignments]
+  );
 
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      const count = employeeAllotmentCounts[employee._id] || 0;
-      if (employeeListFilter === "assigned") return count > 0;
-      if (employeeListFilter === "unassigned") return count === 0;
-      return true;
-    });
-  }, [employeeAllotmentCounts, employeeListFilter, employees]);
+  const editingAssignment = useMemo(
+    () => allotments.find((item) => item._id === editingAssignmentId),
+    [allotments, editingAssignmentId]
+  );
 
-  const systemList = useMemo(() => {
-    const byKey = new Map();
-    items.forEach((item) => {
-      const key = item.assetTag || item.serialNumber || item.systemName || item._id;
-      byKey.set(key, item);
-    });
-    return Array.from(byKey.values());
-  }, [items]);
+  const selectableEmployees = useMemo(
+    () =>
+      employees.filter(
+        (employee) =>
+          !assignedEmployeeIds.has(String(employee._id)) ||
+          String(editingAssignment?.employee?._id) === String(employee._id)
+      ),
+    [assignedEmployeeIds, editingAssignment, employees]
+  );
 
-  const allVisibleSelected = items.length > 0 && selectedIds.length === items.length;
+  const selectableAssets = useCallback(
+    (type, currentId = "") =>
+      (assets[type] || []).filter(
+        (asset) => asset.status === "available" || String(asset._id) === String(currentId)
+      ),
+    [assets]
+  );
 
   const stats = useMemo(() => {
-    return items.reduce(
-      (acc, item) => {
-        acc.total += 1;
-        acc[item.status] = (acc[item.status] || 0) + 1;
-        return acc;
-      },
-      { total: 0, available: 0, assigned: 0, returned: 0, repair: 0, inactive: 0 }
+    const totalAssets = inventoryTypes.reduce((sum, type) => sum + (assets[type]?.length || 0), 0);
+    const availableAssets = inventoryTypes.reduce(
+      (sum, type) => sum + (assets[type] || []).filter((asset) => asset.status === "available").length,
+      0
     );
-  }, [items]);
-
-  const statusTone = {
-    available: "bg-blue-50 text-blue-700 border-blue-200",
-    assigned: "bg-green-50 text-green-700 border-green-200",
-    returned: "bg-slate-50 text-slate-700 border-slate-200",
-    repair: "bg-amber-50 text-amber-700 border-amber-200",
-    inactive: "bg-gray-100 text-gray-600 border-gray-200",
-  };
-
-  const statusLabel = (status = "") => status.replace(/_/g, " ") || "unknown";
-  const formatDateTime = (value) => {
-    if (!value) return "-";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
-  };
-
-  const employeeNameById = useMemo(() => {
-    return employees.reduce((acc, employee) => {
-      acc[String(employee._id)] = `${employee.employeeId || "-"} - ${employee.name}`;
-      return acc;
-    }, {});
-  }, [employees]);
-
-  const getHistoryTitle = (action = "") => {
-    if (action === "created") return "Created";
-    if (action === "deleted") return "Removed";
-    return "Updated";
-  };
-
-  const getHistoryDetails = (history = {}) => {
-    const snapshot = history.snapshot || {};
-    const details = [
-      snapshot.systemName && `System: ${snapshot.systemName}`,
-      snapshot.employee
-        ? `Assigned to: ${employeeNameById[String(snapshot.employee)] || String(snapshot.employee)}`
-        : "Assigned to: Inventory",
-      snapshot.status && `Status: ${statusLabel(snapshot.status)}`,
-    ].filter(Boolean);
-
-    return details.join(" | ");
-  };
-
-  const getSystemTitle = (item) =>
-    item.systemName ||
-    [item.brand, item.model].filter(Boolean).join(" ") ||
-    item.serialNumber ||
-    "Unnamed system";
-
-  const getSpecs = (item) =>
-    [
-      item.processor,
-      item.ram && `${item.ram} RAM`,
-      item.storage && `${item.storage} Storage`,
-      item.graphicCard,
-      item.operatingSystem,
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-      ...(name === "employee" ? { status: value ? "assigned" : "available" } : {}),
-    }));
-  };
-
-  const fillFormFromSystem = (item) => {
-    setEditingId(item._id);
-    setShowForm(true);
-    setForm({
-      employee: item.employee?._id || "",
-      systemName: item.systemName || "",
-      systemType: item.systemType || "laptop",
-      assetTag: item.assetTag || "",
-      brand: item.brand || "",
-      model: item.model || "",
-      serialNumber: item.serialNumber || "",
-      processor: item.processor || "",
-      ram: item.ram || "",
-      storage: item.storage || "",
-      graphicCard: item.graphicCard || "",
-      storageType: item.storageType || "",
-      displaySize: item.displaySize || "",
-      operatingSystem: item.operatingSystem || "",
-      assignedDate: item.assignedDate ? item.assignedDate.slice(0, 10) : emptyForm.assignedDate,
-      locationDept: item.locationDept || "",
-      purchaseDate: item.purchaseDate ? item.purchaseDate.slice(0, 10) : "",
-      warrantyExpiry: item.warrantyExpiry ? item.warrantyExpiry.slice(0, 10) : "",
-      purchaseSource: item.purchaseSource || "",
-      shopPlatformName: item.shopPlatformName || "",
-      cost: item.cost || "",
-      notes: item.notes || "",
-      status: item.status || "available",
-    });
-  };
-
-  const handleSystemSelect = (e) => {
-    const systemId = e.target.value;
-    if (!systemId) {
-      setEditingId("");
-      setForm(emptyForm);
-      setShowForm(true);
-      return;
-    }
-    const item = systemList.find((system) => system._id === systemId);
-    if (item) fillFormFromSystem(item);
-  };
-
-  const normalizeImportKey = (key) =>
-    String(key || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
-
-  const importKeyMap = {
-    employee: "employee",
-    employeeid: "employeeId",
-    empid: "employeeId",
-    email: "email",
-    employeename: "employeeName",
-    employeid: "employeeId",
-    name: "employeeName",
-    assignedto: "assignedTo",
-    systemname: "systemName",
-    system: "systemName",
-    devicename: "deviceName",
-    brand: "brand",
-    model: "model",
-    type: "systemType",
-    systemtype: "systemType",
-    asset: "assetTag",
-    assettag: "assetTag",
-    assetid: "assetId",
-    serial: "serialNumber",
-    serialnumber: "serialNumber",
-    serialno: "serialNumber",
-    srno: "srNo",
-    processor: "processor",
-    ram: "ram",
-    ramgb: "ram",
-    storage: "storage",
-    storagegb: "storage",
-    graphiccardgb: "graphicCard",
-    graphiccard: "graphicCard",
-    storagetype: "storageType",
-    displaysizein: "displaySize",
-    displaysize: "displaySize",
-    os: "operatingSystem",
-    operatingsystem: "operatingSystem",
-    assigneddate: "assignedDate",
-    locationdept: "locationDept",
-    department: "locationDept",
-    purchasedate: "purchaseDate",
-    warrantyexpiry: "warrantyExpiry",
-    purchasesource: "purchaseSource",
-    shopplatformname: "shopPlatformName",
-    shopname: "shopPlatformName",
-    platformname: "shopPlatformName",
-    cost: "cost",
-    costrs: "cost",
-    date: "date",
-    status: "status",
-    notes: "notes",
-    remark: "remark",
-  };
-
-  const parseWorkbookRows = (sheet) => {
-    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-    const headerIndex = matrix.findIndex((row) => {
-      const mappedCount = row.filter((cell) => importKeyMap[normalizeImportKey(cell)]).length;
-      return mappedCount >= 3;
-    });
-    if (headerIndex === -1) {
-      return XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    }
-    const headers = matrix[headerIndex].map((cell) => importKeyMap[normalizeImportKey(cell)] || "");
-    return matrix.slice(headerIndex + 1).map((row) =>
-      row.reduce((acc, value, index) => {
-        const key = headers[index];
-        if (key) acc[key] = value instanceof Date ? value.toISOString().slice(0, 10) : value;
-        return acc;
-      }, {})
-    ).filter((row) => Object.values(row).some((value) => String(value || "").trim()));
-  };
-
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const ok = await confirm({
-      title: "Import System Allotments",
-      message: `Are you sure you want to import ${file.name}? Existing systems with same asset or serial may be updated.`,
-      confirmText: "Import",
-    });
-    if (!ok) return;
-    setImporting(true);
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawRows = parseWorkbookRows(sheet);
-      const rows = rawRows.map((row) =>
-        Object.entries(row).reduce((acc, [key, value]) => {
-          const normalizedKey = importKeyMap[normalizeImportKey(key)];
-          if (normalizedKey) acc[normalizedKey] = value instanceof Date ? value.toISOString().slice(0, 10) : value;
-          return acc;
-        }, {})
-      );
-
-      const res = await api.importSystemAllotments(rows);
-      const { created = 0, updated = 0, skipped = [] } = res.data.data || {};
-      toast.success(`Imported: ${created} new, ${updated} updated, ${skipped.length} skipped`);
-      if (skipped.length) {
-        toast.error(`Skipped rows: ${skipped.slice(0, 3).map((item) => item.row).join(", ")}`);
-      }
-      await loadData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to import Excel file");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const toggleSelected = (itemId) => {
-    setSelectedIds((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
-
-  const toggleAllVisible = () => {
-    setSelectedIds(allVisibleSelected ? [] : items.map((item) => item._id));
-  };
-
-  const deleteSelectedItems = async () => {
-    if (!selectedIds.length) {
-      toast.error("Select at least one system first");
-      return;
-    }
-    const ok = await confirm({
-      title: "Delete Selected Systems",
-      message: `${selectedIds.length} selected system(s) will be marked inactive.`,
-      confirmText: "Delete Selected",
-      tone: "danger",
-    });
-    if (!ok) return;
-    setImporting(true);
-    try {
-      await Promise.all(selectedIds.map((id) => api.deleteSystemAllotment(id)));
-      toast.success(`${selectedIds.length} system(s) removed`);
-      setSelectedIds([]);
-      await loadData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to delete selected systems");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const saveAllotment = async (e) => {
-    e.preventDefault();
-    const ok = await confirm({
-      title: editingId ? "Update System Allotment" : "Add System Allotment",
-      message: editingId
-        ? "Are you sure you want to update this system allotment?"
-        : "Are you sure you want to add this system allotment?",
-      confirmText: editingId ? "Update" : "Add",
-      tone: editingId ? "primary" : "primary",
-    });
-    if (!ok) return;
-    const payload = {
-      ...form,
-      systemName: form.systemName.trim() || [form.brand, form.model].filter(Boolean).join(" ").trim(),
+    return {
+      employees: employees.length,
+      active: activeAssignments.length,
+      totalAssets,
+      availableAssets,
     };
-    if (!payload.systemName && !payload.serialNumber) {
-      toast.error("Add system name, brand/model, or serial number first");
+  }, [activeAssignments.length, assets, employees.length]);
+
+  const filteredAllotments = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return allotments;
+    return allotments.filter((item) =>
+      [
+        item.employee?.name,
+        item.employee?.employeeId,
+        item.systemName,
+        item.systemAsset?.assetId,
+        item.monitorAsset?.assetId,
+        item.keyboardAsset?.assetId,
+        item.mouseAsset?.assetId,
+        item.headphoneAsset?.assetId,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term))
+    );
+  }, [allotments, search]);
+
+  const resetAssignment = () => {
+    setAssignmentForm(emptyAssignment);
+    setEditingAssignmentId("");
+  };
+
+  const fillAssignment = (item) => {
+    setEditingAssignmentId(item._id);
+    setAssignmentForm({
+      employee: item.employee?._id || "",
+      systemAsset: item.systemAsset?._id || "",
+      monitorAsset: item.monitorAsset?._id || "",
+      keyboardAsset: item.keyboardAsset?._id || "",
+      mouseAsset: item.mouseAsset?._id || "",
+      headphoneAsset: item.headphoneAsset?._id || "",
+      assignedDate: formatDate(item.assignedDate) || emptyAssignment.assignedDate,
+      locationDept: item.locationDept || "",
+      notes: item.notes || "",
+    });
+    setActiveTab("assign");
+  };
+
+  const saveAssignment = async (e) => {
+    e.preventDefault();
+    if (!assignmentForm.employee || !assignmentForm.systemAsset) {
+      toast.error("Select employee and system first");
       return;
     }
+    const ok = await confirm({
+      title: editingAssignmentId ? "Update Allocation" : "Allocate System",
+      message: editingAssignmentId
+        ? "Update this employee asset allocation?"
+        : "Allocate selected assets to this employee?",
+      confirmText: editingAssignmentId ? "Update" : "Allocate",
+    });
+    if (!ok) return;
     setSaving(true);
     try {
-      if (editingId) {
-        await api.updateSystemAllotment(editingId, payload);
-        toast.success("System allotment updated");
+      if (editingAssignmentId) {
+        await api.updateSystemAllotment(editingAssignmentId, assignmentForm);
+        toast.success("Allocation updated");
       } else {
-        await api.createSystemAllotment(payload);
-        toast.success("System allotment added");
+        await api.createSystemAllotment(assignmentForm);
+        toast.success("System allocated");
       }
-      setForm(emptyForm);
-      setEditingId("");
-      setShowForm(false);
+      resetAssignment();
       await loadData();
+      setActiveTab("allotments");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to save system allotment");
+      toast.error(err.response?.data?.message || "Unable to save allocation");
     } finally {
       setSaving(false);
     }
   };
 
-  const editItem = async (item) => {
+  const releaseAssignment = async (item) => {
     const ok = await confirm({
-      title: "Edit System Allotment",
-      message: `Are you sure you want to edit ${item.systemName}?`,
-      confirmText: "Edit",
-    });
-    if (!ok) return;
-    fillFormFromSystem(item);
-  };
-
-  const deleteItem = async (item) => {
-    const ok = await confirm({
-      title: "Remove System Allotment",
-      message: `${item.systemName} allotment will be marked inactive.`,
-      confirmText: "Remove",
+      title: "Release Allocation",
+      message: `${assignmentTitle(item)} will become free for another employee.`,
+      confirmText: "Release",
       tone: "danger",
     });
     if (!ok) return;
     try {
       await api.deleteSystemAllotment(item._id);
-      toast.success("System allotment removed");
+      toast.success("Allocation released");
       await loadData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to remove allotment");
+      toast.error(err.response?.data?.message || "Unable to release allocation");
     }
   };
+
+  const fillAsset = (asset) => {
+    setEditingAssetId(asset._id);
+    setAssetForm({
+      name: asset.name || "",
+      brand: asset.brand || "",
+      model: asset.model || "",
+      serialNumber: asset.serialNumber || "",
+      status: asset.status || "available",
+      processor: asset.processor || "",
+      ram: asset.ram || "",
+      storage: asset.storage || "",
+      operatingSystem: asset.operatingSystem || "",
+      displaySize: asset.displaySize || "",
+      purchaseDate: formatDate(asset.purchaseDate),
+      warrantyExpiry: formatDate(asset.warrantyExpiry),
+      cost: asset.cost || "",
+      locationDept: asset.locationDept || "",
+      notes: asset.notes || "",
+    });
+  };
+
+  const resetAsset = () => {
+    setEditingAssetId("");
+    setAssetForm(emptyAsset);
+  };
+
+  const saveAsset = async (e) => {
+    e.preventDefault();
+    if (!assetForm.name && !assetForm.model && !assetForm.serialNumber) {
+      toast.error("Add name, model, or serial number first");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editingAssetId) {
+        await api.updateSystemAsset(activeTab, editingAssetId, assetForm);
+        toast.success(`${titleCase(activeTab)} updated`);
+      } else {
+        await api.createSystemAsset(activeTab, assetForm);
+        toast.success(`${titleCase(activeTab)} added`);
+      }
+      resetAsset();
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to save asset");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteAsset = async (asset) => {
+    const ok = await confirm({
+      title: `Remove ${titleCase(activeTab)}`,
+      message: `${assetName(asset)} will be marked inactive.`,
+      confirmText: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      await api.deleteSystemAsset(activeTab, asset._id);
+      toast.success("Asset removed");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to remove asset");
+    }
+  };
+
+  const fieldClass = "mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-sm";
+  const labelClass = "text-sm font-medium text-gray-700";
 
   if (loading) return <CommonLoader text="Loading system allotments..." />;
   if (accessDenied) {
@@ -468,410 +359,378 @@ const SystemAllotments = () => {
     );
   }
 
+  const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">System Allotments</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Track inventory, assign devices to employees, and review current ownership in one place.
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Manage systems, peripherals, and employee allocations.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {canEdit && (
-              <>
-                <Button
-                  text={showForm ? "Close Form" : editingId ? "Continue Editing" : "Add / Assign System"}
-                  onClick={() => setShowForm((prev) => !prev)}
-                />
-                <label className="inline-flex items-center justify-center px-4 py-2 rounded-sm bg-[#f84525] text-white text-sm font-semibold cursor-pointer">
-                  {importing ? "Importing..." : "Import Excel"}
-                  <input type="file" accept=".xlsx,.xls,.csv,.ods" onChange={handleImport} className="hidden" disabled={importing} />
-                </label>
-                <Button
-                  text={selectedIds.length ? `Delete Selected (${selectedIds.length})` : "Delete Selected"}
-                  variant="danger"
-                  onClick={deleteSelectedItems}
-                  disabled={!selectedIds.length}
-                  loading={importing && selectedIds.length > 0}
-                />
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={loadData}
+            className="inline-flex items-center justify-center gap-2 border rounded-sm px-3 py-2 text-sm"
+          >
+            <FiRefreshCw />
+            Refresh
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-0 border-b border-gray-100">
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-gray-100">
           {[
-            ["Total", stats.total, "bg-gray-900 text-white"],
-            ["Available", stats.available, statusTone.available],
-            ["Assigned", stats.assigned, statusTone.assigned],
-            ["Repair", stats.repair, statusTone.repair],
-            ["Inactive", stats.inactive, statusTone.inactive],
-          ].map(([label, value, className]) => (
-            <div key={label} className="p-4 border-r border-b md:border-b-0 border-gray-100">
+            ["Employees", stats.employees],
+            ["Active Allocations", stats.active],
+            ["Total Assets", stats.totalAssets],
+            ["Free Assets", stats.availableAssets],
+          ].map(([label, value]) => (
+            <div key={label} className="p-4 border-r border-gray-100">
               <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-              <span className={`inline-block mt-2 px-2 py-1 rounded-sm border text-[11px] font-semibold ${className}`}>
-                {label}
-              </span>
             </div>
           ))}
         </div>
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="text-sm font-medium text-gray-700">
-            Employee
-            <select value={filters.employeeId} onChange={(e) => setFilters((prev) => ({ ...prev, employeeId: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-              <option value="">All employees</option>
-              {employees.map((employee) => (
-                <option key={employee._id} value={employee._id}>{employee.employeeId || "-"} - {employee.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium text-gray-700">
-            Status
-            <select value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-              <option value="">All status</option>
-              <option value="available">Available</option>
-              <option value="assigned">Assigned</option>
-              <option value="returned">Returned</option>
-              <option value="repair">Repair</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium text-gray-700">
-            Search
-            <input value={filters.search} onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))} placeholder="System, employee, serial, asset" className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
-          </label>
+        <div className="flex gap-2 overflow-x-auto p-3">
+          {assetTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.key);
+                resetAsset();
+              }}
+              className={`shrink-0 rounded-sm border px-3 py-2 text-sm font-semibold ${
+                activeTab === tab.key
+                  ? "bg-[#f84525] text-white border-[#f84525]"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </section>
 
-      {canEdit && showForm && (
-      <form onSubmit={saveAllotment} className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-gray-900">{editingId ? "Edit System Assignment" : "Add Inventory / Assign System"}</h2>
-            <p className="text-xs text-gray-500">Step 1: choose or enter system details. Step 2: select employee if assigned.</p>
+      {activeTab === "assign" && (
+        <form onSubmit={saveAssignment} className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">{editingAssignmentId ? "Edit Allocation" : "Allocate Assets"}</h2>
+              <p className="text-xs text-gray-500">Only free employees and available assets are shown.</p>
+            </div>
+            {editingAssignmentId && (
+              <Button text="Cancel Edit" variant="secondary" onClick={resetAssignment}>
+                <span className="inline-flex items-center gap-2"><FiX /> Cancel Edit</span>
+              </Button>
+            )}
           </div>
-          <div className="flex gap-2">
-            {editingId && <span className="px-3 py-2 rounded-sm bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">Editing</span>}
-            <Button text="Cancel" variant="secondary" onClick={() => { setEditingId(""); setForm(emptyForm); setShowForm(false); }} />
-          </div>
-        </div>
 
-        <div className="p-4 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="text-sm font-medium text-gray-700">
-              Existing System
-              <select value={editingId} onChange={handleSystemSelect} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-                <option value="">Create new inventory item</option>
-                {systemList.map((system) => (
-                  <option key={system._id} value={system._id}>
-                    {getSystemTitle(system)} | {system.serialNumber || system.assetTag || "-"} | {system.employee?.name || "Inventory"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Assign To
-              <select name="employee" value={form.employee} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-                <option value="">Inventory only / not assigned</option>
-                {employees.map((employee) => (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            <label className={labelClass}>
+              Employee
+              <select
+                value={assignmentForm.employee}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, employee: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              >
+                <option value="">Select employee</option>
+                {selectableEmployees.map((employee) => (
                   <option key={employee._id} value={employee._id}>
                     {employee.employeeId || "-"} - {employee.name}
                   </option>
                 ))}
               </select>
             </label>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <h3 className="md:col-span-4 text-sm font-semibold text-gray-900 border-b pb-2">Device Identity</h3>
             {[
-              ["systemName", "System Name"],
-              ["brand", "Brand"],
-              ["model", "Model"],
-              ["assetTag", "Asset Tag"],
-              ["serialNumber", "Serial Number"],
-            ].map(([name, label]) => (
-              <label key={name} className="text-sm font-medium text-gray-700">
+              ["system", "systemAsset", "System"],
+              ["monitor", "monitorAsset", "Monitor"],
+              ["keyboard", "keyboardAsset", "Keyboard"],
+              ["mouse", "mouseAsset", "Mouse"],
+              ["headphone", "headphoneAsset", "Headphone"],
+            ].map(([type, field, label]) => (
+              <label key={field} className={labelClass}>
                 {label}
-                <input name={name} value={form[name]} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
+                <select
+                  value={assignmentForm[field]}
+                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, [field]: e.target.value }))}
+                  className={fieldClass}
+                  disabled={!canEdit}
+                >
+                  <option value="">{type === "system" ? "Select system" : `No ${label.toLowerCase()}`}</option>
+                  {selectableAssets(type, assignmentForm[field]).map((asset) => (
+                    <option key={asset._id} value={asset._id}>
+                      {assetOptionLabel(asset)}
+                    </option>
+                  ))}
+                </select>
               </label>
             ))}
-            <label className="text-sm font-medium text-gray-700">
-              Type
-              <select name="systemType" value={form.systemType} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-                <option value="desktop">Desktop</option>
-                <option value="laptop">Laptop</option>
-                <option value="server">Server</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Status
-              <select name="status" value={form.status} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2">
-                <option value="available">Available</option>
-                <option value="assigned">Assigned</option>
-                <option value="returned">Returned</option>
-                <option value="repair">Repair</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <h3 className="md:col-span-4 text-sm font-semibold text-gray-900 border-b pb-2">Specifications</h3>
-            {[
-              ["processor", "Processor"],
-              ["ram", "RAM"],
-              ["storage", "Storage"],
-              ["storageType", "Storage Type"],
-              ["graphicCard", "Graphic Card"],
-              ["displaySize", "Display Size"],
-              ["operatingSystem", "Operating System"],
-              ["locationDept", "Location / Dept"],
-            ].map(([name, label]) => (
-              <label key={name} className="text-sm font-medium text-gray-700">
-                {label}
-                <input name={name} value={form[name]} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
-              </label>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <h3 className="md:col-span-4 text-sm font-semibold text-gray-900 border-b pb-2">Purchase & Notes</h3>
-            <label className="text-sm font-medium text-gray-700">
+            <label className={labelClass}>
               Assigned Date
-              <input type="date" name="assignedDate" value={form.assignedDate} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
+              <input
+                type="date"
+                value={assignmentForm.assignedDate}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignedDate: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
             </label>
-            <label className="text-sm font-medium text-gray-700">
-              Purchase Date
-              <input type="date" name="purchaseDate" value={form.purchaseDate} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
+            <label className={labelClass}>
+              Location / Dept
+              <input
+                value={assignmentForm.locationDept}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, locationDept: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
             </label>
-            <label className="text-sm font-medium text-gray-700">
-              Warranty Expiry
-              <input type="date" name="warrantyExpiry" value={form.warrantyExpiry} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
-            </label>
-            {[
-              ["purchaseSource", "Purchase Source"],
-              ["shopPlatformName", "Shop / Platform"],
-              ["cost", "Cost"],
-            ].map(([name, label]) => (
-              <label key={name} className="text-sm font-medium text-gray-700">
-                {label}
-                <input name={name} value={form[name]} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
-              </label>
-            ))}
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+            <label className={`${labelClass} md:col-span-2`}>
               Notes
-              <input name="notes" value={form.notes} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" />
+              <input
+                value={assignmentForm.notes}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, notes: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
             </label>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-t pt-4">
-            <p className="text-sm text-gray-500">
-              {selectedEmployee
-                ? `Assigning to ${selectedEmployee.name} (${selectedEmployee.email || "no email"})`
-                : "No employee selected: this system stays in inventory."}
-            </p>
-            <Button text={editingId ? "Save Changes" : "Save System"} type="submit" loading={saving} />
+          <div className="px-4 py-3 border-t flex justify-end">
+            <Button type="submit" text={editingAssignmentId ? "Save Changes" : "Allocate"} loading={saving} disabled={!canEdit}>
+              <span className="inline-flex items-center gap-2"><FiPlus /> {editingAssignmentId ? "Save Changes" : "Allocate"}</span>
+            </Button>
           </div>
-        </div>
-      </form>
+        </form>
       )}
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50">
+      {activeTab === "allotments" && (
+        <section className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h2 className="font-semibold text-gray-900">Employees</h2>
-              <p className="text-xs text-gray-500">
-              {canEdit ? "Click an employee before saving to assign a system." : "View employee system ownership."}
-              </p>
+              <h2 className="font-semibold text-gray-900">Current Allotments</h2>
+              <p className="text-xs text-gray-500">Edit an allocation to change employee assets, or release it to free inventory.</p>
             </div>
-            <select value={employeeListFilter} onChange={(e) => setEmployeeListFilter(e.target.value)} className="border border-gray-300 rounded-sm px-2 py-1 text-sm">
-              <option value="all">All</option>
-              <option value="assigned">Assigned</option>
-              <option value="unassigned">Unassigned</option>
-            </select>
-          </div>
-          <div className="max-h-72 overflow-auto divide-y">
-            {filteredEmployees.map((employee) => (
-              <button
-                key={employee._id}
-                type="button"
-                onClick={() => canEdit && setForm((prev) => ({ ...prev, employee: employee._id, status: "assigned" }))}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50"
-              >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-sm">{employee.employeeId || "-"} - {employee.name}</span>
-                  <span className="text-xs bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm">
-                    {employeeAllotmentCounts[employee._id] || 0} systems
-                  </span>
-                </span>
-                <span className="block text-xs text-gray-500 mt-1">{employee.email || "-"} {employee.department ? `• ${employee.department}` : ""}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Quick System Picker</h2>
-            <p className="text-xs text-gray-500">
-              {canEdit ? "Click a system to open it in edit mode." : "View system details."}
-            </p>
-          </div>
-          <div className="max-h-72 overflow-auto divide-y">
-            {systemList.map((system) => (
-              <button
-                key={system._id}
-                type="button"
-                onClick={() => canEdit && fillFormFromSystem(system)}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50"
-              >
-                <span className="font-medium text-sm">{getSystemTitle(system)}</span>
-                <span className="block text-xs text-gray-500">
-                  {[system.brand, system.model].filter(Boolean).join(" ") || system.assetTag || system.serialNumber || "-"} • {system.employee?.name || "Inventory"} • {statusLabel(system.status)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-gray-900">Current Allotments</h2>
-            <p className="text-xs text-gray-500">
-              {canEdit
-                ? "Allowed employees can assign, update, or remove systems."
-                : "View-only access. HR can allow an employee from Manage TL."}
-            </p>
-          </div>
-          {canEdit && <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleAllVisible}
-                className="w-4 h-4 accent-[#f84525]"
-              />
-              Select all visible
-            </label>
-            <Button
-              text={selectedIds.length ? `Delete Selected (${selectedIds.length})` : "Delete Selected"}
-              variant="danger"
-              onClick={deleteSelectedItems}
-              disabled={!selectedIds.length}
-              loading={importing && selectedIds.length > 0}
-              className="text-sm"
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search employee or asset ID"
+              className="border border-gray-300 rounded-sm px-3 py-2 text-sm md:w-72"
             />
-          </div>}
-        </div>
-        {items.length === 0 ? (
-          <p className="p-6 text-center text-gray-500">No system allotments found.</p>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 p-4">
-            {items.map((item) => (
-              <article
-                key={item._id}
-                className={`border rounded-sm p-4 bg-white hover:shadow-sm transition-shadow ${
-                  selectedIds.includes(item._id) ? "border-[#f84525] ring-1 ring-[#f84525]" : "border-gray-200"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  {canEdit && (
-                    <label className="shrink-0 pt-1" title="Select for bulk delete">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item._id)}
-                        onChange={() => toggleSelected(item._id)}
-                        className="w-4 h-4 accent-[#f84525]"
-                      />
-                    </label>
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 break-words">{getSystemTitle(item)}</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {[item.brand, item.model, item.systemType].filter(Boolean).join(" • ") || "No model details"}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 px-2 py-1 rounded-sm border text-xs font-semibold capitalize ${statusTone[item.status] || statusTone.inactive}`}>
-                    {statusLabel(item.status)}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">Owner</p>
-                    <p className="font-medium text-gray-900 break-words">{item.employee?.name || "Inventory"}</p>
-                    <p className="text-xs text-gray-500">{item.employee?.employeeId || item.locationDept || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Assigned Date</p>
-                    <p>{item.assignedDate ? new Date(item.assignedDate).toLocaleDateString() : "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Asset Tag</p>
-                    <p className="break-words">{item.assetTag || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Serial</p>
-                    <p className="break-words">{item.serialNumber || "-"}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 text-sm">
-                  <p className="text-xs text-gray-500">Specs</p>
-                  <p className="break-words">{getSpecs(item) || "-"}</p>
-                </div>
-                {(item.purchaseDate || item.warrantyExpiry || item.cost || item.shopPlatformName) && (
-                  <div className="mt-3 text-xs text-gray-500">
-                    {[item.purchaseDate && `Purchased ${new Date(item.purchaseDate).toLocaleDateString()}`, item.warrantyExpiry && `Warranty ${new Date(item.warrantyExpiry).toLocaleDateString()}`, item.cost && `Cost ${item.cost}`, item.shopPlatformName].filter(Boolean).join(" • ")}
-                  </div>
-                )}
-                {item.notes && <p className="mt-3 text-sm text-gray-600 break-words">{item.notes}</p>}
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {canEdit && (
-                    <>
-                      <Button text="Edit" variant="secondary" onClick={() => editItem(item)} className="text-xs px-3 py-1.5" />
-                      <Button text="Remove" variant="danger" onClick={() => deleteItem(item)} className="text-xs px-3 py-1.5" />
-                    </>
-                  )}
-                  <details className="w-full text-xs text-gray-600 mt-1">
-                    <summary className="cursor-pointer font-semibold">History</summary>
-                    {!item.history?.length ? (
-                      <p className="mt-2 text-gray-500">No history found.</p>
-                    ) : (
-                      <div className="mt-2 space-y-2">
-                        {(item.history || []).slice().reverse().map((history, index) => (
-                          <div key={`${item._id}-${index}`} className="rounded-sm border border-gray-200 bg-gray-50 p-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="font-semibold text-gray-800">{getHistoryTitle(history.action)}</span>
-                              <span className="text-gray-500">{formatDateTime(history.updatedAt)}</span>
-                            </div>
-                            <p className="mt-1 text-gray-600">
-                              By {history.updatedBy?.name || history.updatedBy?.email || "System"}
-                            </p>
-                            {getHistoryDetails(history) && (
-                              <p className="mt-1 text-gray-700 break-words">{getHistoryDetails(history)}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </details>
-                </div>
-              </article>
-            ))}
           </div>
-        )}
-      </section>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left px-4 py-3">Employee</th>
+                  <th className="text-left px-4 py-3">System</th>
+                  <th className="text-left px-4 py-3">Peripherals</th>
+                  <th className="text-left px-4 py-3">Assigned</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-left px-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAllotments.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No allotments found.</td>
+                  </tr>
+                ) : (
+                  filteredAllotments.map((item) => (
+                    <tr key={item._id} className="border-t">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-900">{item.employee?.name || "Inventory"}</p>
+                        <p className="text-xs text-gray-500">{item.employee?.employeeId || "-"} {item.employee?.department ? `| ${item.employee.department}` : ""}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{assignmentTitle(item)}</p>
+                        <p className="text-xs text-gray-500">{item.systemAsset?.assetId || item.assetTag || item.serialNumber || "-"}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {[
+                          item.monitorAsset && `Monitor: ${item.monitorAsset.assetId}`,
+                          item.keyboardAsset && `Keyboard: ${item.keyboardAsset.assetId}`,
+                          item.mouseAsset && `Mouse: ${item.mouseAsset.assetId}`,
+                          item.headphoneAsset && `Headphone: ${item.headphoneAsset.assetId}`,
+                        ].filter(Boolean).join(" | ") || "-"}
+                      </td>
+                      <td className="px-4 py-3">{item.assignedDate ? new Date(item.assignedDate).toLocaleDateString() : "-"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {canEdit && (
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
+                              <FiEdit2 />
+                            </button>
+                            <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Release">
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {inventoryTypes.includes(activeTab) && (
+        <section className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-4">
+          <form onSubmit={saveAsset} className="bg-white rounded-sm shadow overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b">
+              <h2 className="font-semibold text-gray-900">{editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}</h2>
+              <p className="text-xs text-gray-500">Each saved item receives an automatic asset ID.</p>
+            </div>
+            <div className="p-4 grid grid-cols-1 gap-3">
+              {[
+                ["name", "Name"],
+                ["brand", "Brand"],
+                ["model", "Model"],
+                ["serialNumber", "Serial Number"],
+              ].map(([field, label]) => (
+                <label key={field} className={labelClass}>
+                  {label}
+                  <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+              ))}
+
+              {activeTab === "system" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
+                  {[
+                    ["processor", "Processor"],
+                    ["ram", "RAM"],
+                    ["storage", "Storage"],
+                    ["operatingSystem", "Operating System"],
+                  ].map(([field, label]) => (
+                    <label key={field} className={labelClass}>
+                      {label}
+                      <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === "monitor" && (
+                <label className={labelClass}>
+                  Display Size
+                  <input value={assetForm.displaySize} onChange={(e) => setAssetForm((prev) => ({ ...prev, displaySize: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+              )}
+
+              <label className={labelClass}>
+                Status
+                <select value={assetForm.status} onChange={(e) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className={fieldClass} disabled={!canEdit}>
+                  <option value="available">Available</option>
+                  <option value="allocated">Allocated</option>
+                  <option value="repair">Repair</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
+                <label className={labelClass}>
+                  Purchase Date
+                  <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+                <label className={labelClass}>
+                  Warranty Expiry
+                  <input type="date" value={assetForm.warrantyExpiry} onChange={(e) => setAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+              </div>
+
+              {[
+                ["cost", "Cost"],
+                ["locationDept", "Location / Dept"],
+                ["notes", "Notes"],
+              ].map(([field, label]) => (
+                <label key={field} className={labelClass}>
+                  {label}
+                  <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+              ))}
+            </div>
+            <div className="px-4 py-3 border-t flex flex-wrap justify-end gap-2">
+              {editingAssetId && <Button text="Cancel" variant="secondary" onClick={resetAsset} />}
+              <Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} />
+            </div>
+          </form>
+
+          <div className="bg-white rounded-sm shadow overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b">
+              <h2 className="font-semibold text-gray-900">{titleCase(activeTab)} List</h2>
+              <p className="text-xs text-gray-500">Allocated items are hidden from assignment dropdowns until released.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left px-4 py-3">Asset ID</th>
+                    <th className="text-left px-4 py-3">Name</th>
+                    <th className="text-left px-4 py-3">Serial</th>
+                    <th className="text-left px-4 py-3">Details</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentAssets.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No {activeTab} assets found.</td>
+                    </tr>
+                  ) : (
+                    currentAssets.map((asset) => (
+                      <tr key={asset._id} className="border-t">
+                        <td className="px-4 py-3 font-semibold text-gray-900">{asset.assetId}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{assetName(asset)}</p>
+                          <p className="text-xs text-gray-500">{[asset.brand, asset.model].filter(Boolean).join(" ") || "-"}</p>
+                        </td>
+                        <td className="px-4 py-3">{asset.serialNumber || "-"}</td>
+                        <td className="px-4 py-3">
+                          {activeTab === "system"
+                            ? [asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
+                            : activeTab === "monitor"
+                            ? asset.displaySize || "-"
+                            : asset.notes || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[asset.status] || statusTone.inactive}`}>
+                            {asset.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {canEdit && (
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => fillAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
+                                <FiEdit2 />
+                              </button>
+                              <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Remove">
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

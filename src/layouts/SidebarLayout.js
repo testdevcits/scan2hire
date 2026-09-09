@@ -232,57 +232,10 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
               Welcome, {user?.name}
             </p>
             <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-              {user?.email}
-            </p>
-          </div>
-          <div className="ml-auto flex items-center gap-3 shrink-0">
-            <div className="relative hidden sm:flex items-center gap-3 min-w-0">
-              <div className="text-right min-w-0">
-                <p className={`text-sm font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
-                  {user?.name}
-                </p>
-                <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                   {[designationLabel, departmentLabel].filter(Boolean).join(" / ")}
                 </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileMenuOpen((prev) => !prev);
-                  setNotificationOpen(false);
-                }}
-                className="w-10 h-10 rounded-[14px] overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0"
-                aria-label="Open profile menu"
-              >
-                {profileImage ? (
-                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
-                ) : (
-                  initials || "U"
-                )}
-              </button>
-              {profileMenuOpen && (
-                <div className="absolute right-0 top-12 w-56 rounded-[16px] border bg-white shadow-xl z-50 overflow-hidden text-left">
-                  <div className="px-4 py-3 border-b">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openProfile}
-                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
-                  >
-                    <FiUser /> Profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t"
-                  >
-                    <FiLogOut /> Logout
-                  </button>
-                </div>
-              )}
-            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-3 shrink-0">
             <div className="relative sm:hidden shrink-0">
               <button
                 type="button"
@@ -322,7 +275,6 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 </div>
               )}
             </div>
-            <div className="relative shrink-0">
             <button
               onClick={() => {
                 setNotificationOpen((prev) => !prev);
@@ -338,6 +290,51 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
                 </span>
               )}
             </button>
+            <div className="relative hidden sm:flex items-center gap-3 min-w-0">
+             
+             
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-12 w-56 rounded-[16px] border bg-white shadow-xl z-50 overflow-hidden text-left">
+                  <div className="px-4 py-3 border-b">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
+                  >
+                    <FiUser /> Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t"
+                  >
+                    <FiLogOut /> Logout
+                  </button>
+                </div>
+              )}
+
+               <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen((prev) => !prev);
+                  setNotificationOpen(false);
+                }}
+                className="w-10 h-10 rounded-[14px] overflow-hidden bg-[#fff5f3] border border-[#ffd8cf] flex items-center justify-center text-[#f84525] font-semibold shrink-0"
+                aria-label="Open profile menu"
+              >
+                {profileImage ? (
+                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
+                ) : (
+                  initials || "U"
+                )}
+              </button>
+            </div>
+            
+            <div className="relative shrink-0">
+            
             {notificationOpen && (
               <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-[16px] z-50 overflow-hidden">
                 <div className="px-4 py-3 border-b flex items-center justify-between">

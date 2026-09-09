@@ -85,6 +85,11 @@ export const hrApi = {
   assignTeamLeadEmployees: (teamLeadId, payload) =>
     API.put(`/hr/employee-access/team-leads/${teamLeadId}/assign`, payload),
   getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
+  getSystemAssets: (type, params) => API.get(`/hr/system-allotments/assets/${type}`, { params }),
+  createSystemAsset: (type, payload) => API.post(`/hr/system-allotments/assets/${type}`, payload),
+  updateSystemAsset: (type, assetId, payload) =>
+    API.put(`/hr/system-allotments/assets/${type}/${assetId}`, payload),
+  deleteSystemAsset: (type, assetId) => API.delete(`/hr/system-allotments/assets/${type}/${assetId}`),
   createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/hr/system-allotments/import", { rows }),
   bulkDeleteSystemAllotments: (rows) => API.post("/hr/system-allotments/bulk-delete", { rows }),
@@ -127,6 +132,11 @@ export const employeeApi = {
     API.put(`/employees/candidates/${candidateId}/round`, payload),
   getSystemAllotments: (params) => API.get("/employees/system-allotments", { params }),
   getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
+  getSystemAssets: (type, params) => API.get(`/employees/system-allotments/assets/${type}`, { params }),
+  createSystemAsset: (type, payload) => API.post(`/employees/system-allotments/assets/${type}`, payload),
+  updateSystemAsset: (type, assetId, payload) =>
+    API.put(`/employees/system-allotments/assets/${type}/${assetId}`, payload),
+  deleteSystemAsset: (type, assetId) => API.delete(`/employees/system-allotments/assets/${type}/${assetId}`),
   createSystemAllotment: (payload) => API.post("/employees/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/employees/system-allotments/import", { rows }),
   bulkDeleteSystemAllotments: (rows) => API.post("/employees/system-allotments/bulk-delete", { rows }),
