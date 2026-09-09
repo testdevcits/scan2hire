@@ -4,7 +4,6 @@ import {
   FiCopy,
   FiEye,
   FiEyeOff,
-  FiPlus,
   FiClock,
   FiCoffee,
   FiUsers,
