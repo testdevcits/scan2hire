@@ -9,6 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 
 const assetTabs = [
   { key: "assign", label: "Assign" },
+  { key: "my-assets", label: "My Assigned Assets" },
   { key: "allotments", label: "Allotments" },
   { key: "system", label: "Systems" },
   { key: "monitor", label: "Monitors" },
@@ -151,6 +152,20 @@ const SystemAllotments = () => {
     [allotments]
   );
 
+  const myEmployeeId = useMemo(() => {
+    const email = String(user?.email || "").trim().toLowerCase();
+    if (!email) return "";
+    return employees.find((employee) => String(employee.email || "").trim().toLowerCase() === email)?._id || "";
+  }, [employees, user?.email]);
+
+  const myAllotments = useMemo(
+    () =>
+      myEmployeeId
+        ? allotments.filter((item) => String(item.employee?._id || item.employee || "") === String(myEmployeeId))
+        : [],
+    [allotments, myEmployeeId]
+  );
+
   const assignedEmployeeIds = useMemo(
     () => new Set(activeAssignments.map((item) => String(item.employee?._id))),
     [activeAssignments]
@@ -214,7 +229,7 @@ const SystemAllotments = () => {
 
   const assignedAssetRows = useCallback((item) => {
     return [
-      ["System", item.systemAsset, item.systemName || item.assetTag || item.serialNumber],
+      ["PC / System", item.systemAsset, item.systemName || item.assetTag || item.serialNumber],
       ["Monitor", item.monitorAsset],
       ["Keyboard", item.keyboardAsset],
       ["Mouse", item.mouseAsset],
@@ -389,6 +404,52 @@ const SystemAllotments = () => {
 
   const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
 
+  if (!canEdit) {
+    return (
+      <div className="space-y-4">
+        <section className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">My Assigned Assets</h1>
+              <p className="text-sm text-gray-500 mt-1">Your assigned PC and accessories.</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center justify-center gap-2 border border-gray-200 rounded-md px-3 py-2 text-sm hover:bg-gray-50"
+            >
+              <FiRefreshCw />
+              Refresh
+            </button>
+          </div>
+        </section>
+
+        {filteredAllotments.length === 0 ? (
+          <section className="bg-white rounded-lg shadow-sm border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+            No system or accessories are assigned to you yet.
+          </section>
+        ) : (
+          filteredAllotments.map((item) => (
+            <section key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                {assignedAssetRows(item).map((asset) => (
+                  <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+                    <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
+                    <p className="mt-1 text-xs text-gray-500 break-words">
+                      {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+                    </p>
+                    {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
@@ -444,6 +505,8 @@ const SystemAllotments = () => {
               <span className={`mt-1 block text-xs font-medium ${activeTab === tab.key ? "text-white/80" : "text-gray-500"}`}>
                 {tab.key === "assign"
                   ? "Dropdown allocation"
+                  : tab.key === "my-assets"
+                  ? `${myAllotments.length} assigned`
                   : tab.key === "allotments"
                   ? `${filteredAllotments.length} record${filteredAllotments.length === 1 ? "" : "s"}`
                   : `${assets[tab.key]?.length || 0} item${assets[tab.key]?.length === 1 ? "" : "s"}`}
@@ -480,7 +543,7 @@ const SystemAllotments = () => {
                 <option value="">Select employee</option>
                 {selectableEmployees.map((employee) => (
                   <option key={employee._id} value={employee._id}>
-                    {employee.employeeId || "-"} - {employee.name}
+                    {employee.employeeId || "-"} - {employee.name}{String(employee._id) === String(myEmployeeId) ? " (Self)" : ""}
                   </option>
                 ))}
               </select>
@@ -550,6 +613,39 @@ const SystemAllotments = () => {
             </Button>
           </div>
         </form>
+      )}
+
+      {activeTab === "my-assets" && (
+        <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 bg-gray-50 border-b">
+            <h2 className="font-semibold text-gray-900">My Assigned Assets</h2>
+            <p className="text-xs text-gray-500">Your assigned PC and accessories.</p>
+          </div>
+          <div className="p-5">
+            {myAllotments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+                No system or accessories are assigned to you yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {myAllotments.map((item) => (
+                  <div key={item._id} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                    {assignedAssetRows(item).map((asset) => (
+                      <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+                        <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
+                        <p className="mt-1 text-xs text-gray-500 break-words">
+                          {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+                        </p>
+                        {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {activeTab === "allotments" && (

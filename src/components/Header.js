@@ -30,17 +30,12 @@ const Header = () => {
 
         {/* Navigation */}
         <nav className="space-x-4 hidden md:flex">
-          <a
-            href="/"
-            className="hover:text-primary dark:hover:text-red-500 transition-colors"
-          >
-            Home
-          </a>
+
           <a
             href="/login"
             className="hover:text-primary dark:hover:text-red-500 transition-colors"
           >
-            Admin
+            Login
           </a>
         </nav>
       </div>

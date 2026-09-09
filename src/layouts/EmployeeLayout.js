@@ -1,17 +1,34 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import SidebarLayout from "./SidebarLayout";
 import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
+import { employeeApi } from "../api";
 
 const EmployeeLayout = () => {
   const { user } = useContext(AuthContext);
+  const [access, setAccess] = useState({});
+
+  useEffect(() => {
+    let active = true;
+    employeeApi
+      .getMyAccess()
+      .then((res) => {
+        if (active) setAccess(res.data.data || {});
+      })
+      .catch(() => {
+        if (active) setAccess({});
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
     { label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
-    { label: "My System", path: "/employee/system-allotments", icon: <FiMonitor /> },
+    { label: access.systemAllotmentManage ? "System Allotments" : "My System", path: "/employee/system-allotments", icon: <FiMonitor /> },
     { label: "Documents", path: "/employee/documents", icon: <FiFolder /> },
     { label: "Credentials", path: "/employee/credentials", icon: <FiLock /> },
     { label: "Settings", path: "/employee/settings", icon: <FiSettings /> },

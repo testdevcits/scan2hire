@@ -1,9 +1,61 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FiBriefcase,
+  FiCheck,
+  FiMonitor,
+  FiSearch,
+  FiShield,
+  FiUsers,
+  FiX,
+} from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
+
+const roleCards = [
+  {
+    key: "teamLead",
+    title: "Team Lead",
+    description: "Can view team reports and manage assigned team members.",
+    icon: <FiUsers />,
+  },
+  {
+    key: "tester",
+    title: "Tester",
+    description: "Can add website bugs, screenshots, and update bug status.",
+    icon: <FiShield />,
+  },
+  {
+    key: "projectCoordinator",
+    title: "Project Coordinator",
+    description: "Can create task sheets, assign tasks, and export reports.",
+    icon: <FiBriefcase />,
+  },
+  {
+    key: "systemAllotment",
+    title: "System Manager",
+    description: "Can add inventory and allocate systems/accessories.",
+    icon: <FiMonitor />,
+  },
+];
+
+const RolePill = ({ tone, text }) => {
+  const classes = {
+    blue: "bg-blue-50 text-blue-700 border-blue-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    violet: "bg-violet-50 text-violet-700 border-violet-200",
+    green: "bg-green-50 text-green-700 border-green-200",
+    gray: "bg-gray-100 text-gray-600 border-gray-200",
+  };
+
+  return (
+    <span className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-[11px] font-semibold ${classes[tone] || classes.gray}`}>
+      {text}
+    </span>
+  );
+};
 
 const EmployeeAccessControl = () => {
   const toast = useToast();
@@ -13,6 +65,7 @@ const EmployeeAccessControl = () => {
   const [selectedTeamLeadId, setSelectedTeamLeadId] = useState("");
   const [assignedEmployeeIds, setAssignedEmployeeIds] = useState([]);
   const [search, setSearch] = useState("");
+  const [roleSearch, setRoleSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -25,7 +78,7 @@ const EmployeeAccessControl = () => {
       );
       setRows(list);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load Team Lead data");
+      toast.error(err.response?.data?.message || "Unable to load role access");
     } finally {
       setLoading(false);
     }
@@ -53,11 +106,11 @@ const EmployeeAccessControl = () => {
     );
   }, [employees, selectedTeamLeadId]);
 
-  const filteredEmployees = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return employees.filter((row) => {
-      if (!term) return true;
-      return [
+  const filterRows = (list, term) => {
+    const value = term.trim().toLowerCase();
+    if (!value) return list;
+    return list.filter((row) =>
+      [
         row.employee?.name,
         row.employee?.employeeId,
         row.employee?.email,
@@ -65,9 +118,12 @@ const EmployeeAccessControl = () => {
         row.employee?.designation,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term));
-    });
-  }, [employees, search]);
+        .some((item) => String(item).toLowerCase().includes(value))
+    );
+  };
+
+  const filteredRoleRows = useMemo(() => filterRows(rows, roleSearch), [roleSearch, rows]);
+  const filteredEmployees = useMemo(() => filterRows(employees, search), [employees, search]);
 
   const stats = useMemo(
     () => ({
@@ -81,6 +137,16 @@ const EmployeeAccessControl = () => {
     }),
     [employees, rows, teamLeads.length]
   );
+
+  const selectedRoleStates = {
+    teamLead: Boolean(selectedEmployee?.isTeamLead),
+    tester: Boolean(selectedEmployee?.isTester),
+    projectCoordinator: Boolean(selectedEmployee?.isProjectCoordinator),
+    systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment),
+  };
+
+  const employeeLabel = (row) =>
+    `${row.employee?.employeeId || "-"} - ${row.employee?.name || "N/A"}`;
 
   const toggleEmployee = (employeeId) => {
     setAssignedEmployeeIds((current) =>
@@ -117,7 +183,7 @@ const EmployeeAccessControl = () => {
       message: `Assign ${assignedEmployeeIds.length} employee(s) to ${
         selectedTeamLead?.employee?.name || "this Team Lead"
       }? Existing employees under this TL will be replaced by this selected list.`,
-      confirmText: "Assign",
+      confirmText: "Save Team",
       tone: "primary",
     });
     if (!ok) return;
@@ -127,7 +193,7 @@ const EmployeeAccessControl = () => {
       await hrApi.assignTeamLeadEmployees(selectedTeamLeadId, {
         employeeIds: assignedEmployeeIds,
       });
-      toast.success("Employees assigned to Team Lead");
+      toast.success("Team Lead assignments saved");
       await loadAccess();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to assign employees");
@@ -136,471 +202,350 @@ const EmployeeAccessControl = () => {
     }
   };
 
-  const setTeamLead = async (allowed) => {
+  const updateSelectedAccess = async (updates, successMessage) => {
     if (!selectedEmployeeId) {
       toast.error("Select employee first");
       return;
     }
 
+    setSaving(true);
+    try {
+      await hrApi.updateEmployeeAccess(selectedEmployeeId, updates);
+      toast.success(successMessage);
+      await loadAccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update access");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setTeamLead = async (allowed) => {
     const ok = await confirm({
       title: allowed ? "Make Team Lead" : "Remove Team Lead",
-      message: `Are you sure you want to ${allowed ? "make" : "remove"} ${
-        selectedEmployee?.employee?.name || "this employee"
-      } ${allowed ? "a Team Lead" : "from Team Lead"}?`,
+      message: `${selectedEmployee?.employee?.name || "This employee"} ${
+        allowed ? "will become a Team Lead." : "will be removed from Team Lead access."
+      }`,
       confirmText: allowed ? "Make TL" : "Remove TL",
       tone: allowed ? "primary" : "danger",
     });
     if (!ok) return;
 
-    setSaving(true);
-    try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+    await updateSelectedAccess(
+      {
         isTeamLead: allowed,
         modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
-      });
-      toast.success(allowed ? "Employee is now Team Lead" : "Team Lead access removed");
-      if (allowed) {
-        setSelectedTeamLeadId(selectedEmployeeId);
-      }
-      await loadAccess();
-      if (!allowed && selectedTeamLeadId === selectedEmployeeId) {
-        setSelectedTeamLeadId("");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update Team Lead access");
-    } finally {
-      setSaving(false);
-    }
+      },
+      allowed ? "Employee is now Team Lead" : "Team Lead access removed"
+    );
+    if (allowed) setSelectedTeamLeadId(selectedEmployeeId);
+    if (!allowed && selectedTeamLeadId === selectedEmployeeId) setSelectedTeamLeadId("");
   };
 
   const setTester = async (allowed) => {
-    if (!selectedEmployeeId) {
-      toast.error("Select employee first");
-      return;
-    }
-
     const ok = await confirm({
       title: allowed ? "Make Tester" : "Remove Tester",
       message: `${selectedEmployee?.employee?.name || "This employee"} ${
-        allowed ? "will be able to add website bugs and assign them." : "will no longer have tester access."
+        allowed ? "will get tester access." : "will lose tester access."
       }`,
-      confirmText: allowed ? "Make Tester" : "Remove Tester",
+      confirmText: allowed ? "Make Tester" : "Remove",
       tone: allowed ? "primary" : "danger",
     });
     if (!ok) return;
 
-    setSaving(true);
-    try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+    await updateSelectedAccess(
+      {
         isTester: allowed,
         modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
-      });
-      toast.success(allowed ? "Employee is now Tester" : "Tester access removed");
-      await loadAccess();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update Tester access");
-    } finally {
-      setSaving(false);
-    }
+      },
+      allowed ? "Employee is now Tester" : "Tester access removed"
+    );
   };
 
   const setProjectCoordinator = async (allowed) => {
-    if (!selectedEmployeeId) {
-      toast.error("Select employee first");
-      return;
-    }
-
     const ok = await confirm({
       title: allowed ? "Make Project Coordinator" : "Remove Project Coordinator",
       message: `${selectedEmployee?.employee?.name || "This employee"} ${
-        allowed
-          ? "will be able to create project task sheets, assign tasks, and export monthly reports."
-          : "will no longer manage task sheets."
+        allowed ? "will manage project task sheets." : "will no longer manage task sheets."
       }`,
       confirmText: allowed ? "Make Coordinator" : "Remove",
       tone: allowed ? "primary" : "danger",
     });
     if (!ok) return;
 
-    setSaving(true);
-    try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
+    await updateSelectedAccess(
+      {
         isProjectCoordinator: allowed,
         modules: { systemAllotment: Boolean(selectedEmployee?.modules?.systemAllotment) },
-      });
-      toast.success(allowed ? "Employee is now Project Coordinator" : "Project Coordinator access removed");
-      await loadAccess();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update Project Coordinator access");
-    } finally {
-      setSaving(false);
-    }
+      },
+      allowed ? "Employee is now Project Coordinator" : "Project Coordinator access removed"
+    );
   };
 
   const setSystemAllotmentAccess = async (allowed) => {
-    if (!selectedEmployeeId) {
-      toast.error("Select employee first");
-      return;
-    }
-
     const ok = await confirm({
-      title: allowed ? "Allow System Allotment" : "Remove System Allotment Access",
+      title: allowed ? "Allow System Manager" : "Remove System Manager",
       message: `${selectedEmployee?.employee?.name || "This employee"} ${
-        allowed ? "will be able to open and manage System Allotments." : "will no longer see System Allotments."
+        allowed ? "will manage system inventory and allotments." : "will no longer manage system allotments."
       }`,
-      confirmText: allowed ? "Allow Access" : "Remove Access",
+      confirmText: allowed ? "Allow" : "Remove",
       tone: allowed ? "primary" : "danger",
     });
     if (!ok) return;
 
-    setSaving(true);
-    try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, {
-        modules: { systemAllotment: allowed },
-      });
-      toast.success(allowed ? "System Allotment access allowed" : "System Allotment access removed");
-      await loadAccess();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to update System Allotment access");
-    } finally {
-      setSaving(false);
+    await updateSelectedAccess(
+      { modules: { systemAllotment: allowed } },
+      allowed ? "System Manager access allowed" : "System Manager access removed"
+    );
+  };
+
+  const toggleRole = (roleKey, allowed) => {
+    if (!selectedEmployeeId) {
+      toast.error("Select employee first");
+      return;
     }
+    if (roleKey === "teamLead") return setTeamLead(allowed);
+    if (roleKey === "tester") return setTester(allowed);
+    if (roleKey === "projectCoordinator") return setProjectCoordinator(allowed);
+    return setSystemAllotmentAccess(allowed);
   };
 
   if (loading) return <CommonLoader text="Loading role assignments..." />;
 
   return (
     <div className="space-y-5">
-      <section className="bg-white rounded-sm shadow p-4">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+      <section className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Roles & Access Control</h1>
             <p className="text-sm text-gray-500 mt-1">
-              HR can make employees Team Leads, Testers, Project Coordinators, assign team members, and manage System Allotment access.
+              Select an employee, grant the required role, then assign team members to a Team Lead.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
             {[
-              ["Staff", stats.total, "bg-gray-900 text-white"],
-              ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border border-blue-200"],
-              ["Testers", stats.testers, "bg-amber-50 text-amber-700 border border-amber-200"],
-              ["Coordinators", stats.projectCoordinators, "bg-purple-50 text-purple-700 border border-purple-200"],
-              ["System Managers", stats.systemManagers, "bg-green-50 text-green-700 border border-green-200"],
-              ["Assigned", stats.assigned, "bg-green-50 text-green-700 border border-green-200"],
-              ["Unassigned", stats.unassigned, "bg-gray-100 text-gray-700 border border-gray-200"],
+              ["Staff", stats.total, "bg-gray-900 text-white border-gray-900"],
+              ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border-blue-200"],
+              ["Testers", stats.testers, "bg-amber-50 text-amber-700 border-amber-200"],
+              ["Coordinators", stats.projectCoordinators, "bg-violet-50 text-violet-700 border-violet-200"],
+              ["System Managers", stats.systemManagers, "bg-emerald-50 text-emerald-700 border-emerald-200"],
+              ["Assigned", stats.assigned, "bg-green-50 text-green-700 border-green-200"],
+              ["Unassigned", stats.unassigned, "bg-gray-50 text-gray-700 border-gray-200"],
             ].map(([label, value, className]) => (
-              <div key={label} className={`px-3 py-2 rounded-sm text-sm font-semibold ${className}`}>
+              <div key={label} className={`rounded-md border px-3 py-2 text-sm font-semibold ${className}`}>
                 <span className="block text-xs opacity-80">{label}</span>
-                <span className="text-lg leading-5">{value}</span>
+                <span className="text-xl leading-6">{value}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-white rounded-sm shadow p-4">
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-3 xl:items-end">
-          <label className="text-sm font-medium text-gray-700">
-            System Allotment Manager
-            <select
-              value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-            >
-              <option value="">Select employee to allow inventory/allotment management</option>
-              {rows.map((row) => (
-                <option key={row.employee?._id} value={row.employee?._id}>
-                  {row.employee?.employeeId || "-"} - {row.employee?.name}
-                  {row.modules?.systemAllotment ? " (Allowed)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              text="Allow Manage"
-              onClick={() => setSystemAllotmentAccess(true)}
-              loading={saving}
-              disabled={!selectedEmployeeId || selectedEmployee?.modules?.systemAllotment}
-            />
-            <Button
-              text="Remove"
-              variant="secondary"
-              onClick={() => setSystemAllotmentAccess(false)}
-              loading={saving}
-              disabled={!selectedEmployeeId || !selectedEmployee?.modules?.systemAllotment}
-            />
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-gray-500">
-          Allowed employee can add systems, monitors, keyboards, mice, headphones, and allocate them from dropdowns.
-          Other employees can only view assets assigned to themselves.
-        </p>
-      </section>
-
-      <section className="bg-white rounded-sm shadow p-4 space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 lg:items-end">
-          <label className="text-sm font-medium text-gray-700">
-            Select Team Lead
-            <select
-              value={selectedTeamLeadId}
-              onChange={(e) => setSelectedTeamLeadId(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-            >
-              <option value="">Select TL</option>
-              {teamLeads.map((row) => (
-                <option key={row.employee?._id} value={row.employee?._id}>
-                  {row.employee?.employeeId || "-"} - {row.employee?.name} ({employees.filter((employeeRow) => String(employeeRow.teamLead?._id || employeeRow.teamLead) === row.employee?._id).length} assigned)
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            text={`Save ${assignedEmployeeIds.length} Assignment${assignedEmployeeIds.length === 1 ? "" : "s"}`}
-            onClick={saveAssignments}
-            loading={saving}
-            disabled={!selectedTeamLeadId}
-            className="w-full lg:w-auto"
-          />
-        </div>
-
-        {selectedTeamLead && (
-          <div className="border border-blue-100 bg-blue-50 rounded-sm p-3 text-sm text-blue-800">
-            <b>{selectedTeamLead.employee?.name}</b> will manage {assignedEmployeeIds.length} selected employee(s).
-          </div>
-        )}
-        {!teamLeads.length && (
-          <div className="border border-amber-100 bg-amber-50 rounded-sm p-3 text-sm text-amber-800">
-            No Team Lead exists yet. Select an employee in the right panel and click Make TL first.
-          </div>
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
-        <div className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="p-4 border-b bg-gray-50 grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search employees by name, ID, email, department"
-              className="w-full border border-gray-300 rounded-sm px-3 py-2"
-            />
-            <Button text="Select Visible" variant="secondary" onClick={selectVisible} disabled={!selectedTeamLeadId} />
-            <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
+      <section className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1.05fr)_minmax(480px,0.95fr)] gap-4">
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Give Role / Access</h2>
+            <p className="text-sm text-gray-500 mt-1">Choose one employee and switch on the access they need.</p>
           </div>
 
-          <div className="hidden lg:grid grid-cols-[52px_120px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-gray-100 px-4 py-3 text-xs uppercase font-semibold text-gray-600">
-            <span />
-            <span>ID</span>
-            <span>Assignable Employee</span>
-            <span>Department</span>
-            <span>Current TL</span>
-          </div>
+          <div className="p-5 grid grid-cols-1 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-5">
+            <div className="space-y-3">
+              <label className="relative block">
+                <FiSearch className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  value={roleSearch}
+                  onChange={(e) => setRoleSearch(e.target.value)}
+                  placeholder="Search employee"
+                  className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+                />
+              </label>
 
-          {!selectedTeamLeadId && (
-            <div className="border-b bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Select a TL above to start assigning employees. The list below shows employees who can be assigned.
+              <div className="max-h-[520px] overflow-auto rounded-md border border-gray-200">
+                {filteredRoleRows.length === 0 ? (
+                  <p className="p-4 text-center text-sm text-gray-500">No employees found.</p>
+                ) : (
+                  filteredRoleRows.map((row) => {
+                    const active = row.employee?._id === selectedEmployeeId;
+                    return (
+                      <button
+                        key={row.employee?._id}
+                        type="button"
+                        onClick={() => setSelectedEmployeeId(row.employee?._id)}
+                        className={`w-full border-b border-gray-100 px-3 py-3 text-left transition-colors last:border-b-0 ${
+                          active ? "bg-[#fff5f3]" : "bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="block font-semibold text-gray-900">{employeeLabel(row)}</span>
+                        <span className="mt-1 block text-xs text-gray-500 break-all">{row.employee?.email || "-"}</span>
+                        <span className="mt-2 flex flex-wrap gap-1.5">
+                          {row.isTeamLead && <RolePill tone="blue" text="TL" />}
+                          {row.isTester && <RolePill tone="amber" text="Tester" />}
+                          {row.isProjectCoordinator && <RolePill tone="violet" text="Coordinator" />}
+                          {row.modules?.systemAllotment && <RolePill tone="green" text="System" />}
+                          {!row.isTeamLead && !row.isTester && !row.isProjectCoordinator && !row.modules?.systemAllotment && (
+                            <RolePill tone="gray" text="Employee" />
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          )}
 
-          {filteredEmployees.length === 0 ? (
-            <p className="p-6 text-center text-sm text-gray-500">No assignable employees found.</p>
-          ) : (
-            filteredEmployees.map((row) => {
-              const employeeId = row.employee?._id;
-              const checked = assignedEmployeeIds.includes(employeeId);
-              const currentTlId = String(row.teamLead?._id || row.teamLead || "");
-              const assignedToSelectedTl = selectedTeamLeadId && currentTlId === selectedTeamLeadId;
-              return (
-                <label
-                  key={employeeId}
-                  className={`grid grid-cols-[32px_minmax(0,1fr)] lg:grid-cols-[52px_120px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-t px-4 py-3 text-sm lg:items-center cursor-pointer hover:bg-gray-50 ${
-                    checked ? "bg-[#fff5f3]" : "bg-white"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleEmployee(employeeId)}
-                    disabled={!selectedTeamLeadId}
-                    className="mt-1 lg:mt-0 h-4 w-4"
-                  />
-                  <span className="hidden lg:block">{row.employee?.employeeId || "-"}</span>
-                  <span>
-                    <span className="block font-medium">{row.employee?.name || "N/A"}</span>
-                    <span className="block text-xs text-gray-500 break-all">
-                      <span className="lg:hidden">{row.employee?.employeeId || "-"} | </span>
-                      {row.employee?.email || "-"}
-                    </span>
-                  </span>
-                  <span>
-                    <span className="block">{row.employee?.department || "-"}</span>
-                    <span className="block text-xs text-gray-500">{row.employee?.designation || "-"}</span>
-                  </span>
-                  <span className="text-gray-600">
-                    {row.teamLead?.name ? `${row.teamLead.name} (${row.teamLead.employeeId || "-"})` : "-"}
-                    {assignedToSelectedTl && <span className="ml-2 text-xs font-semibold text-green-700">Current</span>}
-                  </span>
-                </label>
-              );
-            })
-          )}
+            <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                {selectedEmployee ? (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Selected Employee</p>
+                    <h3 className="mt-1 text-xl font-bold text-gray-900">{selectedEmployee.employee?.name}</h3>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {selectedEmployee.employee?.employeeId || "-"} | {selectedEmployee.employee?.department || "-"} | {selectedEmployee.employee?.designation || "-"}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500 break-all">{selectedEmployee.employee?.email || "-"}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Select an employee from the list to manage access.</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {roleCards.map((role) => {
+                  const enabled = selectedRoleStates[role.key];
+                  return (
+                    <div key={role.key} className="rounded-lg border border-gray-200 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className={`mt-0.5 rounded-md p-2 ${enabled ? "bg-[#fff5f3] text-[#f84525]" : "bg-gray-100 text-gray-500"}`}>
+                          {role.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="font-semibold text-gray-900">{role.title}</h3>
+                            {enabled ? <RolePill tone="green" text="On" /> : <RolePill tone="gray" text="Off" />}
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">{role.description}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleRole(role.key, true)}
+                          disabled={!selectedEmployeeId || enabled || saving}
+                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[#f84525] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <FiCheck /> Allow
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleRole(role.key, false)}
+                          disabled={!selectedEmployeeId || !enabled || saving}
+                          className="inline-flex items-center justify-center gap-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <FiX /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-sm shadow overflow-hidden h-fit">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Employee Roles</h2>
-            <p className="text-xs text-gray-500 mt-1">Select an employee to make/remove Team Lead, Tester, Project Coordinator, or System Allotment access.</p>
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Assign Team Members</h2>
+            <p className="text-sm text-gray-500 mt-1">Pick a Team Lead, select employees, and save the team list.</p>
           </div>
-          <div className="p-4 space-y-3">
-            <label className="text-sm font-medium text-gray-700">
-              Employee
+
+          <div className="p-5 space-y-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Team Lead
               <select
-                value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                value={selectedTeamLeadId}
+                onChange={(e) => setSelectedTeamLeadId(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
               >
-                <option value="">Select employee</option>
-                {rows.map((row) => (
+                <option value="">Select Team Lead</option>
+                {teamLeads.map((row) => (
                   <option key={row.employee?._id} value={row.employee?._id}>
-                    {row.employee?.employeeId || "-"} - {row.employee?.name}
+                    {employeeLabel(row)}
                   </option>
                 ))}
               </select>
             </label>
 
-            {selectedEmployee && (
-              <div className="border border-gray-200 bg-gray-50 rounded-sm p-3">
-                <p className="font-semibold text-gray-900">{selectedEmployee.employee?.name}</p>
-                <p className="text-xs text-gray-500 break-all">{selectedEmployee.employee?.email || "-"}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
-                    selectedEmployee.isTeamLead
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}>
-                    {selectedEmployee.isTeamLead ? "Team Lead" : "Employee"}
-                  </span>
-                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
-                    selectedEmployee.modules?.systemAllotment
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}>
-                    {selectedEmployee.modules?.systemAllotment ? "System Allotment Allowed" : "No System Allotment Access"}
-                  </span>
-                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
-                    selectedEmployee.isTester
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}>
-                    {selectedEmployee.isTester ? "Tester" : "Not Tester"}
-                  </span>
-                  <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-sm border ${
-                    selectedEmployee.isProjectCoordinator
-                      ? "bg-purple-50 text-purple-700 border-purple-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}>
-                    {selectedEmployee.isProjectCoordinator ? "Project Coordinator" : "Not Coordinator"}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                text="Make TL"
-                onClick={() => setTeamLead(true)}
-                loading={saving}
-                disabled={!selectedEmployeeId || selectedEmployee?.isTeamLead}
-                className="w-full"
-              />
-              <Button
-                text="Remove TL"
-                variant="secondary"
-                onClick={() => setTeamLead(false)}
-                loading={saving}
-                disabled={!selectedEmployeeId || !selectedEmployee?.isTeamLead}
-                className="w-full"
-              />
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+              {selectedTeamLead ? (
+                <>
+                  <b>{selectedTeamLead.employee?.name}</b> will manage {assignedEmployeeIds.length} selected employee(s).
+                </>
+              ) : (
+                "Make an employee Team Lead first, then select them here."
+              )}
             </div>
 
-            <div className="border-t pt-3 space-y-2">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Tester Access</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Tester can add website bugs, attach screenshots, and assign bugs to employees.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  text="Make Tester"
-                  onClick={() => setTester(true)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || selectedEmployee?.isTester}
-                  className="w-full"
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
+              <label className="relative block">
+                <FiSearch className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search team members"
+                  className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
                 />
-                <Button
-                  text="Remove"
-                  variant="secondary"
-                  onClick={() => setTester(false)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || !selectedEmployee?.isTester}
-                  className="w-full"
-                />
-              </div>
+              </label>
+              <Button text="Select Visible" variant="secondary" onClick={selectVisible} disabled={!selectedTeamLeadId} />
+              <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
             </div>
 
-            <div className="border-t pt-3 space-y-2">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Project Coordinator Access</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Project Coordinator can create project task sheets, assign tasks, and export monthly task reports.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  text="Make Coordinator"
-                  onClick={() => setProjectCoordinator(true)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || selectedEmployee?.isProjectCoordinator}
-                  className="w-full"
-                />
-                <Button
-                  text="Remove"
-                  variant="secondary"
-                  onClick={() => setProjectCoordinator(false)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || !selectedEmployee?.isProjectCoordinator}
-                  className="w-full"
-                />
-              </div>
+            <div className="max-h-[440px] overflow-auto rounded-md border border-gray-200">
+              {filteredEmployees.length === 0 ? (
+                <p className="p-4 text-center text-sm text-gray-500">No assignable employees found.</p>
+              ) : (
+                filteredEmployees.map((row) => {
+                  const employeeId = row.employee?._id;
+                  const checked = assignedEmployeeIds.includes(employeeId);
+                  const currentTlId = String(row.teamLead?._id || row.teamLead || "");
+                  const assignedToSelectedTl = selectedTeamLeadId && currentTlId === selectedTeamLeadId;
+                  return (
+                    <label
+                      key={employeeId}
+                      className={`grid grid-cols-[32px_minmax(0,1fr)] gap-2 border-b border-gray-100 px-3 py-3 text-sm last:border-b-0 ${
+                        checked ? "bg-[#fff5f3]" : "bg-white hover:bg-gray-50"
+                      } ${selectedTeamLeadId ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleEmployee(employeeId)}
+                        disabled={!selectedTeamLeadId}
+                        className="mt-1 h-4 w-4 accent-[#f84525]"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-gray-900">{employeeLabel(row)}</span>
+                        <span className="block text-xs text-gray-500 break-all">{row.employee?.email || "-"}</span>
+                        <span className="mt-1 block text-xs text-gray-600">
+                          {row.employee?.department || "-"} | {row.employee?.designation || "-"}
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500">
+                          Current TL: {row.teamLead?.name || "-"}
+                          {assignedToSelectedTl && <span className="ml-2 font-semibold text-green-700">Selected TL</span>}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })
+              )}
             </div>
 
-            <div className="border-t pt-3 space-y-2">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">System Allotment Access</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Allowed employees can see System Allotments in sidebar and add/update allotments.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  text="Allow"
-                  onClick={() => setSystemAllotmentAccess(true)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || selectedEmployee?.modules?.systemAllotment}
-                  className="w-full"
-                />
-                <Button
-                  text="Remove"
-                  variant="secondary"
-                  onClick={() => setSystemAllotmentAccess(false)}
-                  loading={saving}
-                  disabled={!selectedEmployeeId || !selectedEmployee?.modules?.systemAllotment}
-                  className="w-full"
-                />
-              </div>
-            </div>
+            <Button
+              text={`Save Team (${assignedEmployeeIds.length})`}
+              onClick={saveAssignments}
+              loading={saving}
+              disabled={!selectedTeamLeadId}
+              className="w-full"
+            />
           </div>
         </div>
       </section>
