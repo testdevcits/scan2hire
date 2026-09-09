@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FiEdit2, FiPlus, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
+import { FiCopy, FiEdit2, FiEye, FiPlus, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
 import { employeeApi, hrApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
@@ -16,9 +16,11 @@ const assetTabs = [
   { key: "keyboard", label: "Keyboards" },
   { key: "mouse", label: "Mouse" },
   { key: "headphone", label: "Headphones" },
+  { key: "webcam", label: "Webcams" },
+  { key: "buds", label: "Buds" },
 ];
 
-const inventoryTypes = ["system", "monitor", "keyboard", "mouse", "headphone"];
+const inventoryTypes = ["system", "monitor", "keyboard", "mouse", "headphone", "webcam", "buds"];
 
 const emptyAssignment = {
   employee: "",
@@ -27,11 +29,12 @@ const emptyAssignment = {
   keyboardAsset: "",
   mouseAsset: "",
   headphoneAsset: "",
+  webcamAsset: "",
+  budsAsset: "",
   assignmentType: "office",
   assignedDate: new Date().toISOString().slice(0, 10),
   returnDate: "",
   locationDept: "",
-  notes: "",
 };
 
 const emptyAsset = {
@@ -49,7 +52,6 @@ const emptyAsset = {
   warrantyExpiry: "",
   cost: "",
   locationDept: "",
-  notes: "",
 };
 
 const titleCase = (value = "") => value.charAt(0).toUpperCase() + value.slice(1);
@@ -121,6 +123,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
   const [assetForm, setAssetForm] = useState(emptyAsset);
   const [editingAssetId, setEditingAssetId] = useState("");
   const [search, setSearch] = useState("");
+  const [viewingAllotment, setViewingAllotment] = useState(null);
   const visibleTabs = canEdit ? assetTabs : [{ key: "allotments", label: "My Assigned Assets" }];
 
   const loadData = useCallback(async () => {
@@ -181,24 +184,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
     [allotments, myEmployeeId]
   );
 
-  const assignedEmployeeIds = useMemo(
-    () => new Set(activeAssignments.map((item) => String(item.employee?._id))),
-    [activeAssignments]
-  );
-
-  const editingAssignment = useMemo(
-    () => allotments.find((item) => item._id === editingAssignmentId),
-    [allotments, editingAssignmentId]
-  );
-
   const selectableEmployees = useMemo(
-    () =>
-      employees.filter(
-        (employee) =>
-          !assignedEmployeeIds.has(String(employee._id)) ||
-          String(editingAssignment?.employee?._id) === String(employee._id)
-      ),
-    [assignedEmployeeIds, editingAssignment, employees]
+    () => employees,
+    [employees]
   );
 
   const selectableAssets = useCallback(
@@ -236,6 +224,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
         item.keyboardAsset?.assetId,
         item.mouseAsset?.assetId,
         item.headphoneAsset?.assetId,
+        item.webcamAsset?.assetId,
+        item.budsAsset?.assetId,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term))
@@ -249,6 +239,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
       ["Keyboard", item.keyboardAsset],
       ["Mouse", item.mouseAsset],
       ["Headphone", item.headphoneAsset],
+      ["Webcam", item.webcamAsset],
+      ["Buds", item.budsAsset],
     ]
       .map(([label, asset, fallback]) => ({
         label,
@@ -280,11 +272,12 @@ const SystemAllotments = ({ selfOnly = false }) => {
       keyboardAsset: item.keyboardAsset?._id || "",
       mouseAsset: item.mouseAsset?._id || "",
       headphoneAsset: item.headphoneAsset?._id || "",
+      webcamAsset: item.webcamAsset?._id || "",
+      budsAsset: item.budsAsset?._id || "",
       assignmentType: item.assignmentType || "office",
       assignedDate: formatDate(item.assignedDate) || emptyAssignment.assignedDate,
       returnDate: formatDate(item.returnDate),
       locationDept: item.locationDept || "",
-      notes: item.notes || "",
     });
     setActiveTab("assign");
   };
@@ -364,8 +357,28 @@ const SystemAllotments = ({ selfOnly = false }) => {
       warrantyExpiry: formatDate(asset.warrantyExpiry),
       cost: asset.cost || "",
       locationDept: asset.locationDept || "",
-      notes: asset.notes || "",
     });
+  };
+
+  const copyAsset = (asset) => {
+    setEditingAssetId("");
+    setAssetForm({
+      name: asset.name || "",
+      brand: asset.brand || "",
+      model: asset.model || "",
+      serialNumber: "",
+      status: "available",
+      processor: asset.processor || "",
+      ram: asset.ram || "",
+      storage: asset.storage || "",
+      operatingSystem: asset.operatingSystem || "",
+      displaySize: asset.displaySize || "",
+      purchaseDate: formatDate(asset.purchaseDate),
+      warrantyExpiry: formatDate(asset.warrantyExpiry),
+      cost: asset.cost || "",
+      locationDept: asset.locationDept || "",
+    });
+    toast.success("Asset copied. Add serial number and save.");
   };
 
   const resetAsset = () => {
@@ -524,7 +537,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 p-3 bg-gray-50">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-10 gap-2 p-3 bg-gray-50">
           {visibleTabs.map((tab) => (
             <button
               key={tab.key}
@@ -631,13 +644,15 @@ const SystemAllotments = ({ selfOnly = false }) => {
             </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
             {[
               ["system", "systemAsset", "System"],
               ["monitor", "monitorAsset", "Monitor"],
               ["keyboard", "keyboardAsset", "Keyboard"],
               ["mouse", "mouseAsset", "Mouse"],
               ["headphone", "headphoneAsset", "Headphone"],
+              ["webcam", "webcamAsset", "Webcam"],
+              ["buds", "budsAsset", "Buds"],
             ].map(([type, field, label]) => (
               <label key={field} className={labelClass}>
                 {label}
@@ -658,15 +673,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
             ))}
             </div>
 
-            <label className={labelClass}>
-              Notes
-              <input
-                value={assignmentForm.notes}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, notes: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              />
-            </label>
           </div>
 
           <div className="px-5 py-4 border-t flex justify-end">
@@ -772,10 +778,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
                           </div>
                         ))}
                       </div>
-                      {(item.locationDept || item.notes) && (
+                      {item.locationDept && (
                         <div className="mt-4 rounded-md bg-[#fff5f3] p-3 text-sm text-gray-700">
-                          {item.locationDept && <p><b>Location:</b> {item.locationDept}</p>}
-                          {item.notes && <p className="mt-1"><b>Notes:</b> {item.notes}</p>}
+                          <p><b>Location:</b> {item.locationDept}</p>
                         </div>
                       )}
                     </article>
@@ -818,6 +823,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
                           item.keyboardAsset && `Keyboard: ${item.keyboardAsset.assetId}`,
                           item.mouseAsset && `Mouse: ${item.mouseAsset.assetId}`,
                           item.headphoneAsset && `Headphone: ${item.headphoneAsset.assetId}`,
+                          item.webcamAsset && `Webcam: ${item.webcamAsset.assetId}`,
+                          item.budsAsset && `Buds: ${item.budsAsset.assetId}`,
                         ].filter(Boolean).join(" | ") || "-"}
                       </td>
                       <td className="px-4 py-3">
@@ -831,6 +838,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
+                          <button type="button" onClick={() => setViewingAllotment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="View">
+                            <FiEye />
+                          </button>
                           <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="Edit">
                             <FiEdit2 />
                           </button>
@@ -916,7 +926,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
               {[
                 ["cost", "Cost"],
                 ["locationDept", "Location / Dept"],
-                ["notes", "Notes"],
               ].map(([field, label]) => (
                 <label key={field} className={labelClass}>
                   {label}
@@ -966,7 +975,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                             ? [asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
                             : activeTab === "monitor"
                             ? asset.displaySize || "-"
-                            : asset.notes || "-"}
+                            : asset.locationDept || "-"}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[asset.status] || statusTone.inactive}`}>
@@ -976,6 +985,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         <td className="px-4 py-3">
                           {canEdit && (
                             <div className="flex gap-2">
+                              <button type="button" onClick={() => copyAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Copy">
+                                <FiCopy />
+                              </button>
                               <button type="button" onClick={() => fillAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
                                 <FiEdit2 />
                               </button>
@@ -993,6 +1005,59 @@ const SystemAllotments = ({ selfOnly = false }) => {
             </div>
           </div>
         </section>
+      )}
+
+      {viewingAllotment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <section className="w-full max-w-4xl rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{viewingAllotment.employee?.name || "Inventory"}</h2>
+                <p className="text-sm text-gray-500">
+                  {viewingAllotment.employee?.employeeId || "-"} | {assignmentTypeLabels[viewingAllotment.assignmentType] || "Office"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingAllotment(null)}
+                className="rounded-md border border-gray-200 p-2 hover:bg-gray-50"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+            <div className="max-h-[75vh] overflow-auto p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-gray-500">Period</p>
+                  <p className="mt-1 font-semibold text-gray-900">
+                    {displayDate(viewingAllotment.assignedDate)} to {displayDate(viewingAllotment.returnDate)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-gray-500">Location</p>
+                  <p className="mt-1 font-semibold text-gray-900">{viewingAllotment.locationDept || "-"}</p>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-gray-500">Status</p>
+                  <p className="mt-1 font-semibold capitalize text-gray-900">{viewingAllotment.status || "-"}</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {assignedAssetRows(viewingAllotment).map((asset) => (
+                  <div key={asset.label} className="rounded-md border border-gray-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+                    <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
+                    <p className="mt-1 text-xs text-gray-500 break-words">
+                      {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+                    </p>
+                    {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
