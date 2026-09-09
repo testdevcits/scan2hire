@@ -82,6 +82,7 @@ const EmployeeDetail = () => {
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
   const [editForm, setEditForm] = useState({
+    employeeId: "",
     name: "",
     mobile: "",
     altMobile: "",
@@ -130,6 +131,7 @@ const EmployeeDetail = () => {
       setEmployeeOptions(employeesRes?.data?.data || []);
       setDepartments(departmentsRes?.data?.data || []);
       setEditForm({
+        employeeId: employeeData.employeeId || "",
         name: employeeData.name || "",
         mobile: employeeData.mobile || "",
         altMobile: employeeData.altMobile || "",
@@ -567,6 +569,7 @@ const EmployeeDetail = () => {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Personal & Work</h3>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {[
+          ["employeeId", "Employee ID", "text"],
           ["name", "Full Name", "text"],
           ["mobile", "Mobile", "text"],
           ["altMobile", "Alt Mobile", "text"],
