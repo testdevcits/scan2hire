@@ -325,15 +325,15 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
   const releaseAssignment = async (item) => {
     const ok = await confirm({
-      title: "Release Allocation",
-      message: `${assignmentTitle(item)} will become free for another employee.`,
-      confirmText: "Release",
+      title: "Delete Allocation",
+      message: `${assignmentTitle(item)} allocation will be deleted and selected assets will become free.`,
+      confirmText: "Delete",
       tone: "danger",
     });
     if (!ok) return;
     try {
       await api.deleteSystemAllotment(item._id);
-      toast.success("Allocation released");
+      toast.success("Allocation deleted");
       await loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to release allocation");
@@ -841,7 +841,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                           <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="Edit">
                             <FiEdit2 />
                           </button>
-                          <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Release">
+                          <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Delete">
                             <FiTrash2 />
                           </button>
                         </div>

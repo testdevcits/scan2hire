@@ -82,6 +82,7 @@ function App() {
           <Route path="today-checkins" element={<TodayCheckIns />} />
           <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
+          <Route path="roles-access" element={<EmployeeAccessControl />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
