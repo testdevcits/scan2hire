@@ -9,12 +9,11 @@ import { useToast } from "../contexts/ToastContext";
 
 const assetTabs = [
   { key: "assign", label: "Assign" },
-  { key: "my-assets", label: "My Assigned Assets" },
   { key: "allotments", label: "Allotments" },
   { key: "system", label: "Systems" },
   { key: "monitor", label: "Monitors" },
   { key: "keyboard", label: "Keyboards" },
-  { key: "mouse", label: "Mice" },
+  { key: "mouse", label: "Mouse" },
   { key: "headphone", label: "Headphones" },
 ];
 
@@ -27,7 +26,9 @@ const emptyAssignment = {
   keyboardAsset: "",
   mouseAsset: "",
   headphoneAsset: "",
+  assignmentType: "office",
   assignedDate: new Date().toISOString().slice(0, 10),
+  returnDate: "",
   locationDept: "",
   notes: "",
 };
@@ -65,6 +66,19 @@ const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+};
+
+const displayDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
+};
+
+const assignmentTypeLabels = {
+  office: "Office",
+  work_from_home: "Work From Home",
+  temporary: "Temporary",
+  other: "Other",
 };
 
 const assetName = (asset) =>
@@ -265,7 +279,9 @@ const SystemAllotments = () => {
       keyboardAsset: item.keyboardAsset?._id || "",
       mouseAsset: item.mouseAsset?._id || "",
       headphoneAsset: item.headphoneAsset?._id || "",
+      assignmentType: item.assignmentType || "office",
       assignedDate: formatDate(item.assignedDate) || emptyAssignment.assignedDate,
+      returnDate: formatDate(item.returnDate),
       locationDept: item.locationDept || "",
       notes: item.notes || "",
     });
@@ -276,6 +292,14 @@ const SystemAllotments = () => {
     e.preventDefault();
     if (!assignmentForm.employee || !assignmentForm.systemAsset) {
       toast.error("Select employee and system first");
+      return;
+    }
+    if (
+      assignmentForm.assignedDate &&
+      assignmentForm.returnDate &&
+      new Date(assignmentForm.returnDate) < new Date(assignmentForm.assignedDate)
+    ) {
+      toast.error("To date cannot be before from date");
       return;
     }
     const ok = await confirm({
@@ -431,6 +455,17 @@ const SystemAllotments = () => {
         ) : (
           filteredAllotments.map((item) => (
             <section key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+              <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-gray-100 pb-3">
+                <div>
+                  <h2 className="font-semibold text-gray-900">{assignmentTitle(item)}</h2>
+                  <p className="text-sm text-gray-500">
+                    {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
+                  </p>
+                </div>
+                <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
+                  {item.status}
+                </span>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                 {assignedAssetRows(item).map((asset) => (
                   <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -531,7 +566,7 @@ const SystemAllotments = () => {
           </div>
 
           <div className="p-5 space-y-5">
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             <label className={`${labelClass} lg:col-span-1`}>
               Employee
               <select
@@ -549,11 +584,35 @@ const SystemAllotments = () => {
               </select>
             </label>
             <label className={labelClass}>
-              Assigned Date
+              Assignment Type
+              <select
+                value={assignmentForm.assignmentType}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignmentType: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              >
+                <option value="office">Office</option>
+                <option value="work_from_home">Work From Home</option>
+                <option value="temporary">Temporary</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className={labelClass}>
+              From Date
               <input
                 type="date"
                 value={assignmentForm.assignedDate}
                 onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignedDate: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
+            </label>
+            <label className={labelClass}>
+              To Date / Return Date
+              <input
+                type="date"
+                value={assignmentForm.returnDate}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, returnDate: e.target.value }))}
                 className={fieldClass}
                 disabled={!canEdit}
               />
@@ -629,17 +688,25 @@ const SystemAllotments = () => {
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {myAllotments.map((item) => (
-                  <div key={item._id} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-                    {assignedAssetRows(item).map((asset) => (
-                      <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-                        <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
-                        <p className="mt-1 text-xs text-gray-500 break-words">
-                          {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-                        </p>
-                        {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
-                      </div>
-                    ))}
+                  <div key={item._id} className="space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{assignmentTitle(item)}</p>
+                      <p className="text-xs text-gray-500">
+                        {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                      {assignedAssetRows(item).map((asset) => (
+                        <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+                          <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
+                          <p className="mt-1 text-xs text-gray-500 break-words">
+                            {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+                          </p>
+                          {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -683,7 +750,7 @@ const SystemAllotments = () => {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{assignmentTitle(item)}</h3>
                           <p className="text-sm text-gray-500 mt-1">
-                            Assigned on {item.assignedDate ? new Date(item.assignedDate).toLocaleDateString() : "-"}
+                          {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
                           </p>
                         </div>
                         <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
@@ -750,7 +817,10 @@ const SystemAllotments = () => {
                           item.headphoneAsset && `Headphone: ${item.headphoneAsset.assetId}`,
                         ].filter(Boolean).join(" | ") || "-"}
                       </td>
-                      <td className="px-4 py-3">{item.assignedDate ? new Date(item.assignedDate).toLocaleDateString() : "-"}</td>
+                      <td className="px-4 py-3">
+                        <p>{displayDate(item.assignedDate)} to {displayDate(item.returnDate)}</p>
+                        <p className="text-xs text-gray-500">{assignmentTypeLabels[item.assignmentType] || "Office"}</p>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
                           {item.status}
