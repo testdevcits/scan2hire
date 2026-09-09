@@ -105,6 +105,7 @@ const SystemAllotments = () => {
   const [assetForm, setAssetForm] = useState(emptyAsset);
   const [editingAssetId, setEditingAssetId] = useState("");
   const [search, setSearch] = useState("");
+  const visibleTabs = canEdit ? assetTabs : [{ key: "allotments", label: "My Assigned Assets" }];
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -114,14 +115,17 @@ const SystemAllotments = () => {
         ? employeeApi.getMyAccess()
         : Promise.resolve({ data: { data: { systemAllotmentManage: true } } });
       const employeesReq = isEmployeeRoute ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
-      const [accessRes, employeesRes, allotmentsRes, ...assetResponses] = await Promise.all([
+      const [accessRes, employeesRes, allotmentsRes] = await Promise.all([
         accessReq,
         employeesReq,
         api.getSystemAllotments(),
-        ...inventoryTypes.map((type) => api.getSystemAssets(type)),
       ]);
       const allowed = !isEmployeeRoute || Boolean(accessRes?.data?.data?.systemAllotmentManage);
+      const assetResponses = allowed
+        ? await Promise.all(inventoryTypes.map((type) => api.getSystemAssets(type)))
+        : [];
       setCanEdit(allowed);
+      if (!allowed) setActiveTab("allotments");
       setEmployees(employeesRes.data.data || []);
       setAllotments(allotmentsRes.data.data || []);
       setAssets(
@@ -207,6 +211,30 @@ const SystemAllotments = () => {
         .some((value) => String(value).toLowerCase().includes(term))
     );
   }, [allotments, search]);
+
+  const assignedAssetRows = useCallback((item) => {
+    return [
+      ["System", item.systemAsset, item.systemName || item.assetTag || item.serialNumber],
+      ["Monitor", item.monitorAsset],
+      ["Keyboard", item.keyboardAsset],
+      ["Mouse", item.mouseAsset],
+      ["Headphone", item.headphoneAsset],
+    ]
+      .map(([label, asset, fallback]) => ({
+        label,
+        name: asset ? assetName(asset) : fallback || "",
+        assetId: asset?.assetId || "",
+        serialNumber: asset?.serialNumber || "",
+        details: [
+          asset?.processor,
+          asset?.ram,
+          asset?.storage,
+          asset?.operatingSystem,
+          asset?.displaySize,
+        ].filter(Boolean).join(" | "),
+      }))
+      .filter((row) => row.name || row.assetId || row.serialNumber);
+  }, []);
 
   const resetAssignment = () => {
     setAssignmentForm(emptyAssignment);
@@ -346,7 +374,7 @@ const SystemAllotments = () => {
     }
   };
 
-  const fieldClass = "mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-sm";
+  const fieldClass = "mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10";
   const labelClass = "text-sm font-medium text-gray-700";
 
   if (loading) return <CommonLoader text="Loading system allotments..." />;
@@ -363,16 +391,20 @@ const SystemAllotments = () => {
 
   return (
     <div className="space-y-4">
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">System Allotments</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage systems, peripherals, and employee allocations.</p>
+            <h1 className="text-2xl font-bold text-gray-900">{canEdit ? "System Allotments" : "My Assigned Assets"}</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {canEdit
+                ? "Add inventory, allocate complete desktop kits, and keep every asset from being double-booked."
+                : "View the system and accessories currently assigned to you."}
+            </p>
           </div>
           <button
             type="button"
             onClick={loadData}
-            className="inline-flex items-center justify-center gap-2 border rounded-sm px-3 py-2 text-sm"
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 rounded-md px-3 py-2 text-sm hover:bg-gray-50"
           >
             <FiRefreshCw />
             Refresh
@@ -393,8 +425,8 @@ const SystemAllotments = () => {
           ))}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto p-3">
-          {assetTabs.map((tab) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 p-3 bg-gray-50">
+          {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -402,24 +434,31 @@ const SystemAllotments = () => {
                 setActiveTab(tab.key);
                 resetAsset();
               }}
-              className={`shrink-0 rounded-sm border px-3 py-2 text-sm font-semibold ${
+              className={`rounded-md border px-3 py-3 text-left text-sm font-semibold transition-colors ${
                 activeTab === tab.key
-                  ? "bg-[#f84525] text-white border-[#f84525]"
-                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                  ? "bg-[#f84525] text-white border-[#f84525] shadow-sm"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-[#f84525]/40 hover:bg-[#fff5f3]"
               }`}
             >
-              {tab.label}
+              <span className="block">{tab.label}</span>
+              <span className={`mt-1 block text-xs font-medium ${activeTab === tab.key ? "text-white/80" : "text-gray-500"}`}>
+                {tab.key === "assign"
+                  ? "Dropdown allocation"
+                  : tab.key === "allotments"
+                  ? `${filteredAllotments.length} record${filteredAllotments.length === 1 ? "" : "s"}`
+                  : `${assets[tab.key]?.length || 0} item${assets[tab.key]?.length === 1 ? "" : "s"}`}
+              </span>
             </button>
           ))}
         </div>
       </section>
 
       {activeTab === "assign" && (
-        <form onSubmit={saveAssignment} className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <form onSubmit={saveAssignment} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h2 className="font-semibold text-gray-900">{editingAssignmentId ? "Edit Allocation" : "Allocate Assets"}</h2>
-              <p className="text-xs text-gray-500">Only free employees and available assets are shown.</p>
+              <h2 className="font-semibold text-gray-900">{editingAssignmentId ? "Edit Allocation" : "Allocate Complete Setup"}</h2>
+              <p className="text-xs text-gray-500">Start with employee, then pick available system and accessories from dropdowns.</p>
             </div>
             {editingAssignmentId && (
               <Button text="Cancel Edit" variant="secondary" onClick={resetAssignment}>
@@ -428,8 +467,9 @@ const SystemAllotments = () => {
             )}
           </div>
 
-          <div className="p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-3">
-            <label className={labelClass}>
+          <div className="p-5 space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <label className={`${labelClass} lg:col-span-1`}>
               Employee
               <select
                 value={assignmentForm.employee}
@@ -445,7 +485,28 @@ const SystemAllotments = () => {
                 ))}
               </select>
             </label>
+            <label className={labelClass}>
+              Assigned Date
+              <input
+                type="date"
+                value={assignmentForm.assignedDate}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignedDate: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
+            </label>
+            <label className={labelClass}>
+              Location / Dept
+              <input
+                value={assignmentForm.locationDept}
+                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, locationDept: e.target.value }))}
+                className={fieldClass}
+                disabled={!canEdit}
+              />
+            </label>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
             {[
               ["system", "systemAsset", "System"],
               ["monitor", "monitorAsset", "Monitor"],
@@ -470,27 +531,9 @@ const SystemAllotments = () => {
                 </select>
               </label>
             ))}
+            </div>
 
             <label className={labelClass}>
-              Assigned Date
-              <input
-                type="date"
-                value={assignmentForm.assignedDate}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignedDate: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              />
-            </label>
-            <label className={labelClass}>
-              Location / Dept
-              <input
-                value={assignmentForm.locationDept}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, locationDept: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              />
-            </label>
-            <label className={`${labelClass} md:col-span-2`}>
               Notes
               <input
                 value={assignmentForm.notes}
@@ -501,7 +544,7 @@ const SystemAllotments = () => {
             </label>
           </div>
 
-          <div className="px-4 py-3 border-t flex justify-end">
+          <div className="px-5 py-4 border-t flex justify-end">
             <Button type="submit" text={editingAssignmentId ? "Save Changes" : "Allocate"} loading={saving} disabled={!canEdit}>
               <span className="inline-flex items-center gap-2"><FiPlus /> {editingAssignmentId ? "Save Changes" : "Allocate"}</span>
             </Button>
@@ -510,19 +553,71 @@ const SystemAllotments = () => {
       )}
 
       {activeTab === "allotments" && (
-        <section className="bg-white rounded-sm shadow overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h2 className="font-semibold text-gray-900">Current Allotments</h2>
-              <p className="text-xs text-gray-500">Edit an allocation to change employee assets, or release it to free inventory.</p>
+              <h2 className="font-semibold text-gray-900">{canEdit ? "Current Allotments" : "Assigned To You"}</h2>
+              <p className="text-xs text-gray-500">
+                {canEdit
+                  ? "Edit an allocation to change employee assets, or release it to free inventory."
+                  : "These are the assets currently mapped to your employee profile."}
+              </p>
             </div>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search employee or asset ID"
-              className="border border-gray-300 rounded-sm px-3 py-2 text-sm md:w-72"
-            />
+            {canEdit && (
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search employee or asset ID"
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm md:w-72 focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+              />
+            )}
           </div>
+
+          {!canEdit ? (
+            <div className="p-5">
+              {filteredAllotments.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+                  No system or accessories are assigned to you yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {filteredAllotments.map((item) => (
+                    <article key={item._id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 border-b border-gray-100 pb-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{assignmentTitle(item)}</h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Assigned on {item.assignedDate ? new Date(item.assignedDate).toLocaleDateString() : "-"}
+                          </p>
+                        </div>
+                        <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {assignedAssetRows(item).map((asset) => (
+                          <div key={asset.label} className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+                            <p className="mt-1 font-semibold text-gray-900 break-words">{asset.name}</p>
+                            <p className="mt-1 text-xs text-gray-500 break-words">
+                              {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+                            </p>
+                            {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
+                          </div>
+                        ))}
+                      </div>
+                      {(item.locationDept || item.notes) && (
+                        <div className="mt-4 rounded-md bg-[#fff5f3] p-3 text-sm text-gray-700">
+                          {item.locationDept && <p><b>Location:</b> {item.locationDept}</p>}
+                          {item.notes && <p className="mt-1"><b>Notes:</b> {item.notes}</p>}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
@@ -566,16 +661,14 @@ const SystemAllotments = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {canEdit && (
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
-                              <FiEdit2 />
-                            </button>
-                            <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Release">
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="Edit">
+                            <FiEdit2 />
+                          </button>
+                          <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Release">
+                            <FiTrash2 />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -583,17 +676,18 @@ const SystemAllotments = () => {
               </tbody>
             </table>
           </div>
+          )}
         </section>
       )}
 
       {inventoryTypes.includes(activeTab) && (
         <section className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-4">
-          <form onSubmit={saveAsset} className="bg-white rounded-sm shadow overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b">
+          <form onSubmit={saveAsset} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 border-b">
               <h2 className="font-semibold text-gray-900">{editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}</h2>
               <p className="text-xs text-gray-500">Each saved item receives an automatic asset ID.</p>
             </div>
-            <div className="p-4 grid grid-cols-1 gap-3">
+            <div className="p-5 grid grid-cols-1 gap-3">
               {[
                 ["name", "Name"],
                 ["brand", "Brand"],
@@ -661,14 +755,14 @@ const SystemAllotments = () => {
                 </label>
               ))}
             </div>
-            <div className="px-4 py-3 border-t flex flex-wrap justify-end gap-2">
+            <div className="px-5 py-4 border-t flex flex-wrap justify-end gap-2">
               {editingAssetId && <Button text="Cancel" variant="secondary" onClick={resetAsset} />}
               <Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} />
             </div>
           </form>
 
-          <div className="bg-white rounded-sm shadow overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 border-b">
               <h2 className="font-semibold text-gray-900">{titleCase(activeTab)} List</h2>
               <p className="text-xs text-gray-500">Allocated items are hidden from assignment dropdowns until released.</p>
             </div>

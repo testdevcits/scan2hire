@@ -1,10 +1,11 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
+import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { downloadCsv } from "../../utils/csvExport";
 
 const EmployeeCredentials = () => {
   const toast = useToast();
@@ -166,6 +167,102 @@ const EmployeeCredentials = () => {
     }
   };
 
+  const exportMyCredentialsCsv = () => {
+    if (!myCredentials.length) {
+      toast.error("No credentials to export");
+      return;
+    }
+    downloadCsv({
+      filename: `my-credentials-${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { key: "accountType", label: "Account Type" },
+        { key: "title", label: "Title" },
+        { key: "loginId", label: "Login / Email" },
+        { key: "password", label: "Password" },
+        { key: "notes", label: "Notes" },
+        { key: "updatedAt", label: "Updated At" },
+      ],
+      rows: myCredentials.map((item) => ({
+        accountType: item.accountType || "",
+        title: item.title || "",
+        loginId: item.loginId || "",
+        password: item.password || "",
+        notes: item.notes || "",
+        updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "",
+      })),
+    });
+    toast.success("CSV exported");
+  };
+
+  const exportEmployeeLoginCsv = () => {
+    if (!credentials.length) {
+      toast.error("Open the employee vault first");
+      return;
+    }
+    const employeeMap = employees.reduce((acc, employee) => {
+      acc[String(employee._id)] = employee;
+      return acc;
+    }, {});
+    downloadCsv({
+      filename: `employee-login-credentials-${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { key: "employeeId", label: "Employee ID" },
+        { key: "name", label: "Name" },
+        { key: "department", label: "Department" },
+        { key: "designation", label: "Designation" },
+        { key: "email", label: "Login Email" },
+        { key: "password", label: "Login Password" },
+      ],
+      rows: credentials.map((item) => {
+        const employee = employeeMap[String(item.employee)] || {};
+        return {
+          employeeId: employee.employeeId || "",
+          name: employee.name || "",
+          department: employee.department || "",
+          designation: employee.designation || "",
+          email: item.email || employee.email || "",
+          password: item.password || "",
+        };
+      }),
+    });
+    toast.success("Employee login CSV exported");
+  };
+
+  const exportSelectedAccountsCsv = () => {
+    if (!selectedAccounts.length) {
+      toast.error("No saved account credentials to export");
+      return;
+    }
+    const safeName = String(selectedEmployee?.employeeId || selectedEmployee?.name || "employee")
+      .trim()
+      .replace(/[^a-z0-9_-]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+    downloadCsv({
+      filename: `${safeName || "employee"}-saved-accounts-${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { key: "employeeId", label: "Employee ID" },
+        { key: "employeeName", label: "Employee Name" },
+        { key: "accountType", label: "Account Type" },
+        { key: "title", label: "Title" },
+        { key: "loginId", label: "Login / Email" },
+        { key: "password", label: "Password" },
+        { key: "notes", label: "Notes" },
+        { key: "updatedAt", label: "Updated At" },
+      ],
+      rows: selectedAccounts.map((item) => ({
+        employeeId: selectedEmployee?.employeeId || "",
+        employeeName: selectedEmployee?.name || "",
+        accountType: item.accountType || "",
+        title: item.title || "",
+        loginId: item.loginId || "",
+        password: item.password || "",
+        notes: item.notes || "",
+        updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "",
+      })),
+    });
+    toast.success("Saved account CSV exported");
+  };
+
   if (loading && !unlocked) return <CommonLoader text="Opening credentials vault..." />;
 
   if (!pageUnlocked) {
@@ -210,9 +307,14 @@ const EmployeeCredentials = () => {
             <h2 className="font-semibold">My Saved Credentials</h2>
             <p className="text-sm text-gray-500 mt-1">Save your own account logins securely.</p>
           </div>
-          <button type="button" onClick={() => setShowMyCredentialForm((prev) => !prev)} className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center" aria-label="Add my credential">
-            <FiPlus />
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={exportMyCredentialsCsv} disabled={!myCredentials.length} className="w-10 h-10 rounded-sm border border-gray-200 text-gray-700 flex items-center justify-center disabled:opacity-50" aria-label="Export my credentials CSV" title="Export CSV">
+              <FiDownload />
+            </button>
+            <button type="button" onClick={() => setShowMyCredentialForm((prev) => !prev)} className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center" aria-label="Add my credential">
+              <FiPlus />
+            </button>
+          </div>
         </div>
         {showMyCredentialForm && (
           <form onSubmit={saveMyCredential} className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -271,7 +373,7 @@ const EmployeeCredentials = () => {
         </form>
       ) : canOpenEmployeeVault ? (
         <div className="space-y-4">
-          <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+          <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
             <label className="text-sm font-medium">
               Select Employee
               <select
@@ -291,6 +393,7 @@ const EmployeeCredentials = () => {
               </select>
             </label>
             <Button text="Load Saved Credentials" onClick={() => loadAccountCredentials(selectedEmployeeId)} disabled={!selectedEmployeeId || accountLoading} loading={accountLoading} />
+            <Button text="Export All Login CSV" variant="secondary" onClick={exportEmployeeLoginCsv} disabled={!credentials.length} />
           </section>
 
           {selectedEmployee && (
@@ -306,8 +409,9 @@ const EmployeeCredentials = () => {
           )}
 
           <section className="bg-white rounded-sm shadow overflow-hidden">
-            <div className="p-4 border-b">
+            <div className="p-4 border-b flex items-center justify-between gap-3">
               <h2 className="font-semibold">Saved Account Credentials</h2>
+              <Button text="Export CSV" variant="secondary" onClick={exportSelectedAccountsCsv} disabled={!selectedAccounts.length} />
             </div>
             {!selectedEmployeeId ? (
               <p className="p-4 text-sm text-gray-500">Select an employee first.</p>

@@ -75,6 +75,7 @@ const EmployeeAccessControl = () => {
       teamLeads: teamLeads.length,
       testers: rows.filter((row) => row.isTester).length,
       projectCoordinators: rows.filter((row) => row.isProjectCoordinator).length,
+      systemManagers: rows.filter((row) => row.modules?.systemAllotment).length,
       assigned: employees.filter((row) => row.teamLead).length,
       unassigned: employees.filter((row) => !row.teamLead).length,
     }),
@@ -278,12 +279,13 @@ const EmployeeAccessControl = () => {
               HR can make employees Team Leads, Testers, Project Coordinators, assign team members, and manage System Allotment access.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2">
             {[
               ["Staff", stats.total, "bg-gray-900 text-white"],
               ["Team Leads", stats.teamLeads, "bg-blue-50 text-blue-700 border border-blue-200"],
               ["Testers", stats.testers, "bg-amber-50 text-amber-700 border border-amber-200"],
               ["Coordinators", stats.projectCoordinators, "bg-purple-50 text-purple-700 border border-purple-200"],
+              ["System Managers", stats.systemManagers, "bg-green-50 text-green-700 border border-green-200"],
               ["Assigned", stats.assigned, "bg-green-50 text-green-700 border border-green-200"],
               ["Unassigned", stats.unassigned, "bg-gray-100 text-gray-700 border border-gray-200"],
             ].map(([label, value, className]) => (
@@ -294,6 +296,46 @@ const EmployeeAccessControl = () => {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="bg-white rounded-sm shadow p-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-3 xl:items-end">
+          <label className="text-sm font-medium text-gray-700">
+            System Allotment Manager
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+            >
+              <option value="">Select employee to allow inventory/allotment management</option>
+              {rows.map((row) => (
+                <option key={row.employee?._id} value={row.employee?._id}>
+                  {row.employee?.employeeId || "-"} - {row.employee?.name}
+                  {row.modules?.systemAllotment ? " (Allowed)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              text="Allow Manage"
+              onClick={() => setSystemAllotmentAccess(true)}
+              loading={saving}
+              disabled={!selectedEmployeeId || selectedEmployee?.modules?.systemAllotment}
+            />
+            <Button
+              text="Remove"
+              variant="secondary"
+              onClick={() => setSystemAllotmentAccess(false)}
+              loading={saving}
+              disabled={!selectedEmployeeId || !selectedEmployee?.modules?.systemAllotment}
+            />
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Allowed employee can add systems, monitors, keyboards, mice, headphones, and allocate them from dropdowns.
+          Other employees can only view assets assigned to themselves.
+        </p>
       </section>
 
       <section className="bg-white rounded-sm shadow p-4 space-y-4">

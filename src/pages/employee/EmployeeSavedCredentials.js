@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { FiCopy, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
+import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
+import { downloadCsv } from "../../utils/csvExport";
 
 const emptyForm = {
   accountType: "Email",
@@ -95,6 +96,33 @@ const EmployeeSavedCredentials = () => {
     }
   };
 
+  const exportCredentialsCsv = () => {
+    if (!credentials.length) {
+      toast.error("No credentials to export");
+      return;
+    }
+    downloadCsv({
+      filename: `my-credentials-${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { key: "accountType", label: "Account Type" },
+        { key: "title", label: "Title" },
+        { key: "loginId", label: "Login / Email" },
+        { key: "password", label: "Password" },
+        { key: "notes", label: "Notes" },
+        { key: "updatedAt", label: "Updated At" },
+      ],
+      rows: credentials.map((item) => ({
+        accountType: item.accountType || "",
+        title: item.title || "",
+        loginId: item.loginId || "",
+        password: item.password || "",
+        notes: item.notes || "",
+        updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "",
+      })),
+    });
+    toast.success("CSV exported");
+  };
+
   if (!pageUnlocked) {
     return (
       <div className="min-h-[calc(100vh-160px)] flex items-center justify-center">
@@ -132,14 +160,26 @@ const EmployeeSavedCredentials = () => {
             <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
             <p className="text-sm text-gray-500 mt-1">Save multiple account logins for your own work and copy them when needed.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowForm((prev) => !prev)}
-            className="w-11 h-11 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center"
-            aria-label={showForm ? "Close credential form" : "Open credential form"}
-          >
-            <FiPlus />
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={exportCredentialsCsv}
+              disabled={!credentials.length}
+              className="w-11 h-11 rounded-sm border border-gray-200 text-gray-700 flex items-center justify-center disabled:opacity-50"
+              aria-label="Export credentials CSV"
+              title="Export CSV"
+            >
+              <FiDownload />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm((prev) => !prev)}
+              className="w-11 h-11 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center"
+              aria-label={showForm ? "Close credential form" : "Open credential form"}
+            >
+              <FiPlus />
+            </button>
+          </div>
         </div>
       </section>
 
