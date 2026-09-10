@@ -103,6 +103,7 @@ function App() {
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
+          <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="tasks" element={<TaskManagement />} />
           <Route path="task-sheet" element={<Navigate to="dashboard" replace />} />
           <Route path="bugs" element={<Navigate to="dashboard" replace />} />

@@ -6,9 +6,10 @@ import { employeeApi } from "../api";
 
 const HRLayout = () => {
   const { user } = useContext(AuthContext);
-  const effectiveRole = user?.effectiveRole || user?.role;
-  const isTeamLead = effectiveRole === "teamlead";
-  const isProjectCoordinator = effectiveRole === "project_coordinator";
+  const roleClaims = [user?.role, user?.workRole, user?.effectiveRole].filter(Boolean);
+  const hasRole = (role) => roleClaims.includes(role);
+  const isTeamLead = hasRole("teamlead");
+  const isProjectCoordinator = hasRole("project_coordinator");
   const isHr = user?.role === "hr";
   const [access, setAccess] = useState(null);
 
@@ -45,7 +46,7 @@ const HRLayout = () => {
     ...(!isProjectCoordinator
       ? [{ label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> }]
       : []),
-    ...(isTeamLead ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
+    ...(isTeamLead ? [{ label: "Attendance", path: "/hr/attendance", icon: <FiClock /> }] : []),
     { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
     ...(!isProjectCoordinator
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]

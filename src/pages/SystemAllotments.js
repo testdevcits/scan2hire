@@ -1,6 +1,8 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   FiCopy,
+  FiClock,
   FiEdit2,
   FiEye,
   FiHeadphones,
@@ -26,6 +28,7 @@ const assetTabs = [
   { key: "assign", label: "Assign" },
   { key: "my-assets", label: "My Assigned Assets" },
   { key: "allotments", label: "Allotments" },
+  { key: "history", label: "History" },
   { key: "system", label: "Systems" },
   { key: "monitor", label: "Monitors" },
   { key: "keyboard", label: "Keyboards" },
@@ -140,8 +143,29 @@ const getTabMeta = ({ tab, myAllotments, filteredAllotments, assets }) => {
   if (tab.key === "assign") return { count: "+", hint: "New" };
   if (tab.key === "my-assets") return { count: myAllotments.length, hint: "Mine" };
   if (tab.key === "allotments") return { count: filteredAllotments.length, hint: "All" };
+  if (tab.key === "history") {
+    const count = filteredAllotments.reduce((sum, item) => sum + (item.history?.length || 0), 0);
+    return { count, hint: "Log" };
+  }
   return { count: assets[tab.key]?.length || 0, hint: "Stock" };
 };
+
+const formatAction = (action = "") => action.replace(/_/g, " ");
+
+const snapshotSummary = (snapshot = {}) =>
+  [
+    snapshot.systemName,
+    snapshot.systemAsset,
+    snapshot.monitorAsset,
+    snapshot.keyboardAsset,
+    snapshot.mouseAsset,
+    snapshot.headphoneAsset,
+    snapshot.webcamAsset,
+    snapshot.budsAsset,
+  ]
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" | ") || "-";
 
 // Card used for a single assigned item — icon + name + IDs, employee-facing style
 const AssetItemCard = ({ asset }) => (
@@ -183,9 +207,11 @@ const AssetItemCard = ({ asset }) => (
 
 const SystemAllotments = ({ selfOnly = false }) => {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
   const toast = useToast();
   const { confirm } = useModal();
-  const isEmployeeRoute = ["employee", "teamlead"].includes(user?.role);
+  const isEmployeeRoute = location.pathname.startsWith("/employee");
+  const canDelete = user?.role === "superadmin";
   const api = isEmployeeRoute ? employeeApi : hrApi;
 
   const [activeTab, setActiveTab] = useState("assign");
@@ -312,6 +338,20 @@ const SystemAllotments = ({ selfOnly = false }) => {
         .some((value) => String(value).toLowerCase().includes(term))
     );
   }, [allotments, search]);
+
+  const historyItems = useMemo(
+    () =>
+      filteredAllotments
+        .flatMap((item) =>
+          (item.history || []).map((entry, index) => ({
+            ...entry,
+            key: `${item._id}-${index}`,
+            allotment: item,
+          }))
+        )
+        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)),
+    [filteredAllotments]
+  );
 
   const assignedAssetRows = useCallback((item) => {
     return [
@@ -521,6 +561,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
   const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
   const myAssetsPagination = usePagination(myAllotments, [activeTab]);
   const allotmentsPagination = usePagination(filteredAllotments, [activeTab, search]);
+  const historyPagination = usePagination(historyItems, [activeTab, search]);
   const assetsPagination = usePagination(currentAssets, [activeTab]);
 
   if (loading) return <CommonLoader text="Loading system allotments..." />;
@@ -916,9 +957,11 @@ const SystemAllotments = ({ selfOnly = false }) => {
                           <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="Edit">
                             <FiEdit2 />
                           </button>
-                          <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Delete">
-                            <FiTrash2 />
-                          </button>
+                          {canDelete && (
+                            <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Delete">
+                              <FiTrash2 />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -930,6 +973,67 @@ const SystemAllotments = ({ selfOnly = false }) => {
           <Pagination {...allotmentsPagination} />
           </>
           )}
+        </section>
+      )}
+
+      {activeTab === "history" && (
+        <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 bg-gray-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Allotment History</h2>
+              <p className="text-xs text-gray-500">Created, updated, and deleted allocation changes.</p>
+            </div>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search employee or asset ID"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm md:w-72 focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[920px] w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left px-4 py-3">Date</th>
+                  <th className="text-left px-4 py-3">Employee</th>
+                  <th className="text-left px-4 py-3">Action</th>
+                  <th className="text-left px-4 py-3">System</th>
+                  <th className="text-left px-4 py-3">Updated By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyPagination.pageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-4 py-8 text-center text-gray-500">No history found.</td>
+                  </tr>
+                ) : (
+                  historyPagination.pageItems.map((entry) => (
+                    <tr key={entry.key} className="border-t">
+                      <td className="px-4 py-3 whitespace-nowrap">{displayDate(entry.updatedAt)}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-900">{entry.allotment.employee?.name || "Inventory"}</p>
+                        <p className="text-xs text-gray-500">{entry.allotment.employee?.employeeId || "-"}</p>
+                      </td>
+                      <td className="px-4 py-3 capitalize">
+                        <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold">
+                          <FiClock /> {formatAction(entry.action)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{entry.snapshot?.systemName || assignmentTitle(entry.allotment)}</p>
+                        <p className="text-xs text-gray-500 break-all">{snapshotSummary(entry.snapshot)}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{entry.updatedBy?.name || "-"}</p>
+                        <p className="text-xs text-gray-500 break-all">{entry.updatedBy?.email || ""}</p>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination {...historyPagination} />
         </section>
       )}
 
@@ -999,9 +1103,11 @@ const SystemAllotments = ({ selfOnly = false }) => {
                               <button type="button" onClick={() => fillAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
                                 <FiEdit2 />
                               </button>
-                              <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Delete">
-                                <FiTrash2 />
-                              </button>
+                              {canDelete && (
+                                <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Delete">
+                                  <FiTrash2 />
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
@@ -1149,6 +1255,26 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 {assignedAssetRows(viewingAllotment).map((asset) => (
                   <AssetItemCard key={asset.label} asset={asset} />
                 ))}
+              </div>
+              <div className="mt-5 rounded-lg border border-gray-100">
+                <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <h3 className="font-semibold text-gray-900">History</h3>
+                </div>
+                {(viewingAllotment.history || []).length === 0 ? (
+                  <p className="p-4 text-sm text-gray-500">No history found.</p>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {[...(viewingAllotment.history || [])]
+                      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+                      .map((entry, index) => (
+                        <div key={`${entry.action}-${entry.updatedAt}-${index}`} className="grid grid-cols-1 gap-2 px-4 py-3 text-sm md:grid-cols-[140px_1fr_180px]">
+                          <span className="font-semibold capitalize text-gray-900">{formatAction(entry.action)}</span>
+                          <span className="text-gray-600 break-all">{snapshotSummary(entry.snapshot)}</span>
+                          <span className="text-gray-500">{displayDate(entry.updatedAt)}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             </div>
           </section>
