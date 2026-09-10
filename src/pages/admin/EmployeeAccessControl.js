@@ -21,18 +21,18 @@ const roleCards = [
     description: "Can view team reports and manage assigned team members.",
     icon: <FiUsers />,
   },
-  {
-    key: "tester",
-    title: "Tester",
-    description: "Can add website bugs, screenshots, and update bug status.",
-    icon: <FiShield />,
-  },
-  {
-    key: "projectCoordinator",
-    title: "Project Coordinator",
-    description: "Can create task sheets, assign tasks, and export reports.",
-    icon: <FiBriefcase />,
-  },
+  // {
+  //   key: "tester",
+  //   title: "Tester",
+  //   description: "Can add website bugs, screenshots, and update bug status.",
+  //   icon: <FiShield />,
+  // },
+  // {
+  //   key: "projectCoordinator",
+  //   title: "Project Coordinator",
+  //   description: "Can create task sheets, assign tasks, and export reports.",
+  //   icon: <FiBriefcase />,
+  // },
   {
     key: "systemAllotment",
     title: "System Manager",
