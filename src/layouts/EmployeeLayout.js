@@ -26,7 +26,7 @@ const EmployeeLayout = () => {
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
-    { label: "Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
+    // { label: "Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
     { label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
     { label: "My System", path: "/employee/my-system", icon: <FiMonitor /> },

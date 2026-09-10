@@ -145,17 +145,38 @@ const getTabMeta = ({ tab, myAllotments, filteredAllotments, assets }) => {
 
 // Card used for a single assigned item — icon + name + IDs, employee-facing style
 const AssetItemCard = ({ asset }) => (
-  <div className="rounded-xl border border-gray-100 bg-white p-4 flex items-start gap-3">
-    <span className="w-10 h-10 rounded-xl bg-[#fff5f3] text-[#f84525] flex items-center justify-center flex-shrink-0 text-lg">
-      {assetIcons[asset.label] || <FiMonitor />}
-    </span>
-    <div className="min-w-0 flex-1">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-      <p className="mt-0.5 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
-      <p className="mt-1 text-xs text-gray-500 break-words">
-        {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-      </p>
-      {asset.details && <p className="mt-1.5 text-xs text-gray-600 break-words">{asset.details}</p>}
+  <div className="group relative rounded-2xl border border-gray-100 bg-white p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-[#f84525]/30 hover:shadow-md">
+    <div className="flex items-start gap-3">
+      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#fff5f3] to-[#ffe4de] text-lg text-[#f84525]">
+        {assetIcons[asset.label] || <FiMonitor />}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            {asset.label}
+          </p>
+          {asset.assetId && (
+            <span className="shrink-0 rounded-full border border-gray-100 bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+              {asset.assetId}
+            </span>
+          )}
+        </div>
+
+        <p className="mt-1 truncate font-semibold text-gray-900" title={asset.name}>
+          {asset.name || "-"}
+        </p>
+
+        {asset.serialNumber && (
+          <p className="mt-0.5 text-xs text-gray-500">SN {asset.serialNumber}</p>
+        )}
+
+        {asset.details && (
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-gray-600" title={asset.details}>
+            {asset.details}
+          </p>
+        )}
+      </div>
     </div>
   </div>
 );
