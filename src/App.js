@@ -23,14 +23,12 @@ import ManageEmployees from "./pages/hr/ManageEmployees";
 import ViewReports from "./pages/hr/ViewReports";
 import TodayCheckIns from "./pages/hr/TodayCheckIns";
 import LeaveReports from "./pages/hr/LeaveReports";
-import TaskManagement from "./pages/hr/TaskManagement";
 import ThankYouPage from "./pages/ThankYouPage";
 import Candidates from "./pages/hr/Candidates/Candidates";
 import CandidateDetail from "./pages/hr/Candidates/CandidateDetail";
 import EmployeeDetail from "./pages/hr/Employees/EmployeeDetail";
 import EmployeeCredentials from "./pages/hr/EmployeeCredentials";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
-import EmployeeTasks from "./pages/employee/EmployeeTasks";
 import EmployeeForgotPassword from "./pages/EmployeeForgotPassword";
 import AdminSettings from "./pages/admin/AdminSettings";
 import ManageHR from "./pages/admin/ManageHR";
@@ -105,7 +103,7 @@ function App() {
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
-          <Route path="tasks" element={<TaskManagement />} />
+          <Route path="tasks" element={<Navigate to="dashboard" replace />} />
           <Route path="task-sheet" element={<Navigate to="dashboard" replace />} />
           <Route path="bugs" element={<Navigate to="dashboard" replace />} />
           <Route path="reports" element={<ViewReports />} />
@@ -134,7 +132,7 @@ function App() {
           <Route path="documents" element={<EmployeeDocuments />} />
           <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
-          <Route path="tasks" element={<EmployeeTasks />} />
+          <Route path="tasks" element={<Navigate to="dashboard" replace />} />
           <Route path="my-system" element={<SystemAllotments selfOnly />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { FiBarChart2, FiCalendar, FiCheckSquare, FiClock, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 import { employeeApi } from "../api";
@@ -48,7 +48,8 @@ const HRLayout = () => {
       : []),
     ...(isTeamLead ? [{ label: "Attendance", path: "/hr/attendance", icon: <FiClock /> }] : []),
     ...(isTeamLead ? [{ label: "Conative Calendar", path: "/hr/leave-calendar", icon: <FiCalendar /> }] : []),
-    { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
+    // Task module is temporarily hidden.
+    // { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
     ...(!isProjectCoordinator
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
       : []),
