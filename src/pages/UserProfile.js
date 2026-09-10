@@ -2,8 +2,10 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { authApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
+import CustomDropdown from "../components/common/CustomDropdown";
 import FilePreviewModal from "../components/common/FilePreviewModal";
 import FileUploadField from "../components/common/FileUploadField";
+import { countryOptions, indiaStateOptions } from "../constants/locationOptions";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 
@@ -175,9 +177,6 @@ const UserProfile = ({ title = "My Profile" }) => {
         {[
           ["street", "Address"],
           ["city", "City"],
-          ["state", "State"],
-          ["country", "Country"],
-          ["pincode", "Pincode"],
         ].map(([field, label]) => (
           <label key={field} className="text-sm font-medium">
             {label}
@@ -189,6 +188,29 @@ const UserProfile = ({ title = "My Profile" }) => {
             />
           </label>
         ))}
+        <CustomDropdown
+          label="State"
+          value={profileForm.address.state}
+          options={indiaStateOptions}
+          onChange={(value) => handleAddressChange("state", value)}
+          placeholder="Select state"
+        />
+        <CustomDropdown
+          label="Country"
+          value={profileForm.address.country}
+          options={countryOptions}
+          onChange={(value) => handleAddressChange("country", value)}
+          placeholder="Select country"
+        />
+        <label className="text-sm font-medium">
+          Pincode
+          <input
+            type="text"
+            value={profileForm.address.pincode}
+            onChange={(e) => handleAddressChange("pincode", e.target.value)}
+            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-gray-900"
+          />
+        </label>
         <Button text="Save Profile" type="submit" loading={savingProfile} className="md:col-span-3" />
       </form>
 
