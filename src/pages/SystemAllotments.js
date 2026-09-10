@@ -84,6 +84,17 @@ const assignmentTypeLabels = {
   other: "Other",
 };
 
+const needsEndDate = (assignmentType) => ["work_from_home", "temporary"].includes(assignmentType);
+
+const allocationPeriodText = (item = {}) => {
+  const from = displayDate(item.assignedDate);
+  const to = displayDate(item.returnDate);
+  if (item.assignmentType === "work_from_home") return `WFH from ${from} to ${to}`;
+  if (item.assignmentType === "temporary") return `Temporary from ${from} to ${to}`;
+  if (item.returnDate) return `${from} to ${to}`;
+  return `Allocated on ${from}`;
+};
+
 const assetName = (asset) =>
   asset
     ? asset.name ||
@@ -99,6 +110,13 @@ const assetOptionLabel = (asset) =>
 const assignmentTitle = (item) => {
   const system = item.systemAsset ? assetName(item.systemAsset) : item.systemName;
   return system || "System assignment";
+};
+
+const getTabMeta = ({ tab, myAllotments, filteredAllotments, assets }) => {
+  if (tab.key === "assign") return { count: "+", hint: "New" };
+  if (tab.key === "my-assets") return { count: myAllotments.length, hint: "Mine" };
+  if (tab.key === "allotments") return { count: filteredAllotments.length, hint: "All" };
+  return { count: assets[tab.key]?.length || 0, hint: "Stock" };
 };
 
 const SystemAllotments = ({ selfOnly = false }) => {
@@ -122,6 +140,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
   const [editingAssignmentId, setEditingAssignmentId] = useState("");
   const [assetForm, setAssetForm] = useState(emptyAsset);
   const [editingAssetId, setEditingAssetId] = useState("");
+  const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [viewingAllotment, setViewingAllotment] = useState(null);
   const visibleTabs = canEdit ? assetTabs : [{ key: "allotments", label: "My Assigned Assets" }];
@@ -288,6 +307,10 @@ const SystemAllotments = ({ selfOnly = false }) => {
       toast.error("Select employee and system first");
       return;
     }
+    if (needsEndDate(assignmentForm.assignmentType) && !assignmentForm.returnDate) {
+      toast.error("Select end date for Work From Home or Temporary allocation");
+      return;
+    }
     if (
       assignmentForm.assignedDate &&
       assignmentForm.returnDate &&
@@ -358,6 +381,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
       warrantyExpiry: formatDate(asset.warrantyExpiry),
       cost: asset.cost || "",
     });
+    setAssetModalOpen(true);
   };
 
   const copyAsset = (asset) => {
@@ -378,12 +402,14 @@ const SystemAllotments = ({ selfOnly = false }) => {
       warrantyExpiry: formatDate(asset.warrantyExpiry),
       cost: asset.cost || "",
     });
+    setAssetModalOpen(true);
     toast.success("Asset copied. Add serial number and save.");
   };
 
   const resetAsset = () => {
     setEditingAssetId("");
     setAssetForm(emptyAsset);
+    setAssetModalOpen(false);
   };
 
   const saveAsset = async (e) => {
@@ -412,9 +438,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
   const deleteAsset = async (asset) => {
     const ok = await confirm({
-      title: `Remove ${titleCase(activeTab)}`,
-      message: `${assetName(asset)} will be marked inactive.`,
-      confirmText: "Remove",
+      title: `Delete ${titleCase(activeTab)}`,
+      message: `${assetName(asset)} will be deleted permanently.`,
+      confirmText: "Delete",
       tone: "danger",
     });
     if (!ok) return;
@@ -478,7 +504,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 <div>
                   <h2 className="font-semibold text-gray-900">{assignmentTitle(item)}</h2>
                   <p className="text-sm text-gray-500">
-                    {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
+                    {allocationPeriodText(item)}
                   </p>
                 </div>
                 <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
@@ -544,33 +570,44 @@ const SystemAllotments = ({ selfOnly = false }) => {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-10 gap-2 p-3 bg-gray-50">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.key);
-                resetAsset();
-              }}
-              className={`rounded-md border px-3 py-3 text-left text-sm font-semibold transition-colors ${
-                activeTab === tab.key
-                  ? "bg-[#f84525] text-white border-[#f84525] shadow-sm"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-[#f84525]/40 hover:bg-[#fff5f3]"
-              }`}
-            >
-              <span className="block">{tab.label}</span>
-              <span className={`mt-1 block text-xs font-medium ${activeTab === tab.key ? "text-white/80" : "text-gray-500"}`}>
-                {tab.key === "assign"
-                  ? "Dropdown allocation"
-                  : tab.key === "my-assets"
-                  ? `${myAllotments.length} assigned`
-                  : tab.key === "allotments"
-                  ? `${filteredAllotments.length} record${filteredAllotments.length === 1 ? "" : "s"}`
-                  : `${assets[tab.key]?.length || 0} item${assets[tab.key]?.length === 1 ? "" : "s"}`}
-              </span>
-            </button>
-          ))}
+        <div className="border-b border-gray-100 bg-gray-50 p-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-10">
+            {visibleTabs.map((tab) => {
+              const active = activeTab === tab.key;
+              const meta = getTabMeta({ tab, myAllotments, filteredAllotments, assets });
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    resetAsset();
+                  }}
+                  className={`group flex min-h-[42px] min-w-0 items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+                    active
+                      ? "border-[#f84525] bg-[#f84525] text-white shadow-sm"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-[#f84525]/40 hover:bg-[#fff5f3] hover:text-[#f84525]"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate">{tab.label}</span>
+                    <span className={`block text-[11px] font-medium ${active ? "text-white/75" : "text-gray-400"}`}>
+                      {meta.hint}
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-sm px-2 py-0.5 text-[11px] font-bold ${
+                      active
+                        ? "bg-white/20 text-white"
+                        : "bg-gray-100 text-gray-600 group-hover:bg-white group-hover:text-[#f84525]"
+                    }`}
+                  >
+                    {meta.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -610,7 +647,13 @@ const SystemAllotments = ({ selfOnly = false }) => {
               Assignment Type
               <select
                 value={assignmentForm.assignmentType}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignmentType: e.target.value }))}
+                onChange={(e) =>
+                  setAssignmentForm((prev) => ({
+                    ...prev,
+                    assignmentType: e.target.value,
+                    returnDate: needsEndDate(e.target.value) ? prev.returnDate : "",
+                  }))
+                }
                 className={fieldClass}
                 disabled={!canEdit}
               >
@@ -621,7 +664,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </select>
             </label>
             <label className={labelClass}>
-              From Date
+              {needsEndDate(assignmentForm.assignmentType) ? "From Date" : "Allocation Date"}
               <input
                 type="date"
                 value={assignmentForm.assignedDate}
@@ -630,16 +673,18 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 disabled={!canEdit}
               />
             </label>
-            <label className={labelClass}>
-              To Date / Return Date
-              <input
-                type="date"
-                value={assignmentForm.returnDate}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, returnDate: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              />
-            </label>
+            {needsEndDate(assignmentForm.assignmentType) && (
+              <label className={labelClass}>
+                To Date
+                <input
+                  type="date"
+                  value={assignmentForm.returnDate}
+                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, returnDate: e.target.value }))}
+                  className={fieldClass}
+                  disabled={!canEdit}
+                />
+              </label>
+            )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
@@ -699,7 +744,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                       <p className="text-sm font-semibold text-gray-900">{assignmentTitle(item)}</p>
                       <p className="text-xs text-gray-500">
-                        {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
+                        {allocationPeriodText(item)}
                       </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
@@ -758,7 +803,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{assignmentTitle(item)}</h3>
                           <p className="text-sm text-gray-500 mt-1">
-                          {assignmentTypeLabels[item.assignmentType] || "Office"} | {displayDate(item.assignedDate)} to {displayDate(item.returnDate)}
+                          {allocationPeriodText(item)}
                           </p>
                         </div>
                         <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
@@ -786,7 +831,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
           ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-[980px] w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="text-left px-4 py-3">Employee</th>
@@ -825,7 +870,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         ].filter(Boolean).join(" | ") || "-"}
                       </td>
                       <td className="px-4 py-3">
-                        <p>{displayDate(item.assignedDate)} to {displayDate(item.returnDate)}</p>
+                        <p>{allocationPeriodText(item)}</p>
                         <p className="text-xs text-gray-500">{assignmentTypeLabels[item.assignmentType] || "Office"}</p>
                       </td>
                       <td className="px-4 py-3">
@@ -859,108 +904,34 @@ const SystemAllotments = ({ selfOnly = false }) => {
       )}
 
       {inventoryTypes.includes(activeTab) && (
-        <section className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-4">
-          <form onSubmit={saveAsset} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 bg-gray-50 border-b">
-              <h2 className="font-semibold text-gray-900">{editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}</h2>
-              <p className="text-xs text-gray-500">Each saved item receives an automatic asset ID.</p>
-            </div>
-            <div className="p-5 grid grid-cols-1 gap-3">
-              {[
-                ["name", "Name"],
-                ["brand", "Brand"],
-                ["model", "Model"],
-                ["serialNumber", "Serial Number"],
-              ].map(([field, label]) => (
-                <label key={field} className={labelClass}>
-                  {label}
-                  <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-              ))}
-
-              {activeTab === "system" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
-                  <label className={labelClass}>
-                    System Type
-                    <select value={assetForm.systemType} onChange={(e) => setAssetForm((prev) => ({ ...prev, systemType: e.target.value }))} className={fieldClass} disabled={!canEdit}>
-                      <option value="desktop">Desktop</option>
-                      <option value="laptop">Laptop</option>
-                      <option value="server">Server</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </label>
-                  {[
-                    ["processor", "Processor"],
-                    ["ram", "RAM"],
-                    ["storage", "Storage"],
-                    ["operatingSystem", "Operating System"],
-                  ].map(([field, label]) => (
-                    <label key={field} className={labelClass}>
-                      {label}
-                      <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === "monitor" && (
-                <label className={labelClass}>
-                  Display Size
-                  <input value={assetForm.displaySize} onChange={(e) => setAssetForm((prev) => ({ ...prev, displaySize: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-              )}
-
-              <label className={labelClass}>
-                Status
-                <select value={assetForm.status} onChange={(e) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className={fieldClass} disabled={!canEdit}>
-                  <option value="available">Available</option>
-                  <option value="allocated">Allocated</option>
-                  <option value="repair">Repair</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </label>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
-                <label className={labelClass}>
-                  Purchase Date
-                  <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-                <label className={labelClass}>
-                  Warranty Expiry
-                  <input type="date" value={assetForm.warrantyExpiry} onChange={(e) => setAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-              </div>
-
-              {[
-                ["cost", "Cost"],
-              ].map(([field, label]) => (
-                <label key={field} className={labelClass}>
-                  {label}
-                  <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-              ))}
-            </div>
-            <div className="px-5 py-4 border-t flex flex-wrap justify-end gap-2">
-              {editingAssetId && <Button text="Cancel" variant="secondary" onClick={resetAsset} />}
-              <Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} />
-            </div>
-          </form>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 bg-gray-50 border-b">
-              <h2 className="font-semibold text-gray-900">{titleCase(activeTab)} List</h2>
+        <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">{titleCase(activeTab)} List</h2>
               <p className="text-xs text-gray-500">Allocated items are hidden from assignment dropdowns until released.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingAssetId("");
+                  setAssetForm(emptyAsset);
+                  setAssetModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#f84525] px-4 py-2 text-sm font-semibold text-white"
+              >
+                <FiPlus /> Add {titleCase(activeTab)}
+              </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-[920px] w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
-                    <th className="text-left px-4 py-3">Asset ID</th>
-                    <th className="text-left px-4 py-3">Name</th>
-                    <th className="text-left px-4 py-3">Serial</th>
-                    <th className="text-left px-4 py-3">Details</th>
-                    <th className="text-left px-4 py-3">Status</th>
-                    <th className="text-left px-4 py-3">Action</th>
+                    <th className="text-left px-4 py-3 w-32">Asset ID</th>
+                    <th className="text-left px-4 py-3 min-w-56">Name</th>
+                    <th className="text-left px-4 py-3 w-40">Serial</th>
+                    <th className="text-left px-4 py-3 min-w-56">Details</th>
+                    <th className="text-left px-4 py-3 w-32">Status</th>
+                    <th className="text-left px-4 py-3 w-40">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -971,12 +942,12 @@ const SystemAllotments = ({ selfOnly = false }) => {
                   ) : (
                     assetsPagination.pageItems.map((asset) => (
                       <tr key={asset._id} className="border-t">
-                        <td className="px-4 py-3 font-semibold text-gray-900">{asset.assetId}</td>
+                        <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{asset.assetId}</td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{assetName(asset)}</p>
                           <p className="text-xs text-gray-500">{[asset.brand, asset.model].filter(Boolean).join(" ") || "-"}</p>
                         </td>
-                        <td className="px-4 py-3">{asset.serialNumber || "-"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{asset.serialNumber || "-"}</td>
                         <td className="px-4 py-3">
                           {activeTab === "system"
                             ? [asset.systemType, asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
@@ -991,14 +962,14 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         </td>
                         <td className="px-4 py-3">
                           {canEdit && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 whitespace-nowrap">
                               <button type="button" onClick={() => copyAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Copy">
                                 <FiCopy />
                               </button>
                               <button type="button" onClick={() => fillAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
                                 <FiEdit2 />
                               </button>
-                              <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Remove">
+                              <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Delete">
                                 <FiTrash2 />
                               </button>
                             </div>
@@ -1011,8 +982,105 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </table>
             </div>
             <Pagination {...assetsPagination} />
-          </div>
         </section>
+      )}
+
+      {assetModalOpen && inventoryTypes.includes(activeTab) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <form onSubmit={saveAsset} className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  {editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}
+                </h2>
+                <p className="text-xs text-gray-500">Each saved item receives an automatic asset ID.</p>
+              </div>
+              <button
+                type="button"
+                onClick={resetAsset}
+                className="rounded-md border border-gray-200 p-2 hover:bg-gray-50"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="max-h-[72vh] overflow-auto p-5">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {[
+                  ["name", "Name"],
+                  ["brand", "Brand"],
+                  ["model", "Model"],
+                  ["serialNumber", "Serial Number"],
+                ].map(([field, label]) => (
+                  <label key={field} className={labelClass}>
+                    {label}
+                    <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                  </label>
+                ))}
+
+                {activeTab === "system" && (
+                  <>
+                    <label className={labelClass}>
+                      System Type
+                      <select value={assetForm.systemType} onChange={(e) => setAssetForm((prev) => ({ ...prev, systemType: e.target.value }))} className={fieldClass} disabled={!canEdit}>
+                        <option value="desktop">Desktop</option>
+                        <option value="laptop">Laptop</option>
+                        <option value="server">Server</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </label>
+                    {[
+                      ["processor", "Processor"],
+                      ["ram", "RAM"],
+                      ["storage", "Storage"],
+                      ["operatingSystem", "Operating System"],
+                    ].map(([field, label]) => (
+                      <label key={field} className={labelClass}>
+                        {label}
+                        <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                      </label>
+                    ))}
+                  </>
+                )}
+
+                {activeTab === "monitor" && (
+                  <label className={labelClass}>
+                    Display Size
+                    <input value={assetForm.displaySize} onChange={(e) => setAssetForm((prev) => ({ ...prev, displaySize: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                  </label>
+                )}
+
+                <label className={labelClass}>
+                  Status
+                  <select value={assetForm.status} onChange={(e) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className={fieldClass} disabled={!canEdit}>
+                    <option value="available">Available</option>
+                    <option value="allocated">Allocated</option>
+                    <option value="repair">Repair</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+                <label className={labelClass}>
+                  Purchase Date
+                  <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+                <label className={labelClass}>
+                  Warranty Expiry
+                  <input type="date" value={assetForm.warrantyExpiry} onChange={(e) => setAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+                <label className={labelClass}>
+                  Cost
+                  <input value={assetForm.cost} onChange={(e) => setAssetForm((prev) => ({ ...prev, cost: e.target.value }))} className={fieldClass} disabled={!canEdit} />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2 border-t px-5 py-4">
+              <Button text="Cancel" variant="secondary" onClick={resetAsset} />
+              <Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} />
+            </div>
+          </form>
+        </div>
       )}
 
       {viewingAllotment && (
@@ -1039,7 +1107,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
                   <p className="text-xs font-semibold uppercase text-gray-500">Period</p>
                   <p className="mt-1 font-semibold text-gray-900">
-                    {displayDate(viewingAllotment.assignedDate)} to {displayDate(viewingAllotment.returnDate)}
+                    {allocationPeriodText(viewingAllotment)}
                   </p>
                 </div>
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-3">

@@ -18,6 +18,7 @@ export const authApi = {
   getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
   createHr: (payload) => API.post("/users/hrs", payload),
   assignEmployeeAsHr: (payload) => API.post("/users/hrs/assign-employee", payload),
+  removeHrAccess: (userId) => API.patch(`/users/hrs/${userId}/remove-access`),
   updateUser: (userId, payload) => API.put(`/users/${userId}`, payload),
   deactivateUser: (userId) => API.patch(`/users/${userId}/deactivate`),
   activateUser: (userId) => API.patch(`/users/${userId}/activate`),

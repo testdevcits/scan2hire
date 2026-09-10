@@ -1,8 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FiEye } from "react-icons/fi";
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
-import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
@@ -27,6 +26,19 @@ const statusClasses = {
 };
 
 const statusLabel = (status = "") => status.replace(/_/g, " ") || "-";
+const getMonthCursor = (date = new Date()) => date.getFullYear() * 12 + date.getMonth();
+const getMonthFromCursor = (cursor) => {
+  const year = Math.floor(cursor / 12);
+  const monthIndex = cursor % 12;
+  return {
+    year,
+    monthIndex,
+    monthNumber: monthIndex + 1,
+    label: new Date(year, monthIndex, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+  };
+};
+const getLocalDateKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const ViewReports = () => {
   const toast = useToast();
@@ -37,12 +49,15 @@ const ViewReports = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [search, setSearch] = useState("");
-  const [calendarYear, setCalendarYear] = useState(String(new Date().getFullYear()));
+  const todayKey = useMemo(() => getLocalDateKey(), []);
+  const currentMonthCursor = useMemo(() => getMonthCursor(), []);
+  const [monthCursor, setMonthCursor] = useState(() => getMonthCursor());
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [calendar, setCalendar] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
@@ -57,22 +72,20 @@ const ViewReports = () => {
   const loadReports = useCallback(async () => {
     setPageLoading(true);
     try {
-      const [attendanceRes, leavesRes, calendarRes, employeesRes] = await Promise.all([
+      const [attendanceRes, leavesRes, employeesRes] = await Promise.all([
         hrApi.getAttendance(month),
         hrApi.getLeaves({ month, status: "approved" }),
-        hrApi.getCalendar(null, calendarYear),
         hrApi.getEmployees(),
       ]);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data || []);
-      setCalendar(calendarRes.data.data || []);
       setEmployees(employeesRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load reports");
     } finally {
       setPageLoading(false);
     }
-  }, [calendarYear, month, toast]);
+  }, [month, toast]);
 
   useEffect(() => {
     loadReports();
@@ -199,9 +212,38 @@ const ViewReports = () => {
   const summaryPagination = usePagination(filteredEmployeeSummary, [month, selectedEmployeeId, search]);
   const attendancePagination = usePagination(filteredAttendance, [month, reportView, selectedEmployeeId, selectedDate, search]);
 
+  const visibleCalendarMonths = useMemo(
+    () => [getMonthFromCursor(monthCursor), getMonthFromCursor(monthCursor + 1)],
+    [monthCursor]
+  );
+  const calendarYear = String(visibleCalendarMonths[0]?.year || new Date().getFullYear());
+  const visibleCalendarMonthKeys = useMemo(
+    () =>
+      visibleCalendarMonths.map(
+        (item) => `${item.year}-${String(item.monthNumber).padStart(2, "0")}`
+      ),
+    [visibleCalendarMonths]
+  );
+  const visibleCalendarRange = `${visibleCalendarMonths[0]?.label || ""} - ${visibleCalendarMonths[1]?.label || ""}`;
+
+  const loadCalendar = useCallback(async () => {
+    setCalendarLoading(true);
+    try {
+      const responses = await Promise.all(visibleCalendarMonthKeys.map((monthKey) => hrApi.getCalendar(monthKey)));
+      setCalendar(responses.flatMap((res) => res.data.data || []));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to load leave calendar");
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, [toast, visibleCalendarMonthKeys]);
+
+  useEffect(() => {
+    if (calendarModalOpen) loadCalendar();
+  }, [calendarModalOpen, loadCalendar]);
+
   const saveCalendar = async (e) => {
     e.preventDefault();
-    const todayKey = new Date().toISOString().slice(0, 10);
     if (user?.role !== "superadmin" && holidayForm.date < todayKey) {
       toast.error("Only super admin can update previous calendar dates.");
       return;
@@ -211,7 +253,7 @@ const ViewReports = () => {
       const res = await hrApi.upsertCalendar(holidayForm);
       const responseMessage = res.data.message || "Calendar updated";
       setHolidayForm({ date: "", title: "", type: "holiday", description: "" });
-      await loadReports();
+      await loadCalendar();
       toast.success(responseMessage);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to update calendar");
@@ -242,12 +284,11 @@ const ViewReports = () => {
   }, [calendarMap]);
 
   const calendarMonths = useMemo(() => {
-    const year = Number(calendarYear);
-    return Array.from({ length: 12 }, (_, index) => ({
-      label: new Date(year, index, 1).toLocaleDateString("en-US", { month: "long" }),
-      days: buildMonthDays(year, index + 1),
+    return visibleCalendarMonths.map((monthBlock) => ({
+      ...monthBlock,
+      days: buildMonthDays(monthBlock.year, monthBlock.monthNumber),
     }));
-  }, [buildMonthDays, calendarYear]);
+  }, [buildMonthDays, visibleCalendarMonths]);
 
   const selectCalendarDay = (dateKey) => {
     const existing = calendarMap[dateKey];
@@ -261,7 +302,6 @@ const ViewReports = () => {
 
   const deleteCalendarDay = async () => {
     if (!holidayForm.date || !calendarMap[holidayForm.date]) return;
-    const todayKey = new Date().toISOString().slice(0, 10);
     if (user?.role !== "superadmin" && holidayForm.date < todayKey) {
       toast.error("Only super admin can delete previous calendar dates.");
       return;
@@ -270,7 +310,7 @@ const ViewReports = () => {
     try {
       await hrApi.deleteCalendar(holidayForm.date);
       setHolidayForm({ date: "", title: "", type: "holiday", description: "" });
-      await loadReports();
+      await loadCalendar();
       toast.success("Calendar event deleted");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete calendar event");
@@ -415,21 +455,26 @@ const ViewReports = () => {
     }
   };
 
-  if (pageLoading) return <CommonLoader text="Loading reports..." />;
-
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-sm shadow p-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
-          <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and approved leave totals.</p>
+      <div className="bg-white rounded-sm shadow p-4">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
+            <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and approved leave totals.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2 min-h-10" />
+            <Button text="Download View" onClick={downloadMonthlyPdf} className="min-h-10" />
+            <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} className="min-h-10" />
+            <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="min-h-10" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2 min-h-10" />
-          <Button text="Download View" onClick={downloadMonthlyPdf} className="min-h-10" />
-          <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} className="min-h-10" />
-          <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="min-h-10" />
-        </div>
+        {pageLoading && (
+          <div className="mt-3 rounded-sm border border-[#ffd8cf] bg-[#fff5f3] px-3 py-2 text-sm font-semibold text-[#f84525]">
+            Updating reports...
+          </div>
+        )}
       </div>
 
       <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
@@ -443,7 +488,15 @@ const ViewReports = () => {
         </label>
         <label className="text-sm font-medium xl:col-span-2">
           Employee
-          <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10">
+          <select
+            value={selectedEmployeeId}
+            onChange={(e) => {
+              setSelectedEmployeeId(e.target.value);
+              setReportView("employee");
+              setSelectedDate("");
+            }}
+            className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10"
+          >
             <option value="">All employees</option>
             {employees.map((employee) => (
               <option key={employee._id} value={employee._id}>
@@ -616,20 +669,26 @@ const ViewReports = () => {
         <form onSubmit={saveCalendar} className="bg-white rounded-sm border p-4 space-y-3 self-start">
           <h2 className="font-semibold">HR Leave Calendar</h2>
           <p className="text-xs text-gray-500">Click any date in the year grid, add title/type, then save.</p>
-          <input
-            type="number"
-            min="2000"
-            max="2100"
-            value={calendarYear}
-            onChange={(e) => setCalendarYear(e.target.value)}
-            className="w-full border rounded-sm px-3 py-2"
-          />
-          <input
-            type="date"
-            value={holidayForm.date}
-            onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
-            className="w-full border rounded-sm px-3 py-2"
-            required
+	          <input
+	            type="number"
+	            min="2000"
+	            max="2100"
+	            value={calendarYear}
+	            onChange={(e) => {
+	              const year = Number(e.target.value);
+	              if (year >= 2000 && year <= 2100) setMonthCursor(year * 12);
+	            }}
+	            className="w-full border rounded-sm px-3 py-2"
+	          />
+	          <input
+	            type="date"
+	            value={holidayForm.date}
+	            onChange={(e) => {
+	              setHolidayForm((prev) => ({ ...prev, date: e.target.value }));
+	              if (e.target.value) setMonthCursor(getMonthCursor(new Date(`${e.target.value}T00:00:00`)));
+	            }}
+	            className="w-full border rounded-sm px-3 py-2"
+	            required
           />
           <input
             value={holidayForm.title}
@@ -668,19 +727,55 @@ const ViewReports = () => {
           )}
         </form>
 
-        <div className="bg-white rounded-sm border p-4 overflow-y-auto">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-            <h2 className="font-semibold">Year Calendar - {calendarYear}</h2>
-            <div className="flex gap-2 text-xs">
-              <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-sm">Holiday</span>
-              <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-sm">Working Sat</span>
-              <span className="px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-sm">Optional Leave</span>
-              <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-sm">Event/Notice</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {calendarMonths.map((monthBlock) => (
-              <div key={monthBlock.label} className="border rounded-sm p-3">
+	        <div className="bg-white rounded-sm border p-4 overflow-y-auto">
+	          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+	            <div>
+	              <h2 className="font-semibold">Calendar - {visibleCalendarRange}</h2>
+	              <p className="text-xs text-gray-500 mt-1">Showing 2 months at a time.</p>
+	            </div>
+		            <div className="flex w-full flex-wrap items-center justify-center gap-2 md:w-auto">
+		              <button
+		                type="button"
+		                onClick={() => setMonthCursor((current) => current - 2)}
+		                className="inline-flex min-h-9 items-center justify-center rounded-sm border border-gray-200 px-3 text-sm font-semibold text-gray-700 hover:border-[#f84525] hover:text-[#f84525]"
+		                title="Previous months"
+		              >
+		                <FiChevronLeft />
+		              </button>
+		              <span className="inline-flex min-h-9 min-w-[230px] items-center justify-center gap-2 rounded-sm bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-900">
+		                <FiCalendar className="text-[#f84525]" /> {visibleCalendarRange}
+		              </span>
+		              <button
+		                type="button"
+		                onClick={() => setMonthCursor((current) => current + 2)}
+		                className="inline-flex min-h-9 items-center justify-center rounded-sm border border-gray-200 px-3 text-sm font-semibold text-gray-700 hover:border-[#f84525] hover:text-[#f84525]"
+		                title="Next months"
+		              >
+		                <FiChevronRight />
+		              </button>
+	              <button
+	                type="button"
+	                onClick={() => setMonthCursor(currentMonthCursor)}
+	                disabled={monthCursor === currentMonthCursor}
+	                className="rounded-sm bg-[#f84525] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+	              >
+	                Today
+	              </button>
+	            </div>
+	          </div>
+	          <div className="flex gap-2 text-xs flex-wrap mb-3">
+	            <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-sm">Holiday</span>
+	            <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-sm">Working Sat</span>
+	            <span className="px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-sm">Optional Leave</span>
+	            <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-sm">Event/Notice</span>
+	            <span className="px-2 py-1 bg-[#fff5f3] text-[#f84525] border border-[#f84525] rounded-sm">Today</span>
+	          </div>
+	          {calendarLoading ? (
+	            <div className="py-12 text-center text-sm text-gray-500">Loading calendar...</div>
+	          ) : (
+	          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+	            {calendarMonths.map((monthBlock) => (
+	              <div key={monthBlock.label} className="border rounded-sm p-3">
                 <h3 className="font-semibold text-sm mb-2">{monthBlock.label}</h3>
                 <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-gray-500 mb-1">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
@@ -688,10 +783,11 @@ const ViewReports = () => {
                 <div className="grid grid-cols-7 gap-1">
                   {monthBlock.days.map((day) => {
                     if (day.blank) return <div key={`${monthBlock.label}-${day.key}`} className="min-h-14" />;
-                    const saved = day.saved;
-                    const selected = holidayForm.date === day.dateKey;
-                    const className = selected
-                      ? "bg-[#fff5f3] border-[#f84525] ring-2 ring-[#f84525] text-gray-950"
+	                    const saved = day.saved;
+	                    const selected = holidayForm.date === day.dateKey;
+	                    const isToday = todayKey === day.dateKey;
+	                    const className = selected
+	                      ? "bg-[#fff5f3] border-[#f84525] ring-2 ring-[#f84525] text-gray-950"
                       : saved?.type === "holiday"
                       ? "bg-red-50 border-red-200 text-gray-950"
                       : saved?.type === "working_saturday"
@@ -705,20 +801,25 @@ const ViewReports = () => {
                       : "bg-white hover:bg-gray-50 text-gray-950";
                     return (
                       <button
-                        type="button"
-                        key={day.dateKey}
-                        onClick={() => selectCalendarDay(day.dateKey)}
-                        className={`min-h-14 border rounded-sm p-1 text-left text-[11px] transition ${className}`}
-                      >
-                        <span className={`font-bold ${mode === "dark" && !saved && !selected ? "text-white" : "text-gray-950"}`}>{day.dayNumber}</span>
-                      </button>
+	                        type="button"
+	                        key={day.dateKey}
+	                        onClick={() => selectCalendarDay(day.dateKey)}
+	                        className={`min-h-14 border rounded-sm p-1 text-left text-[11px] transition ${
+	                          isToday ? "ring-2 ring-[#f84525] ring-offset-1" : ""
+	                        } ${className}`}
+	                      >
+	                        <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-sm px-1 font-bold ${
+	                          isToday ? "bg-[#f84525] text-white" : mode === "dark" && !saved && !selected ? "text-white" : "text-gray-950"
+	                        }`}>{day.dayNumber}</span>
+	                      </button>
                     );
                   })}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+	            ))}
+	          </div>
+	          )}
+	        </div>
           </div>
         </section>
       </div>

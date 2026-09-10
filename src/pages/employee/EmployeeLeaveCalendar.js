@@ -1,40 +1,104 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiInfo, FiList } from "react-icons/fi";
 import { employeeApi } from "../../api";
-import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
+
+const getMonthCursor = (date = new Date()) => date.getFullYear() * 12 + date.getMonth();
+
+const getMonthFromCursor = (cursor) => {
+  const year = Math.floor(cursor / 12);
+  const monthIndex = cursor % 12;
+  return {
+    year,
+    monthIndex,
+    monthNumber: monthIndex + 1,
+    label: new Date(year, monthIndex, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    monthShort: new Date(year, monthIndex, 1).toLocaleDateString("en-US", { month: "long" }).toUpperCase(),
+  };
+};
+
+const getLocalDateKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const Card = ({ className = "", children }) => (
+  <div className={`bg-white dark:bg-gray-900 border border-[#cddcef] dark:border-gray-800 rounded-2xl shadow-sm ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader = ({ icon, title, subtitle, action }) => (
+  <div className="px-5 py-4 border-b border-[#cddcef] dark:border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="flex items-start gap-3">
+      {icon && (
+        <span className="w-9 h-9 rounded-xl bg-[#eef4fb] dark:bg-[#16283d] text-[#5b8bc4] flex items-center justify-center flex-shrink-0">
+          {icon}
+        </span>
+      )}
+      <div>
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{title}</h2>
+        {subtitle && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+    {action}
+  </div>
+);
+
+const legendItems = [
+  { label: "Holiday", cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900" },
+  { label: "Working Sat", cls: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900" },
+  { label: "Optional Leave", cls: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900" },
+  { label: "Event/Notice", cls: "bg-[#eef4fb] text-[#3f6da3] border-[#cddcef] dark:bg-[#16283d] dark:text-[#a9c8e8] dark:border-[#2a4360]" },
+  { label: "Today", cls: "bg-[#eef4fb] text-[#3f6da3] border-[#5b8bc4] dark:bg-[#16283d]" },
+];
 
 const EmployeeLeaveCalendar = () => {
   const toast = useToast();
+  const todayKey = useMemo(() => getLocalDateKey(), []);
+  const currentMonthCursor = useMemo(() => getMonthCursor(), []);
   const [calendar, setCalendar] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
+  const [monthCursor, setMonthCursor] = useState(() => getMonthCursor());
+  const [flipDirection, setFlipDirection] = useState(null);
+  const [isFlipping, setIsFlipping] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const activeMonth = useMemo(() => getMonthFromCursor(monthCursor), [monthCursor]);
+  const activeMonthKey = useMemo(
+    () => `${activeMonth.year}-${String(activeMonth.monthNumber).padStart(2, "0")}`,
+    [activeMonth]
+  );
+
+  const loadLeaveBalance = useCallback(async () => {
+    setBalanceLoading(true);
     try {
-      const [calendarRes, leavesRes] = await Promise.all([
-        employeeApi.getCalendar(null, new Date().getFullYear()),
-        employeeApi.getLeaves(),
-      ]);
-      setCalendar(calendarRes.data.data || []);
+      const leavesRes = await employeeApi.getLeaves();
       setLeaveBalance(leavesRes.data.data?.balance || null);
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Unable to load leave calendar"
-      );
+      toast.error(err.response?.data?.message || "Unable to load leave balance");
     } finally {
-      setLoading(false);
+      setBalanceLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const loadCalendar = useCallback(async () => {
+    setCalendarLoading(true);
+    try {
+      const res = await employeeApi.getCalendar(activeMonthKey);
+      setCalendar(res.data.data || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to load leave calendar");
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, [toast, activeMonthKey]);
+
+  useEffect(() => { loadLeaveBalance(); }, [loadLeaveBalance]);
+  useEffect(() => { loadCalendar(); }, [loadCalendar]);
 
   const calendarMap = useMemo(
-    () =>
-      calendar.reduce((acc, item) => ({ ...acc, [item.dateKey]: item }), {}),
+    () => calendar.reduce((acc, item) => ({ ...acc, [item.dateKey]: item }), {}),
     [calendar]
   );
 
@@ -43,10 +107,7 @@ const EmployeeLeaveCalendar = () => {
     [calendar]
   );
   const hrLeaveItems = useMemo(
-    () =>
-      calendar.filter((item) =>
-        ["holiday", "working_saturday", "optional_leave"].includes(item.type)
-      ),
+    () => calendar.filter((item) => ["holiday", "working_saturday", "optional_leave"].includes(item.type)),
     [calendar]
   );
 
@@ -54,36 +115,21 @@ const EmployeeLeaveCalendar = () => {
     (year, monthNumber) => {
       const first = new Date(year, monthNumber - 1, 1);
       const last = new Date(year, monthNumber, 0);
-      const blanks = Array.from({ length: first.getDay() }, (_, index) => ({
-        blank: true,
-        key: `blank-${index}`,
-      }));
+      const blanks = Array.from({ length: first.getDay() }, (_, index) => ({ blank: true, key: `blank-${index}` }));
       const days = Array.from({ length: last.getDate() }, (_, index) => {
         const dayNumber = index + 1;
-        const dateKey = `${year}-${String(monthNumber).padStart(
-          2,
-          "0"
-        )}-${String(dayNumber).padStart(2, "0")}`;
-        return {
-          dateKey,
-          dayNumber,
-          saved: calendarMap[dateKey],
-        };
+        const dateKey = `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
+        return { dateKey, dayNumber, saved: calendarMap[dateKey] };
       });
       return [...blanks, ...days];
     },
     [calendarMap]
   );
 
-  const calendarMonths = useMemo(() => {
-    const year = new Date().getFullYear();
-    return Array.from({ length: 12 }, (_, index) => ({
-      label: new Date(year, index, 1).toLocaleDateString("en-US", {
-        month: "long",
-      }),
-      days: buildMonthDays(year, index + 1),
-    }));
-  }, [buildMonthDays]);
+  const activeMonthDays = useMemo(
+    () => buildMonthDays(activeMonth.year, activeMonth.monthNumber),
+    [buildMonthDays, activeMonth]
+  );
 
   const formatType = (type = "") => type.replace(/_/g, " ");
 
@@ -92,61 +138,277 @@ const EmployeeLeaveCalendar = () => {
     setSelectedCalendarItem(item);
   };
 
-  if (loading) return <CommonLoader text="Loading leave calendar..." />;
+  const goToMonth = (direction) => {
+    if (isFlipping) return;
+    setFlipDirection(direction);
+    setIsFlipping(true);
+    window.setTimeout(() => {
+      setMonthCursor((current) => (direction === "next" ? current + 1 : current - 1));
+      setIsFlipping(false);
+    }, 480);
+  };
+
+  const goToToday = () => {
+    if (monthCursor === currentMonthCursor || isFlipping) return;
+    setFlipDirection(monthCursor < currentMonthCursor ? "next" : "prev");
+    setIsFlipping(true);
+    window.setTimeout(() => {
+      setMonthCursor(currentMonthCursor);
+      setIsFlipping(false);
+    }, 480);
+  };
 
   return (
-    <div className="space-y-5">
-      <section className="bg-white dark:bg-gray-900 rounded-sm shadow p-5">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Leave Calendar
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Company yearly calendar with holidays, working Saturdays, optional
-          leaves, notices, and HR-added leave items.
-        </p>
-      </section>
+    <div className="space-y-5 pb-8">
+      <style>{`
+        /* Diary-style page lift: hinge is the TOP edge, page lifts up from the BOTTOM,
+           like flipping a wall-calendar/diary sheet upward and over. */
+        @keyframes diaryFlipOut {
+          0%   { transform: perspective(1400px) rotateX(0deg); box-shadow: 0 1px 0 rgba(91,139,196,0.15); }
+          100% { transform: perspective(1400px) rotateX(-115deg); box-shadow: 0 -22px 30px -20px rgba(91,139,196,0.35); }
+        }
+        @keyframes diaryFlipIn {
+          0%   { transform: perspective(1400px) rotateX(90deg); opacity: 0.3; }
+          60%  { opacity: 1; }
+          100% { transform: perspective(1400px) rotateX(0deg); opacity: 1; }
+        }
+        .diary-page {
+          transform-style: preserve-3d;
+          backface-visibility: hidden;
+          will-change: transform, opacity;
+        }
+        .diary-page--out {
+          transform-origin: top center;
+          animation: diaryFlipOut 0.24s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+        }
+        .diary-page--in {
+          transform-origin: top center;
+          animation: diaryFlipIn 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) 0.24s both;
+        }
+        @keyframes shimmer {
+          0%   { background-position: -300px 0; }
+          100% { background-position: 300px 0; }
+        }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg, #eef4fb 25%, #dbe8f7 37%, #eef4fb 63%);
+          background-size: 600px 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+        }
+        .dark .skeleton-shimmer {
+          background: linear-gradient(90deg, #16283d 25%, #1e3350 37%, #16283d 63%);
+          background-size: 600px 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+        }
+        .spiral-ring::before {
+          content: "";
+          position: absolute;
+          top: -9px;
+          left: 0;
+          right: 0;
+          height: 18px;
+          background-image: radial-gradient(circle, #94a9c2 3.5px, transparent 3.6px);
+          background-size: 22px 18px;
+          background-repeat: repeat-x;
+          background-position: 14px center;
+          opacity: 0.9;
+        }
+      `}</style>
 
-      {leaveBalance && (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <Card className="p-5">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Calendar</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Company yearly calendar with holidays, working Saturdays, optional leaves, notices, and HR-added leave items.
+        </p>
+      </Card>
+
+      {(leaveBalance || balanceLoading) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            ["EL", leaveBalance.earned_leave],
-            ["SL", leaveBalance.sick_leave],
-            ["Urgent", leaveBalance.urgent_leave],
+            ["EL", leaveBalance?.earned_leave],
+            ["SL", leaveBalance?.sick_leave],
+            ["Urgent", leaveBalance?.urgent_leave],
           ].map(([label, item]) => (
-            <div
-              key={label}
-              className="bg-white dark:bg-gray-900 rounded-sm shadow p-4"
-            >
-              <p className="font-semibold dark:text-white">{label}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Used {item.used} / {item.total} | Remaining {item.remaining}
-              </p>
-            </div>
+            <Card key={label} className="p-4">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
+              {item ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Used {item.used} / {item.total} &middot; Remaining{" "}
+                  <span className="text-[#3f6da3] font-semibold">{item.remaining}</span>
+                </p>
+              ) : (
+                <div className="mt-2 h-4 w-32 rounded skeleton-shimmer" />
+              )}
+            </Card>
           ))}
-        </section>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-sm shadow p-4">
+        {/* ===== Wall-calendar / diary styled card ===== */}
+        <div className="relative">
+          <div className="relative mx-auto rounded-b-2xl rounded-t-lg overflow-hidden shadow-sm border border-[#cddcef] dark:border-gray-800 bg-white dark:bg-gray-900">
+            {/* spiral binding */}
+            <div className="spiral-ring relative h-3" />
+
+            {/* header band: gradient sky like the reference calendar */}
+            <div
+              className="relative px-5 pt-6 pb-5 text-center"
+              style={{ background: "linear-gradient(180deg, #df918a 0%, #f0c8c8 55%, #fbeeee 100%)" }}
+            >
+              <p className="text-[11px] tracking-wide font-semibold text-[#0b0b0b]/80 uppercase">Leave Calendar</p>
+              <h3 className="text-3xl font-extrabold text-[#f84525] mt-1 tracking-tight">{activeMonth.year}</h3>
+            </div>
+
+            {/* month bar */}
+            <div className="bg-[#5b8bc4] px-5 py-3 flex items-center justify-between">
+              
+              <span className="text-white font-bold text-sm tracking-wide">
+                {String(activeMonth.monthNumber).padStart(2, "0")} / {activeMonth.monthShort}
+              </span>
+              
+            </div>
+
+            {calendarLoading && (
+              <div className="mx-4 mt-3 rounded-xl border border-[#cddcef] dark:border-[#2a4360] bg-[#eef4fb] dark:bg-[#16283d] px-3.5 py-2.5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#3f6da3] dark:text-[#a9c8e8] mb-2">
+                  <FiClock className="flex-shrink-0 animate-spin" style={{ animationDuration: "1.5s" }} />
+                  Updating calendar...
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {Array.from({ length: 14 }).map((_, i) => (
+                    <div key={i} className="h-3.5 rounded skeleton-shimmer" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* flippable grid area — diary style, hinge at TOP, page lifts from BOTTOM */}
+            <div className="relative p-4" style={{ perspective: "1400px" }}>
+              <div
+                key={activeMonthKey}
+                className={`diary-page ${
+                  isFlipping && flipDirection === "next"
+                    ? "diary-page--out"
+                    : isFlipping && flipDirection === "prev"
+                    ? "diary-page--out"
+                    : "diary-page--in"
+                }`}
+              >
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[#5b8bc4] dark:text-[#a9c8e8] mb-2">
+                  {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {activeMonthDays.map((day) => {
+                    if (day.blank) return <div key={day.key} className="min-h-14" />;
+                    const saved = day.saved;
+                    const isToday = day.dateKey === todayKey;
+                    const isSunday = new Date(`${day.dateKey}T00:00:00`).getDay() === 0;
+                    const className =
+                      saved?.type === "holiday"
+                        ? "bg-red-50 border-red-200 text-gray-950 dark:bg-red-900/20 dark:border-red-900 dark:text-gray-100"
+                        : saved?.type === "working_saturday"
+                        ? "bg-green-50 border-green-200 text-gray-950 dark:bg-green-900/20 dark:border-green-900 dark:text-gray-100"
+                        : saved?.type === "optional_leave"
+                        ? "bg-yellow-50 border-yellow-200 text-gray-950 dark:bg-yellow-900/20 dark:border-yellow-900 dark:text-gray-100"
+                        : saved
+                        ? "bg-[#eef4fb] border-[#cddcef] text-gray-950 dark:bg-[#16283d] dark:border-[#2a4360] dark:text-gray-100"
+                        : "bg-white dark:bg-gray-950 border-[#e4edf8] dark:border-gray-800 text-gray-800 dark:text-gray-100";
+                    return (
+                      <button
+                        type="button"
+                        key={day.dateKey}
+                        onClick={() => openCalendarDetails(saved)}
+                        disabled={!saved}
+                        className={`min-h-14 border rounded-md p-1 text-left text-[11px] transition-colors ${
+                          saved ? "cursor-pointer hover:ring-2 hover:ring-[#5b8bc4]" : "cursor-default"
+                        } ${isToday ? "ring-2 ring-[#5b8bc4] ring-offset-1 dark:ring-offset-gray-900" : ""} ${className}`}
+                        title={saved?.title || day.dateKey}
+                      >
+                        <span
+                          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 font-bold ${
+                            isToday ? "bg-[#5b8bc4] text-white" : isSunday ? "text-[#3f6da3]" : ""
+                          }`}
+                        >
+                          {day.dayNumber}
+                        </span>
+                        {saved && (
+                          <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight opacity-80">{saved.title}</p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* footer strip like "Headings & Observations" */}
+            <div className="px-5 pb-4 pt-1">
+              <div className="border-t border-[#e4edf8] dark:border-gray-800 pt-2 flex flex-wrap gap-1.5">
+                {legendItems.map((item) => (
+                  <span key={item.label} className={`px-2 py-0.5 rounded-full border text-[10px] font-medium ${item.cls}`}>
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-center gap-3">
+  {/* Back */}
+  <button
+    type="button"
+    onClick={() => goToMonth("prev")}
+    disabled={isFlipping}
+    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+    aria-label="Previous month"
+  >
+    <FiChevronLeft size={18} />
+    Back
+  </button>
+
+  {/* Start */}
+  <button
+    type="button"
+    onClick={goToToday}
+    disabled={monthCursor === currentMonthCursor || isFlipping}
+    className="inline-flex items-center gap-2 rounded-lg bg-[#5b8bc4] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#3f6da3] disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <FiCalendar size={16} />
+    Start
+  </button>
+
+  {/* Next */}
+  <button
+    type="button"
+    onClick={() => goToMonth("next")}
+    disabled={isFlipping}
+    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+    aria-label="Next month"
+  >
+    Next
+    <FiChevronRight size={18} />
+  </button>
+</div>
+
           {noticeItems.length > 0 && (
-            <section className="space-y-2 mb-4">
-              <h2 className="font-semibold text-sm dark:text-white">
-                Latest Notices
-              </h2>
+            <section className="space-y-2.5 mt-4">
+              <h2 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Latest Notices</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {noticeItems.map((item) => (
                   <button
                     type="button"
                     key={item._id || item.dateKey}
                     onClick={() => openCalendarDetails(item)}
-                    className="text-left border rounded-sm p-3 bg-[#fff5f3] hover:border-[#f84525] transition-colors"
+                    className="text-left border border-[#cddcef] dark:border-[#2a4360] rounded-xl p-3.5 bg-[#eef4fb] dark:bg-[#16283d] hover:border-[#5b8bc4] transition-colors"
                   >
-                    <p className="text-xs text-[#f84525] font-semibold uppercase">
+                    <p className="text-xs text-[#3f6da3] dark:text-[#a9c8e8] font-semibold uppercase tracking-wide">
                       {item.type}
                     </p>
-                    <p className="font-semibold mt-1">{item.title}</p>
-                    <p className="text-xs text-gray-500 mt-1">{item.dateKey}</p>
-                    <p className="text-sm text-gray-700 mt-2">
+                    <p className="font-semibold mt-1 text-gray-900 dark:text-gray-100">{item.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.dateKey}</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
                       {item.description || "No description"}
                     </p>
                   </button>
@@ -154,171 +416,87 @@ const EmployeeLeaveCalendar = () => {
               </div>
             </section>
           )}
-
-          <div className="flex gap-2 text-xs flex-wrap mb-4">
-            <span className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-sm">
-              Holiday
-            </span>
-            <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-sm">
-              Working Sat
-            </span>
-            <span className="px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-sm">
-              Optional Leave
-            </span>
-            <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-sm">
-              Event/Notice
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {calendarMonths.map((monthBlock) => (
-              <div
-                key={monthBlock.label}
-                className="border dark:border-gray-800 rounded-sm p-3"
-              >
-                <h3 className="font-semibold text-sm mb-2 dark:text-white">
-                  {monthBlock.label}
-                </h3>
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-gray-500 mb-1">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day) => (
-                      <span key={day}>{day}</span>
-                    )
-                  )}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {monthBlock.days.map((day) => {
-                    if (day.blank)
-                      return (
-                        <div
-                          key={`${monthBlock.label}-${day.key}`}
-                          className="min-h-12"
-                        />
-                      );
-                    const saved = day.saved;
-                    const className =
-                      saved?.type === "holiday"
-                        ? "bg-red-50 border-red-200 text-gray-950"
-                        : saved?.type === "working_saturday"
-                        ? "bg-green-50 border-green-200 text-gray-950"
-                        : saved?.type === "optional_leave"
-                        ? "bg-yellow-50 border-yellow-200 text-gray-950"
-                        : saved
-                        ? "bg-blue-50 border-blue-200 text-gray-950"
-                        : "bg-white dark:bg-gray-950 dark:border-gray-800 dark:text-white text-gray-950";
-                    return (
-                      <button
-                        type="button"
-                        key={day.dateKey}
-                        onClick={() => openCalendarDetails(saved)}
-                        disabled={!saved}
-                        className={`min-h-12 border rounded-sm p-1 text-left text-[11px] transition-colors ${
-                          saved ? "cursor-pointer hover:ring-2 hover:ring-[#f84525]" : "cursor-default"
-                        } ${className}`}
-                        title={saved?.title || day.dateKey}
-                      >
-                        <span className="font-bold">{day.dayNumber}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
-        <section className="bg-white dark:bg-gray-900 rounded-sm shadow overflow-hidden">
-          <div className="p-4 border-b dark:border-gray-800">
-            <h2 className="font-semibold dark:text-white">
-              Official Calendar List
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Official company calendar items for the selected year, including holidays, optional leaves, and working Saturdays.
-            </p>
-          </div>
-          <div className="overflow-y-auto">
+        <Card className="overflow-hidden flex flex-col">
+          <CardHeader
+            icon={<FiList />}
+            title="Official Calendar List"
+            subtitle="Holidays, optional leaves, and working Saturdays for the selected month."
+          />
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#e4edf8] dark:divide-gray-800">
             {hrLeaveItems.length === 0 ? (
-              <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
-                No HR leave items added yet.
-              </p>
+              <p className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">No HR leave items added yet.</p>
             ) : (
               hrLeaveItems.map((item) => (
                 <button
                   type="button"
                   key={item._id || item.dateKey}
                   onClick={() => openCalendarDetails(item)}
-                  className="w-full text-left border-b dark:border-gray-800 px-4 py-3 hover:bg-[#fff8f6] dark:hover:bg-gray-800 transition-colors"
+                  className="w-full text-left px-5 py-3.5 hover:bg-[#f6faff] dark:hover:bg-gray-800/60 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-sm dark:text-white">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {item.dateKey}
-                      </p>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.dateKey}</p>
                     </div>
-                    <span className="text-xs px-2 py-1 rounded-sm bg-[#fff5f3] text-[#f84525] capitalize">
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#eef4fb] dark:bg-[#16283d] text-[#3f6da3] dark:text-[#a9c8e8] capitalize flex-shrink-0">
                       {item.type.replace("_", " ")}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                    {item.description || "No description"}
-                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{item.description || "No description"}</p>
                 </button>
               ))
             )}
           </div>
-        </section>
+        </Card>
       </div>
 
       {selectedCalendarItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-sm shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="p-4 border-b dark:border-gray-800 flex items-start justify-between gap-3">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="p-5 border-b border-[#e4edf8] dark:border-gray-800 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase text-[#f84525]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#3f6da3]">
                   {formatType(selectedCalendarItem.type)}
                 </p>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">
                   {selectedCalendarItem.title || "Calendar Detail"}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedCalendarItem(null)}
-                className="text-gray-500 hover:text-[#f84525] text-lg px-2"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 text-lg"
                 aria-label="Close calendar detail"
               >
-                x
+                &times;
               </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="border dark:border-gray-800 rounded-sm p-3">
+                <div className="border border-[#e4edf8] dark:border-gray-800 rounded-xl p-3.5">
                   <p className="text-xs text-gray-500 dark:text-gray-400">Date</p>
-                  <p className="font-semibold text-gray-900 dark:text-white mt-1">
-                    {selectedCalendarItem.dateKey}
-                  </p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">{selectedCalendarItem.dateKey}</p>
                 </div>
-                <div className="border dark:border-gray-800 rounded-sm p-3">
+                <div className="border border-[#e4edf8] dark:border-gray-800 rounded-xl p-3.5">
                   <p className="text-xs text-gray-500 dark:text-gray-400">Day</p>
-                  <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
                     {selectedCalendarItem.day ||
-                      new Date(`${selectedCalendarItem.dateKey}T00:00:00`).toLocaleDateString("en-US", {
-                        weekday: "long",
-                      })}
+                      new Date(`${selectedCalendarItem.dateKey}T00:00:00`).toLocaleDateString("en-US", { weekday: "long" })}
                   </p>
                 </div>
-                <div className="border dark:border-gray-800 rounded-sm p-3 sm:col-span-2">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
-                  <p className="font-semibold capitalize text-gray-900 dark:text-white mt-1">
+                <div className="border border-[#e4edf8] dark:border-gray-800 rounded-xl p-3.5 sm:col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                    <FiInfo /> Type
+                  </p>
+                  <p className="font-semibold capitalize text-gray-900 dark:text-gray-100 mt-1">
                     {formatType(selectedCalendarItem.type)}
                   </p>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">Description</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Description</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-wrap">
                   {selectedCalendarItem.description || "No description added."}
                 </p>

@@ -101,7 +101,13 @@ const EmployeeAccessControl = () => {
     }
     setAssignedEmployeeIds(
       employees
-        .filter((row) => String(row.teamLead?._id || row.teamLead) === selectedTeamLeadId)
+        .filter((row) => {
+          const leadIds = [
+            row.teamLead?._id || row.teamLead,
+            ...(row.teamLeads || []).map((teamLead) => teamLead?._id || teamLead),
+          ].map(String);
+          return leadIds.includes(selectedTeamLeadId);
+        })
         .map((row) => row.employee?._id)
         .filter(Boolean)
     );
@@ -135,8 +141,8 @@ const EmployeeAccessControl = () => {
       testers: rows.filter((row) => row.isTester).length,
       projectCoordinators: rows.filter((row) => row.isProjectCoordinator).length,
       systemManagers: rows.filter((row) => row.modules?.systemAllotment).length,
-      assigned: employees.filter((row) => row.teamLead).length,
-      unassigned: employees.filter((row) => !row.teamLead).length,
+      assigned: employees.filter((row) => row.teamLead || row.teamLeads?.length).length,
+      unassigned: employees.filter((row) => !row.teamLead && !row.teamLeads?.length).length,
     }),
     [employees, rows, teamLeads.length]
   );
@@ -183,9 +189,9 @@ const EmployeeAccessControl = () => {
 
     const ok = await confirm({
       title: "Assign Employees",
-      message: `Assign ${assignedEmployeeIds.length} employee(s) to ${
-        selectedTeamLead?.employee?.name || "this Team Lead"
-      }? Existing employees under this TL will be replaced by this selected list.`,
+	      message: `Assign ${assignedEmployeeIds.length} employee(s) to ${
+	        selectedTeamLead?.employee?.name || "this Team Lead"
+	      }? This Team Lead's list will be replaced by the selected list. Other Team Lead assignments will stay.`,
       confirmText: "Save Team",
       tone: "primary",
     });
@@ -507,11 +513,23 @@ const EmployeeAccessControl = () => {
               {filteredEmployees.length === 0 ? (
                 <p className="p-4 text-center text-sm text-gray-500">No assignable employees found.</p>
               ) : (
-                employeesPagination.pageItems.map((row) => {
-                  const employeeId = row.employee?._id;
-                  const checked = assignedEmployeeIds.includes(employeeId);
-                  const currentTlId = String(row.teamLead?._id || row.teamLead || "");
-                  const assignedToSelectedTl = selectedTeamLeadId && currentTlId === selectedTeamLeadId;
+	                employeesPagination.pageItems.map((row) => {
+	                  const employeeId = row.employee?._id;
+	                  const checked = assignedEmployeeIds.includes(employeeId);
+	                  const currentTeamLeads = [
+	                    row.teamLead,
+	                    ...(row.teamLeads || []),
+	                  ].filter(Boolean);
+	                  const uniqueCurrentTeamLeads = currentTeamLeads.filter(
+	                    (teamLead, index, list) =>
+	                      list.findIndex((item) => String(item?._id || item) === String(teamLead?._id || teamLead)) === index
+	                  );
+	                  const currentTlIds = uniqueCurrentTeamLeads.map((teamLead) => String(teamLead?._id || teamLead));
+	                  const currentTlNames = uniqueCurrentTeamLeads
+	                    .map((teamLead) => teamLead?.name || teamLead?.employeeId || "")
+	                    .filter(Boolean)
+	                    .join(", ");
+	                  const assignedToSelectedTl = selectedTeamLeadId && currentTlIds.includes(selectedTeamLeadId);
                   return (
                     <label
                       key={employeeId}
@@ -531,11 +549,11 @@ const EmployeeAccessControl = () => {
                         <span className="block text-xs text-gray-500 break-all">{row.employee?.email || "-"}</span>
                         <span className="mt-1 block text-xs text-gray-600">
                           {row.employee?.department || "-"} | {row.employee?.designation || "-"}
-                        </span>
-                        <span className="mt-1 block text-xs text-gray-500">
-                          Current TL: {row.teamLead?.name || "-"}
-                          {assignedToSelectedTl && <span className="ml-2 font-semibold text-green-700">Selected TL</span>}
-                        </span>
+	                        </span>
+	                        <span className="mt-1 block text-xs text-gray-500">
+	                          Current TLs: {currentTlNames || "-"}
+	                          {assignedToSelectedTl && <span className="ml-2 font-semibold text-green-700">Selected TL</span>}
+	                        </span>
                       </span>
                     </label>
                   );
