@@ -1,5 +1,19 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FiCopy, FiEdit2, FiEye, FiPlus, FiRefreshCw, FiTrash2, FiX } from "react-icons/fi";
+import {
+  FiCopy,
+  FiEdit2,
+  FiEye,
+  FiHeadphones,
+  FiMonitor,
+  FiPlus,
+  FiRefreshCw,
+  FiTrash2,
+  FiVideo,
+  FiX,
+ 
+} from "react-icons/fi";
+import { BsPc } from "react-icons/bs";
+import { BsKeyboard, BsMouse2, BsEarbuds } from "react-icons/bs";
 import { employeeApi, hrApi } from "../api";
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
@@ -65,6 +79,16 @@ const statusTone = {
   returned: "bg-slate-50 text-slate-700 border-slate-200",
 };
 
+const assetIcons = {
+  "PC / System": <BsPc />,
+  Monitor: <FiMonitor />,
+  Keyboard: <BsKeyboard />,
+  Mouse: <BsMouse2 />,
+  Headphone: <FiHeadphones />,
+  Webcam: <FiVideo />,
+  Buds: <BsEarbuds />,
+};
+
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -118,6 +142,23 @@ const getTabMeta = ({ tab, myAllotments, filteredAllotments, assets }) => {
   if (tab.key === "allotments") return { count: filteredAllotments.length, hint: "All" };
   return { count: assets[tab.key]?.length || 0, hint: "Stock" };
 };
+
+// Card used for a single assigned item — icon + name + IDs, employee-facing style
+const AssetItemCard = ({ asset }) => (
+  <div className="rounded-xl border border-gray-100 bg-white p-4 flex items-start gap-3">
+    <span className="w-10 h-10 rounded-xl bg-[#fff5f3] text-[#f84525] flex items-center justify-center flex-shrink-0 text-lg">
+      {assetIcons[asset.label] || <FiMonitor />}
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
+      <p className="mt-0.5 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
+      <p className="mt-1 text-xs text-gray-500 break-words">
+        {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
+      </p>
+      {asset.details && <p className="mt-1.5 text-xs text-gray-600 break-words">{asset.details}</p>}
+    </div>
+  </div>
+);
 
 const SystemAllotments = ({ selfOnly = false }) => {
   const { user } = useContext(AuthContext);
@@ -457,7 +498,6 @@ const SystemAllotments = ({ selfOnly = false }) => {
   const labelClass = "text-sm font-medium text-gray-700";
   const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
   const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
-  const personalPagination = usePagination(personalAllotments, [selfOnly, search]);
   const myAssetsPagination = usePagination(myAllotments, [activeTab]);
   const allotmentsPagination = usePagination(filteredAllotments, [activeTab, search]);
   const assetsPagination = usePagination(currentAssets, [activeTab]);
@@ -475,7 +515,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
   if (!canEdit) {
     return (
       <div className="space-y-4">
-        <section className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">My Assigned Assets</h1>
@@ -484,7 +524,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
             <button
               type="button"
               onClick={loadData}
-              className="inline-flex items-center justify-center gap-2 border border-gray-200 rounded-md px-3 py-2 text-sm hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm hover:bg-gray-50"
             >
               <FiRefreshCw />
               Refresh
@@ -493,42 +533,28 @@ const SystemAllotments = ({ selfOnly = false }) => {
         </section>
 
         {personalAllotments.length === 0 ? (
-          <section className="bg-white rounded-lg shadow-sm border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+          <section className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
             No system or accessories are assigned to you yet.
           </section>
         ) : (
-          <>
-          {personalPagination.pageItems.map((item) => (
-            <section key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+          personalAllotments.map((item) => (
+            <section key={item._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-gray-100 pb-3">
                 <div>
                   <h2 className="font-semibold text-gray-900">{assignmentTitle(item)}</h2>
-                  <p className="text-sm text-gray-500">
-                    {allocationPeriodText(item)}
-                  </p>
+                  <p className="text-sm text-gray-500">{allocationPeriodText(item)}</p>
                 </div>
-                <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
+                <span className={`w-fit px-2.5 py-1 rounded-full border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
                   {item.status}
                 </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {assignedAssetRows(item).map((asset) => (
-                  <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-                    <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
-                    <p className="mt-1 text-xs text-gray-500 break-words">
-                      {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-                    </p>
-                    {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
-                  </div>
+                  <AssetItemCard key={asset.label} asset={asset} />
                 ))}
               </div>
             </section>
-          ))}
-          <section className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            <Pagination {...personalPagination} />
-          </section>
-          </>
+          ))
         )}
       </div>
     );
@@ -747,16 +773,9 @@ const SystemAllotments = ({ selfOnly = false }) => {
                         {allocationPeriodText(item)}
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                       {assignedAssetRows(item).map((asset) => (
-                        <div key={asset.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-                          <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
-                          <p className="mt-1 text-xs text-gray-500 break-words">
-                            {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-                          </p>
-                          {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
-                        </div>
+                        <AssetItemCard key={asset.label} asset={asset} />
                       ))}
                     </div>
                   </div>
@@ -796,35 +815,25 @@ const SystemAllotments = ({ selfOnly = false }) => {
                   No system or accessories are assigned to you yet.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {allotmentsPagination.pageItems.map((item) => (
-                    <article key={item._id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredAllotments.map((item) => (
+                    <article key={item._id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 border-b border-gray-100 pb-3">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{assignmentTitle(item)}</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                          {allocationPeriodText(item)}
-                          </p>
+                          <p className="text-sm text-gray-500 mt-1">{allocationPeriodText(item)}</p>
                         </div>
-                        <span className={`w-fit px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
+                        <span className={`w-fit px-2.5 py-1 rounded-full border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
                           {item.status}
                         </span>
                       </div>
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         {assignedAssetRows(item).map((asset) => (
-                          <div key={asset.label} className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-                            <p className="mt-1 font-semibold text-gray-900 break-words">{asset.name}</p>
-                            <p className="mt-1 text-xs text-gray-500 break-words">
-                              {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-                            </p>
-                            {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
-                          </div>
+                          <AssetItemCard key={asset.label} asset={asset} />
                         ))}
                       </div>
                     </article>
                   ))}
-                  <Pagination {...allotmentsPagination} />
                 </div>
               )}
             </div>
@@ -1117,14 +1126,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </div>
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {assignedAssetRows(viewingAllotment).map((asset) => (
-                  <div key={asset.label} className="rounded-md border border-gray-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{asset.label}</p>
-                    <p className="mt-2 font-semibold text-gray-900 break-words">{asset.name || "-"}</p>
-                    <p className="mt-1 text-xs text-gray-500 break-words">
-                      {[asset.assetId, asset.serialNumber && `SN ${asset.serialNumber}`].filter(Boolean).join(" | ") || "-"}
-                    </p>
-                    {asset.details && <p className="mt-2 text-xs text-gray-600 break-words">{asset.details}</p>}
-                  </div>
+                  <AssetItemCard key={asset.label} asset={asset} />
                 ))}
               </div>
             </div>
