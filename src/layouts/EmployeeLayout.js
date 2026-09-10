@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiCalendar, FiCheckSquare, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import { employeeApi } from "../api";
 
