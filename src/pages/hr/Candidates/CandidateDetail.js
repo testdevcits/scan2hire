@@ -69,6 +69,8 @@ const CandidateDetail = () => {
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
   const { employees, fetchEmployees } = useEmployee();
+  const effectiveRole = user?.effectiveRole || user?.role;
+  const canReviewCandidate = user?.role === "hr" || effectiveRole === "teamlead";
   const canManage = user?.role === "hr";
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,11 +90,15 @@ const CandidateDetail = () => {
     setLoading(true);
     try {
       const requests = [hrApi.getCandidate(candidateId)];
-      if (canManage) {
+      if (canReviewCandidate) {
         requests.push(fetchEmployees());
+      }
+      if (canManage) {
         requests.push(authApi.getDepartments());
       }
-      const [candidateRes, , departmentsRes] = await Promise.all(requests);
+      const responses = await Promise.all(requests);
+      const candidateRes = responses[0];
+      const departmentsRes = canManage ? responses[responses.length - 1] : null;
       const data = candidateRes.data.data;
       setCandidate(data);
       setDepartments(departmentsRes?.data?.data || []);
@@ -115,7 +121,7 @@ const CandidateDetail = () => {
   useEffect(() => {
     loadCandidate();
     // eslint-disable-next-line
-  }, [candidateId, canManage]);
+  }, [candidateId, canManage, canReviewCandidate]);
 
   const updateAssignment = async (e) => {
     e.preventDefault();
@@ -150,6 +156,9 @@ const CandidateDetail = () => {
       } else {
         delete payload.score;
         delete payload.comments;
+      }
+      if (!canManage) {
+        delete payload.hrStatus;
       }
 
       await hrApi.updateCandidateStatus(candidateId, payload);
@@ -350,7 +359,7 @@ const CandidateDetail = () => {
           </div>
         </div>
 
-        {canManage ? (
+        {canReviewCandidate ? (
         <form onSubmit={updateAssignment} className="bg-white rounded-sm shadow p-4 space-y-3">
           <h2 className="font-semibold">Assign & Status</h2>
           <label className="block text-sm font-medium">
@@ -433,17 +442,19 @@ const CandidateDetail = () => {
               </label>
             </div>
           )}
-          <label className="block text-sm font-medium">
-            HR Status
-            <select
-              value={statusForm.hrStatus}
-              onChange={(e) => setStatusForm((prev) => ({ ...prev, hrStatus: e.target.value }))}
-              className="mt-1 w-full border rounded-sm px-3 py-2"
-            >
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
+          {canManage && (
+            <label className="block text-sm font-medium">
+              HR Status
+              <select
+                value={statusForm.hrStatus}
+                onChange={(e) => setStatusForm((prev) => ({ ...prev, hrStatus: e.target.value }))}
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              >
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+          )}
           <label className="block text-sm font-medium">
             Remarks
             <textarea

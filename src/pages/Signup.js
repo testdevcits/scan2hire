@@ -9,6 +9,7 @@ const emptyForm = {
   name: "",
   email: "",
   mobile: "",
+  designation: "",
   password: "",
   role: "hr",
   otp: "",
@@ -69,6 +70,7 @@ const Signup = () => {
             ["name", "Name", "text"],
             ["email", "Email", "email"],
             ["mobile", "Mobile", "text"],
+            ["designation", "Designation", "text"],
             ["password", "Password", "password"],
           ].map(([name, label, type]) => (
             <label key={name} className="block text-sm font-medium">
