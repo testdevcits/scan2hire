@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  FiBriefcase,
+ 
   FiCheck,
   FiMonitor,
   FiSearch,
-  FiShield,
+
   FiUsers,
   FiX,
 } from "react-icons/fi";
