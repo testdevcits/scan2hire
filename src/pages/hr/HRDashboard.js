@@ -12,18 +12,29 @@ const ORANGE_SOFT = "#ffa826";
 const ORANGE_LIGHT = "#fff5f3";
 const SLATE = "#1f2937";
 const RED = "#ef4444";
+const getLocalDateKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const getWeekOfMonth = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.min(4, Math.ceil(date.getDate() / 7));
+};
 
 const HRDashboard = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useContext(AuthContext);
+  const roleClaims = [user?.role, user?.workRole, user?.effectiveRole].filter(Boolean);
+  const isTeamLead = roleClaims.includes("teamlead");
+  const isProjectCoordinator = roleClaims.includes("project_coordinator");
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
-    if ((user?.effectiveRole || user?.role) === "project_coordinator") return undefined;
+    if (isProjectCoordinator) return undefined;
     const month = new Date().toISOString().slice(0, 7);
     Promise.all([hrApi.getAttendance(month), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
       .then(([attendanceRes, leavesRes, candidatesRes, employeeRes]) => {
@@ -33,9 +44,9 @@ const HRDashboard = () => {
         setEmployees(employeeRes.data.data || []);
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load HR dashboard"));
-  }, [toast, user?.effectiveRole, user?.role]);
+  }, [isProjectCoordinator, toast]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateKey();
   const tomorrow = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 1);
@@ -61,7 +72,9 @@ const HRDashboard = () => {
       {
         label: "Today Login",
         value: attendance.filter((item) => item.dateKey === today && item.loginAt).length,
-        note: `${leaves.filter((item) => item.status === "pending").length} leave requests waiting`,
+        note: isTeamLead
+          ? `${employees.length} team member${employees.length === 1 ? "" : "s"} in your scope`
+          : `${leaves.filter((item) => item.status === "pending").length} leave requests waiting`,
         tone: "primary",
       },
       {
@@ -72,15 +85,15 @@ const HRDashboard = () => {
       {
         label: "Running Interviews",
         value: candidates.filter((item) => item.assignedTo && !["selected", "rejected"].includes(item.interviewStatus)).length,
-        note: `${candidates.length} total candidates`,
+        note: isTeamLead ? `${candidates.length} team candidates` : `${candidates.length} total candidates`,
       },
       {
         label: "Today Interviews",
-        value: candidates.filter((item) => (item.updatedAt || item.createdAt || "").slice(0, 10) === today).length,
+        value: candidates.filter((item) => getLocalDateKey(new Date(item.updatedAt || item.createdAt)) === today).length,
         note: "Candidate activity for today",
       },
     ],
-    [attendance, candidates, leaves, today]
+    [attendance, candidates, employees.length, isTeamLead, leaves, today]
   );
 
   const interviewStageData = useMemo(
@@ -104,38 +117,38 @@ const HRDashboard = () => {
   );
 
   const activityTrend = useMemo(
-    () => [
-      { name: "Week 1", interviews: Math.round(candidates.length * 0.19), leaves: Math.round(leaves.length * 0.16) },
-      { name: "Week 2", interviews: Math.round(candidates.length * 0.24), leaves: Math.round(leaves.length * 0.21) },
-      { name: "Week 3", interviews: Math.round(candidates.length * 0.28), leaves: Math.round(leaves.length * 0.27) },
-      { name: "Week 4", interviews: Math.max(0, candidates.length - Math.round(candidates.length * 0.71)), leaves: Math.max(0, leaves.length - Math.round(leaves.length * 0.64)) },
-    ],
-    [candidates.length, leaves.length]
+    () =>
+      [1, 2, 3, 4].map((week) => ({
+        name: `Week ${week}`,
+        interviews: candidates.filter((item) => getWeekOfMonth(item.updatedAt || item.createdAt) === week).length,
+        leaves: leaves.filter((item) => getWeekOfMonth(item.fromDate || item.createdAt) === week).length,
+      })),
+    [candidates, leaves]
   );
 
   const quickActions = [
     {
-      title: "Manage Employees",
-      description: "Update profiles, joining details, and document review.",
+      title: isTeamLead ? "Your Team" : "Manage Employees",
+      description: isTeamLead ? "View employees assigned under your team." : "Update profiles, joining details, and document review.",
       path: "/hr/employees",
       icon: <FiUsers className="text-[#f84525] w-5 h-5" />,
     },
     {
       title: "Reports & Calendar",
-      description: "Leave calendar, attendance reports, and approvals.",
+      description: isTeamLead ? "Review team attendance and calendar reports." : "Leave calendar, attendance reports, and approvals.",
       path: "/hr/reports",
       icon: <FiClock className="text-[#f84525] w-5 h-5" />,
     },
     {
       title: "Candidate Reviews",
-      description: "Assign rounds and move interviews forward.",
+      description: isTeamLead ? "Review and move your assigned candidate interviews." : "Assign rounds and move interviews forward.",
       path: "/hr/candidates/list",
       icon: <FiUserCheck className="text-[#f84525] w-5 h-5" />,
     },
   ];
 
-  if ((user?.effectiveRole || user?.role) === "project_coordinator") {
-    return <Navigate to="/hr/tasks" replace />;
+  if (isProjectCoordinator) {
+    return <Navigate to="/hr/profile" replace />;
   }
 
   return (
@@ -143,9 +156,11 @@ const HRDashboard = () => {
       <section className="bg-white rounded-sm shadow p-4 md:p-5">
         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">HR Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Interviews, leave handling, employee status, and daily HR operations in one place.
+              {isTeamLead
+                ? "Team attendance, leaves, candidates, and daily activity in one place."
+                : "Interviews, leave handling, employee status, and daily HR operations in one place."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
