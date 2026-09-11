@@ -16,6 +16,7 @@ import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { useToast } from "../../contexts/ToastContext";
+import { isTeamLeadUser } from "../../utils/roleUtils";
 
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -228,6 +229,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   });
   const [interviewTab, setInterviewTab] = useState("current");
   const [clockNow, setClockNow] = useState(new Date());
+  const isTeamLead = useMemo(() => isTeamLeadUser(profile), [profile]);
 
   const todayAttendance = useMemo(
     () => attendance.find((item) => item.dateKey === todayKey),
@@ -325,6 +327,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const updateRound = async (e) => {
     e.preventDefault();
+    if (!isTeamLead) {
+      toast.error("Only Team Leads can submit interview review results.");
+      return;
+    }
     if (roundForm.score === "" || !roundForm.comments.trim()) {
       toast.error("Score and comments are required before submitting review");
       return;
@@ -343,6 +349,11 @@ const EmployeeDashboard = ({ section = "all" }) => {
   };
 
   const openReview = (candidate) => {
+    if (!isTeamLead) {
+      toast.error("Only Team Leads can submit interview review results.");
+      return;
+    }
+
     const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
 
     if (existingRound && !canEmployeeEditReview(existingRound)) {
@@ -434,13 +445,15 @@ const EmployeeDashboard = ({ section = "all" }) => {
   }, [currentMonthAttendance]);
 
   const currentAssignedInterviews = useMemo(
-    () =>
-      candidates.filter(
+    () => {
+      if (!isTeamLead) return [];
+      return candidates.filter(
         (candidate) =>
           !["selected", "rejected"].includes(candidate.interviewStatus) &&
           !getMyCurrentRoundReview(candidate, profile?._id)
-      ),
-    [candidates, profile?._id]
+      );
+    },
+    [candidates, isTeamLead, profile?._id]
   );
 
   const formatDateTime = (date) =>
