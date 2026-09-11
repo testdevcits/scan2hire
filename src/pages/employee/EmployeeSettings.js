@@ -4,7 +4,17 @@ import { useLocation } from "react-router-dom";
 import { authApi, employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import FilePreviewModal from "../../components/common/FilePreviewModal";
+import FileUploadField from "../../components/common/FileUploadField";
 import { useToast } from "../../contexts/ToastContext";
+
+const docFields = [
+  ["photo", "Photo"],
+  ["aadhaarCard", "Aadhaar Card"],
+  ["panCard", "PAN Card"],
+  ["degree", "Degree"],
+  ["resume", "Resume"],
+];
 
 const fileToDataUri = (file) =>
   new Promise((resolve, reject) => {
@@ -32,13 +42,16 @@ const EmployeeSettings = () => {
     newPassword: "",
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [docs, setDocs] = useState({});
+  const [documentsSaving, setDocumentsSaving] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   const loadProfile = useCallback(async () => {
     setPageLoading(true);
     try {
       const res = isHrSettings ? await authApi.getProfile() : await employeeApi.getProfile();
       const data = res.data.data;
-      setProfile(data?.employeeProfile || data);
+      setProfile(data);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load settings");
     } finally {
@@ -97,7 +110,35 @@ const EmployeeSettings = () => {
     }
   };
 
+  const handleDocumentFile = async (docKey, file) => {
+    if (!file) return;
+    const dataUri = await fileToDataUri(file);
+    setDocs((prev) => ({
+      ...prev,
+      [docKey]: { dataUri, name: file.name, type: file.type },
+    }));
+  };
+
+  const saveDocuments = async (e) => {
+    e.preventDefault();
+    setDocumentsSaving(true);
+    try {
+      const res = await authApi.updateMyDocuments(docs);
+      setProfile(res.data.data);
+      setDocs({});
+      toast.success(res.data.message || "Documents updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update documents");
+    } finally {
+      setDocumentsSaving(false);
+    }
+  };
+
   const canUpdateAvatar = !isHrSettings;
+  const profileDetails = profile?.employeeProfile || profile;
+  const profilePhotoUrl = isHrSettings
+    ? profile?.documents?.photo?.url || profileDetails?.documents?.photo?.url || ""
+    : profileDetails?.documents?.photo?.url || profile?.documents?.photo?.url || "";
 
   if (pageLoading) return <CommonLoader text="Loading settings..." />;
 
@@ -116,10 +157,10 @@ const EmployeeSettings = () => {
             className="relative w-24 h-24 rounded-full overflow-hidden bg-[#fff5f3] flex items-center justify-center border border-[#ffd8cf] cursor-pointer group shrink-0 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
             title="Click to upload or paste copied image"
           >
-            {profileImagePreview || profile?.documents?.photo?.url ? (
-              <img src={profileImagePreview || profile.documents.photo.url} alt={profile.name} className="w-full h-full object-cover" />
+            {profileImagePreview || profilePhotoUrl ? (
+              <img src={profileImagePreview || profilePhotoUrl} alt={profileDetails?.name || profile?.name} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-3xl font-semibold text-[#f84525]">{profile?.name?.[0] || "E"}</span>
+              <span className="text-3xl font-semibold text-[#f84525]">{profileDetails?.name?.[0] || profile?.name?.[0] || "E"}</span>
             )}
             <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white py-2 flex items-center justify-center">
               {profileImageSaving ? (
@@ -142,14 +183,60 @@ const EmployeeSettings = () => {
               {canUpdateAvatar ? "Update your avatar and account password." : "Update your account password."}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-sm">
-              <p><b>Name:</b> {profile?.name || "N/A"}</p>
-              <p><b>Email:</b> {profile?.email || "N/A"}</p>
-              <p><b>Department:</b> {profile?.department || "N/A"}</p>
-              <p><b>Designation:</b> {profile?.designation || "N/A"}</p>
+              <p><b>Name:</b> {profileDetails?.name || profile?.name || "N/A"}</p>
+              <p><b>Email:</b> {profileDetails?.email || profile?.email || "N/A"}</p>
+              <p><b>Department:</b> {profileDetails?.department || "N/A"}</p>
+              <p><b>Designation:</b> {profileDetails?.designation || profile?.designation || "N/A"}</p>
             </div>
           </div>
         </div>
       </section>
+
+      {isHrSettings && (
+        <>
+          <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <h2 className="font-semibold text-gray-900">Documents</h2>
+              <p className="text-sm text-gray-500 mt-1">Upload or replace your account documents.</p>
+            </div>
+            {docFields.map(([name, label]) => (
+              <FileUploadField
+                key={name}
+                label={label}
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => handleDocumentFile(name, e.target.files?.[0])}
+                fileName={docs[name]?.name}
+                selectedPreviewUrl={docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined}
+                previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
+                onPreview={profile?.documents?.[name]?.url ? () => setPreview({ title: label, url: profile.documents[name].url }) : undefined}
+              />
+            ))}
+            <Button
+              text="Save Documents"
+              type="submit"
+              loading={documentsSaving}
+              disabled={Object.keys(docs).length === 0}
+              className="md:col-span-2 justify-self-start"
+            />
+          </form>
+
+          <section className="bg-white rounded-sm shadow overflow-hidden">
+            <div className="p-4 border-b">
+              <h2 className="font-semibold text-gray-900">Document History</h2>
+            </div>
+            {profile?.documentHistory?.length ? (
+              profile.documentHistory.slice().reverse().map((item, index) => (
+                <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm">
+                  <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                  <span>{item.documents?.join(", ") || "Documents"}</span>
+                </div>
+              ))
+            ) : (
+              <p className="p-4 text-sm text-gray-500">No document update history.</p>
+            )}
+          </section>
+        </>
+      )}
 
       <form onSubmit={changePassword} className="bg-white rounded-sm shadow overflow-hidden">
         <div className="border-b border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -209,6 +296,13 @@ const EmployeeSettings = () => {
         </div>
       </form>
 
+      {preview && (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 };
