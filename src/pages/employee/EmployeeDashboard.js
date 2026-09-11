@@ -184,8 +184,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
-  const [candidates] = useState([]);
-  const [interviewLogs] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [interviewLogs, setInterviewLogs] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
@@ -226,6 +226,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
     score: "",
     comments: "",
   });
+  const [interviewTab, setInterviewTab] = useState("current");
   const [clockNow, setClockNow] = useState(new Date());
 
   const todayAttendance = useMemo(
@@ -247,15 +248,19 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, attendanceRes, leavesRes] = await Promise.all([
+      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
+        employeeApi.getAssignedCandidates(),
+        employeeApi.getInterviewLogs(),
       ]);
       setProfile(profileRes.data.data);
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
+      setCandidates(candidatesRes.data.data || []);
+      setInterviewLogs(logsRes.data.data?.logs || []);
     } finally {
       setPageLoading(false);
     }
@@ -428,18 +433,26 @@ const EmployeeDashboard = ({ section = "all" }) => {
     );
   }, [currentMonthAttendance]);
 
-  const pendingInterviews = useMemo(
+  const currentAssignedInterviews = useMemo(
     () =>
       candidates.filter(
         (candidate) =>
-          !candidate.interviewRounds?.some(
-            (round) =>
-              round.round === candidate.interviewStatus &&
-              String(round.interviewerEmployee || "") === String(profile?._id || "")
-          )
+          !["selected", "rejected"].includes(candidate.interviewStatus) &&
+          !getMyCurrentRoundReview(candidate, profile?._id)
       ),
     [candidates, profile?._id]
   );
+
+  const formatDateTime = (date) =>
+    date
+      ? new Date(date).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "-";
 
   const monthlyChartData = useMemo(
     () =>
@@ -1010,80 +1023,101 @@ const EmployeeDashboard = ({ section = "all" }) => {
         <div className="flex-1 min-h-0 flex flex-col gap-4">
           <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
             <Kpi icon={<FiBriefcase />} label="Interviews Taken" value={interviewLogs.length} />
-            <Kpi icon={<FiUsers />} label="Pending Interviews" value={pendingInterviews.length} />
+            <Kpi icon={<FiUsers />} label="Pending Interviews" value={currentAssignedInterviews.length} />
             <Kpi icon={<FiUsers />} label="Assigned Candidates" value={candidates.length} tone="neutral" />
           </div>
 
-          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ScrollCard
-              title="Assigned Interviews"
-              subtitle="HR assigns the current round. You only add the review after taking the interview."
-            >
-              {candidates.length === 0 ? (
-                <EmptyState text="No assigned candidates." />
-              ) : (
-                candidates.map((candidate) => {
-                  const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
-                  const canEdit = canEmployeeEditReview(existingRound);
+          <div className="flex-shrink-0 flex gap-2">
+            {[
+              ["current", "Current"],
+              ["history", "History"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setInterviewTab(key)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+                  interviewTab === key
+                    ? "border-[#f84525] bg-[#fff5f3] text-[#f84525] dark:bg-[#2a1712]"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-                  return (
+          <div className="flex-1 min-h-0">
+            {interviewTab === "current" ? (
+              <ScrollCard
+                title="Assigned Interviews"
+                subtitle="HR assigns the current round. You only add the review after taking the interview."
+              >
+                {currentAssignedInterviews.length === 0 ? (
+                  <EmptyState text="No assigned candidates." />
+                ) : (
+                  currentAssignedInterviews.map((candidate) => {
+                    const existingRound = getMyCurrentRoundReview(candidate, profile?._id);
+                    const canEdit = canEmployeeEditReview(existingRound);
+
+                    return (
+                      <div
+                        key={candidate._id}
+                        className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{candidate.name}</span>
+                          <span className="px-2.5 py-1 bg-[#fff5f3] dark:bg-[#2a1712] text-[#f84525] rounded-full font-semibold text-xs">
+                            {formatRound(candidate.interviewStatus)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                          {candidate.email} &middot; {candidate.jobRole}
+                        </p>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {existingRound
+                              ? canEdit
+                                ? "Submitted today"
+                                : "Review locked"
+                              : candidate.experienceType === "fresher"
+                              ? "Fresher"
+                              : `${candidate.experience || 0} yrs`}
+                          </span>
+                          <Button
+                            text={existingRound ? (canEdit ? "Edit Review" : "Locked") : "Add Review"}
+                            disabled={Boolean(existingRound && !canEdit)}
+                            onClick={() => openReview(candidate)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </ScrollCard>
+            ) : (
+              <ScrollCard title="Interview History" subtitle="All completed old interviews with date and time.">
+                {interviewLogs.length === 0 ? (
+                  <EmptyState text="No interview logs yet." />
+                ) : (
+                  interviewLogs.map((item) => (
                     <div
-                      key={candidate._id}
-                      className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1.5"
+                      key={item._id}
+                      className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{candidate.name}</span>
-                        <span className="px-2.5 py-1 bg-[#fff5f3] dark:bg-[#2a1712] text-[#f84525] rounded-full font-semibold text-xs">
-                          {formatRound(candidate.interviewStatus)}
-                        </span>
+                        <span className="font-medium">{item.candidateName}</span>
+                        <span>Score {item.score}/10</span>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
-                        {candidate.email} &middot; {candidate.jobRole}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.jobRole || "-"} &middot; {formatRound(item.round)} &middot;{" "}
+                        {item.roundType?.replace("_", " ")} &middot; {formatDateTime(item.date)}
                       </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {existingRound
-                            ? canEdit
-                              ? "Submitted today"
-                              : "Review locked"
-                            : candidate.experienceType === "fresher"
-                            ? "Fresher"
-                            : `${candidate.experience || 0} yrs`}
-                        </span>
-                        <Button
-                          text={existingRound ? (canEdit ? "Edit Review" : "Locked") : "Add Review"}
-                          disabled={Boolean(existingRound && !canEdit)}
-                          onClick={() => openReview(candidate)}
-                        />
-                      </div>
                     </div>
-                  );
-                })
-              )}
-            </ScrollCard>
-
-            <ScrollCard title="Interview Logs" subtitle="Completed interview reports submitted by you.">
-              {interviewLogs.length === 0 ? (
-                <EmptyState text="No interview logs yet." />
-              ) : (
-                interviewLogs.map((item) => (
-                  <div
-                    key={item._id}
-                    className="border-t border-gray-100 dark:border-gray-800 px-5 py-3.5 text-sm text-gray-800 dark:text-gray-200 space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{item.candidateName}</span>
-                      <span>Score {item.score}/10</span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.jobRole || "-"} &middot; {formatRound(item.round)} &middot;{" "}
-                      {item.roundType?.replace("_", " ")} &middot;{" "}
-                      {item.date ? new Date(item.date).toLocaleDateString() : "-"}
-                    </p>
-                  </div>
-                ))
-              )}
-            </ScrollCard>
+                  ))
+                )}
+              </ScrollCard>
+            )}
           </div>
         </div>
       )}

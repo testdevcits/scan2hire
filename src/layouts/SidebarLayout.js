@@ -31,7 +31,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
     const effectiveRole = user?.effectiveRole || user?.role;
     if (user?.role === "superadmin") return "/admin/settings";
     if (effectiveRole === "employee" || effectiveRole === "tester") return "/employee/settings";
-    return "/hr/profile";
+    return "/hr/settings";
   };
 
   const openProfile = () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FiCamera, FiLock, FiShield } from "react-icons/fi";
-import { employeeApi } from "../../api";
+import { useLocation } from "react-router-dom";
+import { authApi, employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -20,6 +21,8 @@ const getPastedImage = (event) =>
 
 const EmployeeSettings = () => {
   const toast = useToast();
+  const location = useLocation();
+  const isHrSettings = location.pathname.startsWith("/hr/");
   const [profile, setProfile] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [profileImagePreview, setProfileImagePreview] = useState("");
@@ -33,20 +36,22 @@ const EmployeeSettings = () => {
   const loadProfile = useCallback(async () => {
     setPageLoading(true);
     try {
-      const res = await employeeApi.getProfile();
-      setProfile(res.data.data);
+      const res = isHrSettings ? await authApi.getProfile() : await employeeApi.getProfile();
+      const data = res.data.data;
+      setProfile(data?.employeeProfile || data);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load settings");
     } finally {
       setPageLoading(false);
     }
-  }, [toast]);
+  }, [isHrSettings, toast]);
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
 
   const handleProfileImageFile = async (file) => {
+    if (isHrSettings) return;
     if (!file) return;
     const photo = {
       dataUri: await fileToDataUri(file),
@@ -78,7 +83,11 @@ const EmployeeSettings = () => {
     e.preventDefault();
     setPasswordSaving(true);
     try {
-      await employeeApi.changePassword(passwordForm);
+      if (isHrSettings) {
+        await authApi.changePassword(passwordForm);
+      } else {
+        await employeeApi.changePassword(passwordForm);
+      }
       setPasswordForm({ currentPassword: "", newPassword: "" });
       toast.success("Password updated successfully");
     } catch (err) {
@@ -87,6 +96,8 @@ const EmployeeSettings = () => {
       setPasswordSaving(false);
     }
   };
+
+  const canUpdateAvatar = !isHrSettings;
 
   if (pageLoading) return <CommonLoader text="Loading settings..." />;
 
@@ -121,13 +132,15 @@ const EmployeeSettings = () => {
               type="file"
               accept=".jpg,.jpeg,.png,.webp"
               onChange={(e) => handleProfileImageFile(e.target.files?.[0])}
-              disabled={profileImageSaving}
+              disabled={profileImageSaving || !canUpdateAvatar}
               className="sr-only"
             />
           </label>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="text-sm text-gray-500 mt-1">Update your avatar and account password.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {canUpdateAvatar ? "Update your avatar and account password." : "Update your account password."}
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-sm">
               <p><b>Name:</b> {profile?.name || "N/A"}</p>
               <p><b>Email:</b> {profile?.email || "N/A"}</p>
@@ -150,7 +163,7 @@ const EmployeeSettings = () => {
             </div>
           </div>
           <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-sm px-3 py-2 w-fit">
-            Employee Account
+            Account
           </span>
         </div>
         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">

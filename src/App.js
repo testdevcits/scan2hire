@@ -35,7 +35,6 @@ import ManageHR from "./pages/admin/ManageHR";
 import Departments from "./pages/admin/Departments";
 import EmployeeAccessControl from "./pages/admin/EmployeeAccessControl";
 import SystemAllotments from "./pages/SystemAllotments";
-import UserProfile from "./pages/UserProfile";
 import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
 import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
@@ -114,8 +113,9 @@ function App() {
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
-          <Route path="documents" element={<UserProfile title="Documents" />} />
-          <Route path="profile" element={<UserProfile />} />
+          <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="documents" element={<Navigate to="settings" replace />} />
+          <Route path="profile" element={<Navigate to="settings" replace />} />
         </Route>
 
         <Route
@@ -132,6 +132,7 @@ function App() {
           <Route path="documents" element={<EmployeeDocuments />} />
           <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
+          <Route path="interviews" element={<EmployeeDashboard section="candidates" />} />
           <Route path="tasks" element={<Navigate to="dashboard" replace />} />
           <Route path="my-system" element={<SystemAllotments selfOnly />} />
           <Route path="system-allotments" element={<SystemAllotments />} />

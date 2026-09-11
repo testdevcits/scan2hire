@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiShield, FiUser, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 import { employeeApi } from "../api";
@@ -66,8 +66,7 @@ const HRLayout = () => {
       : []),
     { label: "Credentials", path: "/hr/credentials", icon: <FiLock /> },
     ...(isHr ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
-    ...(!isProjectCoordinator ? [{ label: "Documents", path: "/hr/documents", icon: <FiFolder /> }] : []),
-    { label: "Profile", path: "/hr/profile", icon: <FiUser /> },
+    { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },
   ];
 
   return <SidebarLayout title={panelTitle} navItems={navItems} />;

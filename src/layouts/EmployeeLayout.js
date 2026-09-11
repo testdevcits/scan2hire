@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
+import { FiBarChart2, FiBriefcase, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import { employeeApi } from "../api";
 
@@ -26,6 +26,7 @@ const EmployeeLayout = () => {
   const navItems = [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Attendance", path: "/employee/attendance", icon: <FiClock /> },
+    { label: "Interviews", path: "/employee/interviews", icon: <FiBriefcase /> },
     // { label: "Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
     { label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> },
     { label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> },
