@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import Button from "./Button";
+import CustomDropdown from "./CustomDropdown";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -27,36 +27,34 @@ export const usePagination = (items = [], resetKeys = []) => {
 };
 
 const Pagination = ({ page, pageSize, setPage, setPageSize, totalItems, totalPages }) => {
-  if (totalItems <= 0) return null;
+  // Keep the table footer clean when every row already fits on one page.
+  if (totalItems <= 0 || totalItems <= pageSize || totalPages <= 1) return null;
 
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="border-t px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-gray-500">
+    <div className="flex flex-col gap-3 border-t border-gray-100 px-3 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
         Showing {start}-{end} of {totalItems}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="inline-flex items-center gap-2 text-sm text-gray-600">
-          Rows
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            className="rounded-sm border border-gray-300 px-2 py-1.5 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
-          >
-            {pageSizeOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="text-sm text-gray-500">
+        <CustomDropdown
+          label="Rows"
+          value={pageSize}
+          onChange={(nextValue) => setPageSize(Number(nextValue))}
+          options={pageSizeOptions.map((size) => ({ value: size, label: String(size) }))}
+          searchable={false}
+          showPlaceholder={false}
+          compact
+          placement="top"
+          className="text-gray-600 dark:text-gray-300"
+        />
+        <span className="text-sm text-gray-500 dark:text-gray-400">
           Page {page} of {totalPages}
         </span>
-        <Button text="Previous" variant="secondary" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} />
-        <Button text="Next" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} />
+        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-sm border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-[#f84525] hover:text-[#f84525] disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:text-orange-300">Previous</button>
+        <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-sm border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-[#f84525] hover:text-[#f84525] disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:text-orange-300">Next</button>
       </div>
     </div>
   );

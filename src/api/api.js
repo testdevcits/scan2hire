@@ -47,7 +47,7 @@ export const candidateApi = {
 };
 
 export const hrApi = {
-  getCandidates: () => API.get("/hr/candidates"),
+  getCandidates: (params) => API.get("/hr/candidates", { params }),
   getCandidate: (candidateId) => API.get(`/hr/candidates/${candidateId}`),
   updateCandidateStatus: (candidateId, payload) =>
     API.put(`/hr/candidates/${candidateId}/status`, payload),
@@ -58,10 +58,11 @@ export const hrApi = {
   activateCandidate: (candidateId) =>
     API.patch(`/hr/candidates/${candidateId}/activate`),
   deleteCandidate: (candidateId) => API.delete(`/hr/candidates/${candidateId}`),
-  getEmployees: () => API.get("/hr/employees"),
+  getEmployees: (params) => API.get("/hr/employees", { params }),
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
+  updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
   getEmployeeAccountCredentials: (employeeId) =>

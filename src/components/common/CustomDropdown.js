@@ -14,9 +14,12 @@ const CustomDropdown = ({
   placeholder = "Select",
   disabled = false,
   required = false,
-  searchable = true,
+  searchable = false,
   error = "",
   className = "",
+  compact = false,
+  placement = "bottom",
+  showPlaceholder = true,
 }) => {
   const wrapperRef = useRef(null);
   const searchRef = useRef(null);
@@ -60,7 +63,7 @@ const CustomDropdown = ({
   };
 
   return (
-    <label ref={wrapperRef} className={`relative block text-sm font-medium ${className}`}>
+    <label ref={wrapperRef} className={`relative text-sm font-medium ${compact ? "inline-flex items-center gap-2" : "block"} ${className}`}>
       {label ? (
         <span>
           {label} {required && <span className="text-red-500">*</span>}
@@ -70,7 +73,7 @@ const CustomDropdown = ({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={`mt-1 flex min-h-[38px] w-full items-center justify-between gap-2 rounded-sm border bg-white px-3 py-2 text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 ${
+        className={`${compact ? "min-h-9 min-w-[72px] px-2.5 py-1.5" : "mt-1 min-h-[38px] w-full px-3 py-2"} flex items-center justify-between gap-2 rounded-sm border bg-white text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
           error ? "border-red-500" : "border-gray-300"
         }`}
         aria-haspopup="listbox"
@@ -83,7 +86,7 @@ const CustomDropdown = ({
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-xl">
+        <div className={`absolute z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 ${compact ? "right-0 min-w-full" : "left-0 right-0"} ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}>
           {searchable && (
             <div className="relative border-b border-gray-100 p-2">
               <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -107,15 +110,15 @@ const CustomDropdown = ({
             </div>
           )}
           <div className="max-h-60 overflow-y-auto py-1" role="listbox">
-            <button
+            {showPlaceholder && <button
               type="button"
               onClick={() => selectOption("")}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] ${
-                !value ? "bg-[#fff5f3] font-semibold text-[#f84525]" : "text-gray-500"
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
+                !value ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               {placeholder}
-            </button>
+            </button>}
             {filteredOptions.length === 0 ? (
               <p className="px-3 py-3 text-sm text-gray-500">No options found</p>
             ) : (
@@ -124,8 +127,8 @@ const CustomDropdown = ({
                   key={option.value}
                   type="button"
                   onClick={() => selectOption(option.value)}
-                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] ${
-                    String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525]" : "text-gray-700"
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
+                    String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"
                   }`}
                   role="option"
                   aria-selected={String(value) === String(option.value)}

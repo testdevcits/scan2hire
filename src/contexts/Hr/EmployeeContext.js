@@ -1,5 +1,5 @@
 // contexts/Hr/EmployeeContext.js
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { hrApi } from "../../api";
 
 const EmployeeContext = createContext();
@@ -8,37 +8,52 @@ export const EmployeeProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1 });
+  const currentParams = useRef({});
+  const latestRequestId = useRef(0);
 
   // -------------------------
   // Fetch all employees
   // -------------------------
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async (params = {}) => {
+    const requestId = latestRequestId.current + 1;
+    latestRequestId.current = requestId;
+    currentParams.current = params;
     try {
       setLoading(true);
       setError(null);
 
-      const res = await hrApi.getEmployees();
+      const res = await hrApi.getEmployees(params);
+      if (requestId !== latestRequestId.current) return;
 
-      setEmployees(res.data.data);
+      const rows = res.data.data || [];
+      setEmployees(rows);
+      setPagination(res.data.pagination || {
+        page: 1,
+        limit: Math.max(rows.length, 1),
+        totalItems: res.data.count ?? rows.length,
+        totalPages: 1,
+      });
     } catch (err) {
+      if (requestId !== latestRequestId.current) return;
       console.error("Fetch Employees Error:", err);
       setError(err.response?.data?.message || "Something went wrong");
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestId.current) setLoading(false);
     }
-  };
+  }, []);
 
-  const createEmployee = async (payload) => {
+  const createEmployee = useCallback(async (payload) => {
     const res = await hrApi.createEmployee(payload);
-    await fetchEmployees();
+    await fetchEmployees(currentParams.current);
     return res.data;
-  };
+  }, [fetchEmployees]);
 
-  const updateEmployee = async (employeeId, payload) => {
+  const updateEmployee = useCallback(async (employeeId, payload) => {
     const res = await hrApi.updateEmployee(employeeId, payload);
-    await fetchEmployees();
+    await fetchEmployees(currentParams.current);
     return res.data;
-  };
+  }, [fetchEmployees]);
 
   return (
     <EmployeeContext.Provider
@@ -46,6 +61,7 @@ export const EmployeeProvider = ({ children }) => {
         employees,
         loading,
         error,
+        pagination,
         fetchEmployees,
         createEmployee,
         updateEmployee,

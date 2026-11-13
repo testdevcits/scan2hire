@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import EmptyState from "../../components/common/EmptyState";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { useToast } from "../../contexts/ToastContext";
 import { isTeamLeadUser } from "../../utils/roleUtils";
@@ -61,6 +62,7 @@ const roundLabels = {
   first_round: "Technical Round",
   second_round: "Machine Test",
   final: "Final Round",
+  third_round: "Final Round",
   selected: "Selected",
   rejected: "Rejected",
 };
@@ -153,10 +155,6 @@ const ScrollCard = ({ title, subtitle, action, children, className = "" }) => (
     <CardHeader title={title} subtitle={subtitle} action={action} />
     <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
   </Card>
-);
-
-const EmptyState = ({ text }) => (
-  <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">{text}</p>
 );
 
 const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {

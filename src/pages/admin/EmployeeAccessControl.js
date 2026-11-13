@@ -3,14 +3,15 @@ import {
  
   FiCheck,
   FiMonitor,
-  FiSearch,
 
   FiUsers,
   FiX,
 } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
+import Avatar from "../../components/common/Avatar";
 import CommonLoader from "../../components/common/CommonLoader";
+import SearchInput from "../../components/common/SearchInput";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -69,39 +70,11 @@ const RolePill = ({ tone, text }) => {
   );
 };
 
-const initials = (name = "") =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("") || "?";
-
-const Avatar = ({ name, size = "h-8 w-8", className = "" }) => (
-  <span
-    className={`flex ${size} flex-shrink-0 items-center justify-center rounded-full bg-[#fff5f3] dark:bg-[#2a1712] text-xs font-bold text-[#f84525] ${className}`}
-  >
-    {initials(name)}
-  </span>
-);
-
 // shared card shell
 const Card = ({ className = "", children }) => (
   <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm ${className}`}>
     {children}
   </div>
-);
-
-const SearchInput = ({ value, onChange, placeholder }) => (
-  <label className="relative block">
-    <FiSearch className="absolute left-3 top-3 text-gray-400" />
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 py-2 pl-9 pr-3 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/40"
-    />
-  </label>
 );
 
 const EmployeeAccessControl = () => {
@@ -411,7 +384,7 @@ const EmployeeAccessControl = () => {
 
           <div className="p-5 grid grid-cols-1 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-5">
             <div className="flex flex-col gap-3 min-h-0">
-              <SearchInput value={roleSearch} onChange={(e) => setRoleSearch(e.target.value)} placeholder="Search employee" />
+              <SearchInput value={roleSearch} onChange={setRoleSearch} placeholder="Search employee" />
 
               <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex-1 min-h-0">
                 <div className="max-h-[520px] overflow-y-auto">
@@ -571,7 +544,7 @@ const EmployeeAccessControl = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
-              <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search team members" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Search team members" />
               <Button text="Select Visible" variant="secondary" onClick={selectVisible} disabled={!selectedTeamLeadId} />
               <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
             </div>

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
   FiBriefcase,
@@ -8,24 +8,35 @@ import {
   FiDownload,
   FiEye,
   FiEyeOff,
-  FiFileText,
   FiHome,
   FiMail,
   FiMapPin,
   FiPhone,
   FiShield,
+  FiSave,
   FiTrash2,
   FiUser,
   FiUserCheck,
+  FiUsers,
   FiUserX,
 } from "react-icons/fi";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { authApi, hrApi } from "../../../api";
 import Button from "../../../components/common/Button";
+import AddressFields from "../../../components/common/AddressFields";
+import Avatar from "../../../components/common/Avatar";
+import CalendarPicker from "../../../components/common/CalendarPicker";
 import CommonLoader from "../../../components/common/CommonLoader";
+import CommonTable from "../../../components/common/CommonTable";
+import CustomDropdown from "../../../components/common/CustomDropdown";
+import DetailItem from "../../../components/common/DetailItem";
+import EmptyState from "../../../components/common/EmptyState";
 import FilePreviewModal from "../../../components/common/FilePreviewModal";
-import Pagination, { usePagination } from "../../../components/common/Pagination";
+import { usePagination } from "../../../components/common/Pagination";
 import FileUploadField from "../../../components/common/FileUploadField";
+import InputField from "../../../components/common/InputField";
+import SectionHeader from "../../../components/common/SectionHeader";
+import Tabs from "../../../components/common/Tabs";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useModal } from "../../../contexts/ModalContext";
 import { useToast } from "../../../contexts/ToastContext";
@@ -40,41 +51,35 @@ const formatAddress = (address = {}) =>
     .filter(Boolean)
     .join(", ") || "N/A";
 
-const getInitials = (name = "") =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "EM";
-
 const detailFallback = (value) => value || "N/A";
-
-const DetailItem = ({ icon, label, value, className = "" }) => (
-  <div className={`min-w-0 rounded-sm border border-gray-100 bg-gray-50 px-3 py-3 ${className}`}>
-    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-      {icon}
-      <span>{label}</span>
-    </div>
-    <p className="mt-1 break-words text-sm font-semibold text-gray-900">{value}</p>
-  </div>
-);
-
-const SectionHeader = ({ title, subtitle }) => (
-  <div className="mb-4">
-    <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-    {subtitle ? <p className="mt-1 text-xs text-gray-500">{subtitle}</p> : null}
-  </div>
-);
+const getDocumentPreviewType = (document) =>
+  document?.format === "pdf" ||
+  document?.resource_type === "raw" ||
+  /\.pdf(?:$|[?#])/i.test(String(document?.url || "")) ||
+  /\/raw\/upload\//i.test(String(document?.url || ""))
+    ? "pdf"
+    : "image";
+const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
+  const availableTabs = ["details", "attendance", "documents"];
+  if (canManage) availableTabs.push("edit");
+  if (isSuperAdmin) availableTabs.push("credentials");
+  if (availableTabs.includes(requestedTab)) return requestedTab;
+  if (editRequested && canManage) return "edit";
+  return "details";
+};
 
 const EmployeeDetail = () => {
   const { employeeId } = useParams();
+  const location = useLocation();
+  const editFormRef = useRef(null);
+  const tabsRef = useRef(null);
   const navigate = useNavigate();
   const toast = useToast();
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
-  const canManage = user?.role === "hr" || user?.role === "superadmin";
+  // Backend profile edits and employee lifecycle actions are HR-only.
+  const canManage = user?.role === "hr";
+  const canManageDocuments = user?.role === "hr" || user?.role === "superadmin";
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -103,34 +108,50 @@ const EmployeeDetail = () => {
     },
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [editErrors, setEditErrors] = useState({});
   const [accountCredentials, setAccountCredentials] = useState([]);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [approvingDocument, setApprovingDocument] = useState("");
+  const [documentFiles, setDocumentFiles] = useState({});
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState({});
+  const [savingDocuments, setSavingDocuments] = useState(false);
+  const [activeTab, setActiveTabState] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
+  });
 
-  const loadEmployee = async () => {
-    setLoading(true);
+  const changeActiveTab = (tab) => {
+    const params = new URLSearchParams(location.search);
+    params.set("tab", tab);
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+    setActiveTabState(tab);
+  };
+
+  const loadEmployee = async ({ includeReport = true, initial = false } = {}) => {
+    if (initial) setLoading(true);
     try {
-      const requests = [
-        hrApi.getEmployee(employeeId),
-        hrApi.getEmployeeMonthlyReport(employeeId, month),
-      ];
-      if (user?.role === "superadmin") {
-        requests.push(hrApi.getEmployeeAccountCredentials(employeeId));
-      }
+      const requests = [hrApi.getEmployee(employeeId)];
+      if (includeReport) requests.push(hrApi.getEmployeeMonthlyReport(employeeId, month));
+      if (user?.role === "superadmin") requests.push(hrApi.getEmployeeAccountCredentials(employeeId));
       if (canManage) {
         requests.push(hrApi.getEmployees());
         requests.push(authApi.getDepartments());
       }
-      const [employeeRes, reportRes, thirdRes, fourthRes, fifthRes] = await Promise.all(requests);
-      const credentialsRes = user?.role === "superadmin" ? thirdRes : null;
-      const employeesRes = canManage ? (user?.role === "superadmin" ? fourthRes : thirdRes) : null;
-      const departmentsRes = canManage ? (user?.role === "superadmin" ? fifthRes : fourthRes) : null;
+      const responses = await Promise.all(requests);
+      let responseIndex = 0;
+      const employeeRes = responses[responseIndex++];
+      const reportRes = includeReport ? responses[responseIndex++] : null;
+      const credentialsRes = user?.role === "superadmin" ? responses[responseIndex++] : null;
+      const employeesRes = canManage ? responses[responseIndex++] : null;
+      const departmentsRes = canManage ? responses[responseIndex++] : null;
       const employeeData = employeeRes.data.data;
       setEmployee(employeeData);
-      setEmployeeOptions(employeesRes?.data?.data || []);
-      setDepartments(departmentsRes?.data?.data || []);
+      if (canManage) {
+        setEmployeeOptions(employeesRes?.data?.data || []);
+        setDepartments(departmentsRes?.data?.data || []);
+      }
       setEditForm({
         employeeId: employeeData.employeeId || "",
         name: employeeData.name || "",
@@ -151,20 +172,49 @@ const EmployeeDetail = () => {
           pincode: employeeData.address?.pincode || "",
         },
       });
-      setAttendance(reportRes.data.data?.records || []);
-      setSummary(reportRes.data.data?.summary || null);
-      setAccountCredentials(credentialsRes?.data?.data || []);
+      if (reportRes) {
+        setAttendance(reportRes.data.data?.records || []);
+        setSummary(reportRes.data.data?.summary || null);
+      }
+      if (credentialsRes) setAccountCredentials(credentialsRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load employee");
     } finally {
-      setLoading(false);
+      if (initial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadEmployee();
+    loadEmployee({ includeReport: false, initial: true });
     // eslint-disable-next-line
+  }, [employeeId, user?.role]);
+
+  useEffect(() => {
+    let cancelled = false;
+    hrApi.getEmployeeMonthlyReport(employeeId, month)
+      .then((response) => {
+        if (cancelled) return;
+        setAttendance(response.data.data?.records || []);
+        setSummary(response.data.data?.summary || null);
+      })
+      .catch((err) => {
+        if (!cancelled) toast.error(err.response?.data?.message || "Unable to load attendance report");
+      });
+    return () => { cancelled = true; };
+    // Month changes should only request the matching attendance report.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, month]);
+
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(location.search);
+    setActiveTabState(resolveEmployeeTab(
+      params.get("tab"),
+      canManage,
+      user?.role === "superadmin",
+      params.get("edit") === "1"
+    ));
+  }, [canManage, loading, location.search, user?.role]);
 
   const deactivateEmployee = async () => {
     const ok = await confirm({
@@ -178,7 +228,7 @@ const EmployeeDetail = () => {
     try {
       await hrApi.deactivateEmployee(employeeId);
       toast.success("Employee deactivated");
-      await loadEmployee();
+      await loadEmployee({ includeReport: false });
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to deactivate");
     }
@@ -188,7 +238,7 @@ const EmployeeDetail = () => {
     try {
       await hrApi.activateEmployee(employeeId);
       toast.success("Employee activated");
-      await loadEmployee();
+      await loadEmployee({ includeReport: false });
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to activate");
     }
@@ -214,9 +264,25 @@ const EmployeeDetail = () => {
 
   const updateEmployee = async (e) => {
     e.preventDefault();
+    const validationErrors = validateEditForm();
+    if (Object.keys(validationErrors).length) {
+      setEditErrors(validationErrors);
+      toast.error("Please fix the highlighted fields before saving");
+      return;
+    }
     setSavingProfile(true);
     try {
-      await hrApi.updateEmployee(employeeId, editForm);
+      const payload = {
+        ...editForm,
+        employeeId: editForm.employeeId.trim(),
+        name: editForm.name.trim(),
+        mobile: editForm.mobile.trim(),
+        altMobile: editForm.altMobile.trim(),
+        department: editForm.department.trim(),
+        designation: editForm.designation.trim(),
+        address: Object.fromEntries(Object.entries(editForm.address).map(([key, value]) => [key, value.trim()])),
+      };
+      await hrApi.updateEmployee(employeeId, payload);
       toast.success("Employee updated");
       await loadEmployee();
     } catch (err) {
@@ -252,16 +318,33 @@ const EmployeeDetail = () => {
       reader.readAsDataURL(file);
     });
 
-  const handlePhoto = async (file) => {
-    if (!file) return;
-    const dataUri = await fileToDataUri(file);
-    setEditForm((prev) => ({
-      ...prev,
-      photo: { dataUri, name: file.name, type: file.type },
-    }));
+  const saveEmployeeDocuments = async (event) => {
+    event.preventDefault();
+    const selectedEntries = Object.entries(documentFiles).filter(([, file]) => file);
+    if (!selectedEntries.length) {
+      toast.error("Choose at least one document to upload");
+      return;
+    }
+
+    setSavingDocuments(true);
+    try {
+      const payload = {};
+      for (const [key, file] of selectedEntries) {
+        payload[key] = { dataUri: await fileToDataUri(file), name: file.name, type: file.type };
+      }
+      const response = await hrApi.updateEmployeeDocuments(employeeId, payload);
+      setEmployee(response.data.data || employee);
+      setDocumentFiles({});
+      toast.success(response.data.message || "Employee documents updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update employee documents");
+    } finally {
+      setSavingDocuments(false);
+    }
   };
 
-  const handleAddressChange = (field, value) => {
+  const handleAddressChange = (event) => {
+    const { name: field, value } = event.target;
     if (field === "pincode" && !/^\d{0,6}$/.test(value)) return;
     setEditForm((prev) => ({
       ...prev,
@@ -270,6 +353,52 @@ const EmployeeDetail = () => {
         [field]: value,
       },
     }));
+    setEditErrors((current) => ({ ...current, [field]: validateAddressField(field, value) }));
+  };
+
+  const validateAddressField = (field, value) => {
+    const cleanValue = value.trim();
+    if (field === "pincode" && cleanValue && !/^\d{6}$/.test(cleanValue)) return "Enter a valid 6-digit pincode";
+    const maxLength = field === "street" ? 200 : 100;
+    if (cleanValue.length > maxLength) return `Use ${maxLength} characters or fewer`;
+    return "";
+  };
+
+  const validateEditField = (field, value) => {
+    const cleanValue = String(value ?? "").trim();
+    if (field === "employeeId" && !cleanValue) return "Employee ID is required";
+    if (field === "name" && !cleanValue) return "Full name is required";
+    if (field === "mobile" && !/^\d{10}$/.test(cleanValue)) return "Enter a 10-digit mobile number";
+    if (field === "altMobile" && cleanValue && !/^\d{10}$/.test(cleanValue)) return "Enter a 10-digit mobile number";
+    if (field === "name" && cleanValue.length > 100) return "Use 100 characters or fewer";
+    if (field === "employeeId" && cleanValue.length > 40) return "Use 40 characters or fewer";
+    if (field === "department" && cleanValue.length > 100) return "Use 100 characters or fewer";
+    if (field === "designation" && cleanValue.length > 100) return "Use 100 characters or fewer";
+    if (field === "dateOfJoining" && cleanValue && Number.isNaN(Date.parse(cleanValue))) return "Enter a valid joining date";
+    return "";
+  };
+
+  const validateEditForm = () => {
+    const errors = {};
+    ["employeeId", "name", "mobile", "altMobile", "department", "designation", "dateOfJoining"].forEach((field) => {
+      const error = validateEditField(field, editForm[field]);
+      if (error) errors[field] = error;
+    });
+    if (editForm.employeeType && !["Permanent", "Contract", "Intern"].includes(editForm.employeeType)) errors.employeeType = "Choose a valid employee type";
+    if (editForm.attendanceMode && !["office", "work_from_home"].includes(editForm.attendanceMode)) errors.attendanceMode = "Choose a valid attendance mode";
+    if (editForm.teamLead && !teamLeadOptions.some((item) => String(item._id) === String(editForm.teamLead))) errors.teamLead = "Choose a valid reporting manager";
+    Object.entries(editForm.address).forEach(([field, value]) => {
+      const error = validateAddressField(field, value || "");
+      if (error) errors[field] = error;
+    });
+    return errors;
+  };
+
+  const handleEditFieldChange = (event) => {
+    const { name, value } = event.target;
+    const nextValue = name.toLowerCase().includes("mobile") ? value.replace(/\D/g, "").slice(0, 10) : value;
+    setEditForm((current) => ({ ...current, [name]: nextValue }));
+    setEditErrors((current) => ({ ...current, [name]: validateEditField(name, nextValue) }));
   };
 
   const departmentOptions = useMemo(() => {
@@ -371,15 +500,20 @@ const EmployeeDetail = () => {
   const activeBadgeClass = employee.isActive
     ? "border-green-200 bg-green-50 text-green-700"
     : "border-red-200 bg-red-50 text-red-700";
+  const employeeTabs = [
+    { value: "details", label: "Details" },
+    { value: "attendance", label: "Attendance" },
+    { value: "documents", label: "Documents" },
+    ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
+    ...(user?.role === "superadmin" ? [{ value: "credentials", label: "Credentials" }] : []),
+  ];
 
   return (
     <div className="space-y-5">
-      <div className="rounded-sm border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-gray-100 p-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-sm bg-[#fff1ed] text-xl font-bold text-[#f84525]">
-              {getInitials(employee.name)}
-            </div>
+      <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-4 lg:grid-cols-[auto_minmax(320px,1fr)_auto] lg:items-center lg:gap-x-5 lg:gap-y-3 lg:p-5">
+          <div className="order-1 flex min-w-0 items-center gap-3 lg:col-start-3 lg:row-start-1 lg:justify-self-end">
+            <Avatar name={employee.name} src={employee.documents?.photo?.url} size="h-16 w-16" className="text-xl" alt={`${employee.name} profile`} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="break-words text-2xl font-bold text-gray-900">{employee.name}</h1>
@@ -391,71 +525,49 @@ const EmployeeDetail = () => {
               <p className="mt-1 text-sm text-gray-500">
                 {employee.employeeId || "No employee ID"} / {employee.designation || "No designation"}
               </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
-                <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1">
-                  <FiBriefcase /> {employee.department || "No department"}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1">
-                  <FiCalendar /> Joined {formatDate(employee.dateOfJoining)}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1">
-                  <FiShield /> {employee.employeeType || "Employee"}
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 lg:items-end">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Report Month
-                <input
-                  type="month"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-                />
-              </label>
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Single Day
-                <input
-                  type="date"
-                  value={reportDate}
-                  onChange={(e) => {
-                    setReportDate(e.target.value);
-                    if (e.target.value) setMonth(e.target.value.slice(0, 7));
-                  }}
-                  className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
-              <Button variant="secondary" onClick={() => navigate(-1)} className="inline-flex items-center gap-2">
-                <FiArrowLeft /> Back
+          <div className="order-2 flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-1 lg:justify-self-start">
+            <Button variant="secondary" onClick={() => navigate(-1)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
+              <FiArrowLeft /> Back
+            </Button>
+            <Button onClick={downloadEmployeeReport} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
+              <FiDownload /> {reportDate ? "Day Report" : "Monthly PDF"}
+            </Button>
+            {canManage && (employee.isActive ? (
+              <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
+                <FiUserX /> Deactivate
               </Button>
-              <Button onClick={downloadEmployeeReport} className="inline-flex items-center gap-2">
-                <FiDownload /> {reportDate ? "Day Report" : "Monthly PDF"}
+            ) : (
+              <Button variant="success" onClick={activateEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
+                <FiUserCheck /> Activate
               </Button>
-              {canManage && (employee.isActive ? (
-                <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center gap-2">
-                  <FiUserX /> Deactivate
-                </Button>
-              ) : (
-                <Button variant="success" onClick={activateEmployee} className="inline-flex items-center gap-2">
-                  <FiUserCheck /> Activate
-                </Button>
-              ))}
-              {canManage && (
-                <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center gap-2">
-                  <FiTrash2 /> Delete
-                </Button>
-              )}
-            </div>
+            ))}
+            {canManage && (
+              <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
+                <FiTrash2 /> Delete
+              </Button>
+            )}
+          </div>
+
+          <div className="order-3 grid min-w-0 grid-cols-1 gap-2 lg:col-start-2 lg:row-start-1 lg:max-w-[570px] lg:grid-cols-2 lg:self-center">
+              <CalendarPicker inlineLabel  mode="month" value={month} onChange={setMonth} />
+              <CalendarPicker inlineLabel  mode="date" value={reportDate} onChange={(value) => {
+                setReportDate(value);
+                if (value) setMonth(value.slice(0, 7));
+              }} />
+          </div>
+
+          <div className="order-4 flex flex-wrap items-center gap-2 text-xs text-gray-600 lg:col-start-3 lg:row-start-2 lg:justify-self-end">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiBriefcase className="text-gray-500" />{employee.department || "No department"}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiCalendar className="text-gray-500" />Joined {formatDate(employee.dateOfJoining)}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiShield className="text-gray-500" />{employee.employeeType || "Employee"}</span>
           </div>
         </div>
 
         {summary && (
-          <div className="grid grid-cols-2 gap-3 p-4 text-sm md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 p-4 text-sm sm:grid-cols-3 lg:grid-cols-5 lg:p-5">
             <DetailItem icon={<FiCalendar />} label="Report Days" value={summary.days} />
             <DetailItem icon={<FiCheckCircle />} label="Present" value={summary.present} />
             <DetailItem icon={<FiCalendar />} label="Half Day" value={summary.halfDay} />
@@ -465,7 +577,11 @@ const EmployeeDetail = () => {
         )}
       </div>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div ref={tabsRef} className="rounded-sm border border-gray-200 bg-white px-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <Tabs tabs={employeeTabs} value={activeTab} onChange={changeActiveTab} label="Employee profile sections" />
+      </div>
+
+      {activeTab === "details" && <section id="details-panel" role="tabpanel" aria-labelledby="details-tab" className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm xl:col-span-2">
           <SectionHeader title="Employee Details" subtitle="Basic information HR/admin needs before making changes." />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -491,210 +607,168 @@ const EmployeeDetail = () => {
           </div>
         </div>
 
-        <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm">
-          <SectionHeader title="Documents" subtitle="Uploaded files and verification material." />
-          <div className="space-y-2">
-            {documentItems.map(([key, label]) => {
-              const hasDocument = Boolean(employee.documents?.[key]?.url);
-              const latestRequest = key === "photo" ? null : getLatestDocumentRequest(key);
-              const status = latestRequest?.status;
-              return (
-                <div key={key} className="flex items-center justify-between gap-3 rounded-sm border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                  <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-gray-800">
-                    <FiFileText className={hasDocument ? "text-[#f84525]" : "text-gray-400"} />
-                    {label}
-                  </span>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                    {status ? (
-                      <span className={`rounded-sm px-2 py-1 text-xs font-semibold capitalize ${
-                        status === "pending"
-                          ? "bg-yellow-50 text-yellow-700"
-                          : status === "approved"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-gray-100 text-gray-600"
-                      }`}>
-                        {status}
-                      </span>
-                    ) : null}
-                    {status === "pending" && user?.role === "hr" ? (
-                      <Button
-                        text="Approve"
-                        type="button"
-                        variant="success"
-                        loading={approvingDocument === key}
-                        onClick={() => approveDocumentUpdate(key)}
-                      />
-                    ) : null}
-                    {hasDocument ? (
-                      <button
-                        type="button"
-                        onClick={() => setPreview({ title: label, url: employee.documents[key].url })}
-                        className="rounded-sm border border-[#ffd0c7] bg-white px-3 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed]"
-                      >
-                        View
-                      </button>
-                    ) : (
-                      <span className="rounded-sm bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">Missing</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {employee.documents?.salarySlips?.length > 0 && (
-            <div className="mt-4 text-sm">
-              <p className="font-semibold text-gray-800">Salary Slips</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {employee.documents.salarySlips.map((slip, index) => (
-                  <button
-                    key={slip.public_id || index}
-                    type="button"
-                    onClick={() => setPreview({ title: `salary slip ${index + 1}`, url: slip.url })}
-                    className="rounded-sm border border-[#ffd0c7] bg-[#fff8f6] px-3 py-1 text-xs font-semibold text-[#f84525]"
-                  >
-                    View Slip {index + 1}
-                  </button>
-                ))}
+      </section>}
+
+      {activeTab === "documents" && <>
+        <section id="documents-panel" role="tabpanel" aria-labelledby="documents-tab" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
+          {canManageDocuments && (
+            <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {documentItems.map(([key, label]) => {
+                  const latestRequest = key === "photo" ? null : getLatestDocumentRequest(key);
+                  return <FileUploadField
+                    key={key}
+                    label={label}
+                    name={key}
+                    accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"}
+                    hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"}
+                    fileName={documentFiles[key]?.name}
+                    selectedPreviewUrl={documentFiles[key] ? documentPreviewUrls[key] : employee.documents?.[key]?.url}
+                    previewType={documentFiles[key]?.type === "application/pdf" ? "pdf" : documentFiles[key] ? "image" : getDocumentPreviewType(employee.documents?.[key])}
+                    previewTitle={documentFiles[key] ? (documentFiles[key]?.type === "application/pdf" ? "Selected PDF" : `Selected ${label.toLowerCase()}`) : `Current ${label.toLowerCase()}`}
+                    currentFileLabel={employee.documents?.[key]?.url ? `${label} already uploaded` : undefined}
+                    onPreviewCurrent={(documentFiles[key] && documentPreviewUrls[key]) || employee.documents?.[key]?.url
+                      ? () => setPreview({ title: label, url: documentFiles[key] ? documentPreviewUrls[key] : employee.documents[key].url })
+                      : undefined}
+                    currentStatus={latestRequest?.status}
+                    currentActionLabel={latestRequest?.status === "pending" && user?.role === "hr" ? "Approve" : undefined}
+                    onCurrentAction={latestRequest?.status === "pending" && user?.role === "hr" ? () => approveDocumentUpdate(key) : undefined}
+                    currentActionLoading={approvingDocument === key}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      setDocumentFiles((current) => ({ ...current, [key]: file }));
+                      if (file) fileToDataUri(file).then((dataUri) => setDocumentPreviewUrls((current) => ({ ...current, [key]: dataUri }))).catch(() => setDocumentPreviewUrls((current) => ({ ...current, [key]: "" })));
+                      else setDocumentPreviewUrls((current) => ({ ...current, [key]: "" }));
+                    }}
+                    disabled={savingDocuments}
+                  />;
+                })}
               </div>
-            </div>
+              <div className="mt-4 flex justify-end">
+                <Button type="submit" loading={savingDocuments} text="Save Documents" className="rounded-lg" />
+              </div>
+            </form>
           )}
-        </div>
-      </section>
+        </section>
+      </>}
 
-      {canManage && (
-      <form onSubmit={updateEmployee} className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
-          <SectionHeader title="Update Employee" subtitle="Edit identity, work assignment, attendance mode, photo and address." />
-          <Button text={savingProfile ? "Saving..." : "Save Changes"} loading={savingProfile} type="submit" className="md:min-w-40" />
+      {canManage && activeTab === "edit" && (
+      <form id="edit-panel" role="tabpanel" aria-labelledby="edit-tab" ref={editFormRef} onSubmit={updateEmployee} className="scroll-mt-5 overflow-visible rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-xl text-[#f84525]"><FiUsers /></span>
+            <SectionHeader title="Update Employee" subtitle="Edit employee details, work assignment, attendance mode, and more." className="mb-0" />
+          </div>
+          <Button text={savingProfile ? "Saving..." : "Save Changes"} loading={savingProfile} type="submit" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg sm:min-w-40">
+            <FiSave /> Save Changes
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 pt-4 xl:grid-cols-3">
-          <div className="xl:col-span-2">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Personal & Work</h3>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5">
+          <section className="min-w-0">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900"><FiBriefcase className="text-[#f84525]" />Personal &amp; Work</h3>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {[
           ["employeeId", "Employee ID", "text"],
           ["name", "Full Name", "text"],
           ["mobile", "Mobile", "text"],
           ["altMobile", "Alt Mobile", "text"],
           ["designation", "Designation", "text"],
-          ["dateOfJoining", "Joining Date", "date"],
         ].map(([name, label, type]) => (
-          <label key={name} className="text-sm font-medium text-gray-700">
-            {label}
-            <input
-              type={type}
-              value={editForm[name]}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, [name]: name.includes("Mobile") || name === "mobile" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value }))}
-              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-              required={["name", "mobile"].includes(name)}
-            />
-          </label>
+          <InputField
+            key={name}
+            label={label}
+            name={name}
+            type={type}
+            value={editForm[name]}
+            onChange={handleEditFieldChange}
+            required={["name", "mobile"].includes(name)}
+            error={editErrors[name]}
+            maxLength={name.toLowerCase().includes("mobile") ? 10 : name === "employeeId" ? 40 : name === "name" ? 100 : 100}
+            inputMode={name.toLowerCase().includes("mobile") ? "numeric" : undefined}
+            pattern={name.toLowerCase().includes("mobile") ? "[0-9]{10}" : undefined}
+          />
         ))}
-        <label className="text-sm font-medium text-gray-700">
-          Department
-          <select
-            value={editForm.department}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, department: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          >
-            <option value="">Select Department</option>
-            {departmentOptions.map((department) => (
-              <option key={department} value={department}>
-                {department}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Reporting Manager
-          <select
-            value={editForm.teamLead}
-            onChange={(e) => {
-              const selectedTeamLead = teamLeadOptions.find((item) => item._id === e.target.value);
-              setEditForm((prev) => ({
-                ...prev,
-                teamLead: e.target.value,
-                reportingManager: selectedTeamLead
-                  ? selectedTeamLead.employeeId || selectedTeamLead.name
-                  : "",
-              }));
-            }}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          >
-            <option value="">No Reporting Manager</option>
-            {teamLeadOptions.map((teamLead) => (
-              <option key={teamLead._id} value={teamLead._id}>
-                {teamLead.employeeId || "-"} - {teamLead.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Employee Type
-          <select
-            value={editForm.employeeType}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, employeeType: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          >
-            <option>Permanent</option>
-            <option>Contract</option>
-            <option>Intern</option>
-          </select>
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Attendance Mode
-          <select
-            value={editForm.attendanceMode}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, attendanceMode: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          >
-            <option value="office">Office</option>
-            <option value="work_from_home">Work From Home</option>
-          </select>
-        </label>
+        <CustomDropdown
+          label="Department"
+          value={editForm.department}
+          onChange={(value) => {
+            setEditForm((current) => ({ ...current, department: value }));
+            setEditErrors((current) => ({ ...current, department: validateEditField("department", value) }));
+          }}
+          options={departmentOptions}
+          placeholder="Select department"
+          error={editErrors.department}
+        />
+        <CustomDropdown
+          label="Reporting Manager"
+          value={editForm.teamLead}
+          placeholder="No Reporting Manager"
+          searchable
+          onChange={(value) => {
+            const selectedTeamLead = teamLeadOptions.find((item) => item._id === value);
+            setEditForm((prev) => ({
+              ...prev,
+              teamLead: value,
+              reportingManager: selectedTeamLead ? selectedTeamLead.employeeId || selectedTeamLead.name : "",
+            }));
+            setEditErrors((prev) => ({ ...prev, teamLead: "" }));
+          }}
+          error={editErrors.teamLead}
+          options={teamLeadOptions.map((teamLead) => ({
+            value: teamLead._id,
+            label: `${teamLead.employeeId || "-"} - ${teamLead.name}`,
+          }))}
+        />
+        <CustomDropdown
+          label="Employee Type"
+          value={editForm.employeeType}
+          onChange={(value) => {
+            setEditForm((current) => ({ ...current, employeeType: value }));
+            setEditErrors((current) => ({ ...current, employeeType: ["Permanent", "Contract", "Intern"].includes(value) ? "" : "Choose a valid employee type" }));
+          }}
+          options={["Permanent", "Contract", "Intern"]}
+          error={editErrors.employeeType}
+        />
+        <CalendarPicker
+          label="Joining Date"
+          mode="date"
+          value={editForm.dateOfJoining}
+          onChange={(value) => {
+            setEditForm((current) => ({ ...current, dateOfJoining: value }));
+            setEditErrors((current) => ({ ...current, dateOfJoining: validateEditField("dateOfJoining", value) }));
+          }}
+          error={editErrors.dateOfJoining}
+          className="mt-1"
+        />
+        <CustomDropdown
+          label="Attendance Mode"
+          value={editForm.attendanceMode}
+          onChange={(value) => {
+            setEditForm((current) => ({ ...current, attendanceMode: value }));
+            setEditErrors((current) => ({ ...current, attendanceMode: "" }));
+          }}
+          error={editErrors.attendanceMode}
+          options={[
+            { value: "office", label: "Office" },
+            { value: "work_from_home", label: "Work From Home" },
+          ]}
+        />
             </div>
-          </div>
+          </section>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Profile Photo</h3>
-            <FileUploadField
-              label="Update Photo"
-              accept=".jpg,.jpeg,.png,.webp"
-              hint="Upload JPG, PNG, WEBP"
-              onChange={(e) => handlePhoto(e.target.files?.[0])}
-              fileName={editForm.photo?.name}
-            />
-          </div>
         </div>
 
         <div className="mt-5 border-t border-gray-100 pt-4">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Address</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          {[
-            ["street", "Address"],
-            ["city", "City"],
-            ["state", "State"],
-            ["country", "Country"],
-            ["pincode", "Pincode"],
-          ].map(([field, label]) => (
-            <label key={field} className="text-sm font-medium text-gray-700">
-              {label}
-              <input
-                type="text"
-                value={editForm.address[field]}
-                onChange={(e) => handleAddressChange(field, e.target.value)}
-                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-              />
-            </label>
-          ))}
-          </div>
+          <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900"><FiMapPin className="text-[#f84525]" />Address</h3>
+          <AddressFields value={editForm.address} onChange={handleAddressChange} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" />
         </div>
       </form>
       )}
 
-      {user?.role === "superadmin" && (
-        <section className="bg-white rounded-sm shadow overflow-hidden">
+      {user?.role === "superadmin" && activeTab === "credentials" && (
+        <section id="credentials-panel" role="tabpanel" aria-labelledby="credentials-tab" className="bg-white rounded-sm shadow overflow-hidden">
           <div className="p-4 border-b">
             <h2 className="font-semibold">Employee Saved Credentials</h2>
           </div>
@@ -727,27 +801,24 @@ const EmployeeDetail = () => {
         </section>
       )}
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
+      {activeTab === "documents" && <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold">Document Update History</h2>
         </div>
         {documentHistory.length ? (
-          <>
-          {historyPagination.pageItems.map((item, index) => (
-              <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-t px-4 py-3 text-sm">
-                <span>{new Date(item.updatedAt).toLocaleString()}</span>
-                <span>{item.documents?.join(", ") || "Documents"}</span>
-                <span>{item.verifiedByEmail || "HR verified"}</span>
-              </div>
-            ))}
-          <Pagination {...historyPagination} />
-          </>
-        ) : (
-          <p className="p-4 text-sm text-gray-500">No document update history.</p>
-        )}
-      </section>
+          <CommonTable
+            columns={[
+              { accessor: "updatedAt", header: "Updated", render: (value) => value ? new Date(value).toLocaleString() : "N/A" },
+              { accessor: "documents", header: "Documents", render: (value) => value?.join(", ") || "Documents" },
+              { accessor: "verifiedByEmail", header: "Verified By", render: (value) => value || "HR verified" },
+            ]}
+            data={historyPagination.pageItems}
+            pagination={historyPagination}
+          />
+        ) : <EmptyState text="No document update history." />}
+      </section>}
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
+      {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold">This Month Attendance</h2>
         </div>
@@ -761,22 +832,21 @@ const EmployeeDetail = () => {
           </div>
         )}
         {filteredAttendance.length === 0 ? (
-          <p className="p-4 text-sm text-gray-500">No attendance found.</p>
+          <EmptyState text="No attendance found." />
         ) : (
-          <>
-          {attendancePagination.pageItems.map((item) => (
-            <div key={item._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm">
-              <span>{item.dateKey}</span>
-              <span>{item.status}</span>
-              <span>Work: {minutesToHours(item.totalWorkMinutes)}</span>
-              <span>Break: {minutesToHours(item.totalBreakMinutes)}</span>
-              <span>{item.logoutAt ? new Date(item.logoutAt).toLocaleTimeString() : "Running"}</span>
-            </div>
-          ))}
-          <Pagination {...attendancePagination} />
-          </>
+          <CommonTable
+            columns={[
+              { accessor: "dateKey", header: "Date" },
+              { accessor: "status", header: "Status" },
+              { accessor: "totalWorkMinutes", header: "Work", render: (value) => minutesToHours(value) },
+              { accessor: "totalBreakMinutes", header: "Break", render: (value) => minutesToHours(value) },
+              { accessor: "logoutAt", header: "Logout", render: (value) => value ? new Date(value).toLocaleTimeString() : "Running" },
+            ]}
+            data={attendancePagination.pageItems}
+            pagination={attendancePagination}
+          />
         )}
-      </section>
+      </section>}
 
       {preview && (
         <FilePreviewModal

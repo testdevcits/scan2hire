@@ -192,6 +192,7 @@ const UserProfile = ({ title = "My Profile" }) => {
           label="State"
           value={profileForm.address.state}
           options={indiaStateOptions}
+          searchable
           onChange={(value) => handleAddressChange("state", value)}
           placeholder="Select state"
         />
@@ -199,6 +200,7 @@ const UserProfile = ({ title = "My Profile" }) => {
           label="Country"
           value={profileForm.address.country}
           options={countryOptions}
+          searchable
           onChange={(value) => handleAddressChange("country", value)}
           placeholder="Select country"
         />

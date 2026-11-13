@@ -13,8 +13,8 @@ const FilePreviewModal = ({ title, url, onClose }) => {
   const previewType = getPreviewType(url);
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-sm shadow-xl w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-2 sm:p-4">
+      <div className="flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-sm bg-white shadow-xl dark:bg-gray-900">
         <div className="px-4 py-3 border-b dark:border-gray-800 flex items-center justify-between gap-3 shrink-0">
           <h2 className="font-semibold text-gray-900 dark:text-white truncate">
             {title || "Preview"}
@@ -38,7 +38,7 @@ const FilePreviewModal = ({ title, url, onClose }) => {
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 bg-gray-100 dark:bg-gray-950">
+        <div className="min-h-0 flex-1 bg-white dark:bg-gray-900">
           {previewType === "image" ? (
             <div className="w-full h-full overflow-auto flex items-center justify-center p-3">
               <img

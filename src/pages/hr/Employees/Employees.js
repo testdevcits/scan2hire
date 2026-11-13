@@ -1,7 +1,7 @@
 // pages/Hr/Employees.js
 import { useEffect, useState } from "react";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
-import CommonTable from "../CommonTable";
+import CommonTable from "../../components/common/CommonTable";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
 

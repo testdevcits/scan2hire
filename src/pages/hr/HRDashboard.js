@@ -1,30 +1,41 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { FiClock, FiGift, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiCalendar, FiClock, FiGift, FiUserCheck, FiUsers } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
+import DateRangePicker from "../../components/common/DateRangePicker";
+import { ActionCard, ChartMetric, CompactInfoRow, MetricCard, PageHeader, SectionCard } from "../../components/common/ReusableCards";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const ORANGE = "#f84525";
-const ORANGE_SOFT = "#ffa826";
-const ORANGE_LIGHT = "#fff5f3";
-const SLATE = "#1f2937";
-const RED = "#ef4444";
+const AMBER = "#ffa826";
 const getLocalDateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-const getWeekOfMonth = (value) => {
+const getMonthKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const getRangeBucketIndex = (value, startDate, endDate) => {
+  if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return Math.min(4, Math.ceil(date.getDate() / 7));
+  const dateKey = getLocalDateKey(date);
+  if (dateKey < startDate || dateKey > endDate) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+  const elapsedDays = Math.floor((new Date(year, month - 1, day) - new Date(startYear, startMonth - 1, startDay)) / 86400000);
+  return Math.floor(elapsedDays / 7);
+};
+const getRangeBucketLabel = (startDate, weekIndex) => {
+  const [year, month, day] = startDate.split("-").map(Number);
+  return new Date(year, month - 1, day + weekIndex * 7).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
 const HRDashboard = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useContext(AuthContext);
+  const currentMonth = useMemo(() => getMonthKey(), []);
+  const [dateRange, setDateRange] = useState(() => ({ start: `${getMonthKey()}-01`, end: getLocalDateKey() }));
   const roleClaims = [user?.role, user?.workRole, user?.effectiveRole].filter(Boolean);
   const isTeamLead = roleClaims.includes("teamlead");
   const isProjectCoordinator = roleClaims.includes("project_coordinator");
@@ -35,8 +46,7 @@ const HRDashboard = () => {
 
   useEffect(() => {
     if (isProjectCoordinator) return undefined;
-    const month = new Date().toISOString().slice(0, 7);
-    Promise.all([hrApi.getAttendance(month), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
+    Promise.all([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
       .then(([attendanceRes, leavesRes, candidatesRes, employeeRes]) => {
         setAttendance(attendanceRes.data.data || []);
         setLeaves(leavesRes.data.data || []);
@@ -44,7 +54,7 @@ const HRDashboard = () => {
         setEmployees(employeeRes.data.data || []);
       })
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load HR dashboard"));
-  }, [isProjectCoordinator, toast]);
+  }, [currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();
   const tomorrow = useMemo(() => {
@@ -75,75 +85,75 @@ const HRDashboard = () => {
         note: isTeamLead
           ? `${employees.length} team member${employees.length === 1 ? "" : "s"} in your scope`
           : `${leaves.filter((item) => item.status === "pending").length} leave requests waiting`,
-        tone: "primary",
+        icon: <FiClock />,
+        iconClassName: "bg-orange-50 text-[#f84525] dark:bg-orange-950/50 dark:text-orange-300",
       },
       {
         label: "On Leave",
         value: leaves.filter((leave) => leave.status === "approved" && leave.fromDate?.slice(0, 10) <= today && leave.toDate?.slice(0, 10) >= today).length,
         note: "Approved leaves active today",
+        icon: <FiCalendar />,
+        iconClassName: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300",
       },
       {
         label: "Running Interviews",
         value: candidates.filter((item) => item.assignedTo && !["selected", "rejected"].includes(item.interviewStatus)).length,
         note: isTeamLead ? `${candidates.length} team candidates` : `${candidates.length} total candidates`,
+        icon: <FiUserCheck />,
+        iconClassName: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300",
       },
       {
-        label: "Today Interviews",
-        value: candidates.filter((item) => getLocalDateKey(new Date(item.updatedAt || item.createdAt)) === today).length,
-        note: "Candidate activity for today",
+        label: "Pending Leaves",
+        value: leaves.filter((item) => item.status === "pending").length,
+        note: "Requests waiting for HR review",
+        icon: <FiCalendar />,
+        iconClassName: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300",
       },
     ],
     [attendance, candidates, employees.length, isTeamLead, leaves, today]
   );
 
-  const interviewStageData = useMemo(
-    () => [
-      { name: "HR", value: candidates.filter((item) => item.interviewStatus === "hr_round").length, color: ORANGE },
-      { name: "Technical", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE_SOFT },
-      { name: "Machine Test", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: "#fb923c" },
-      { name: "Rejected", value: candidates.filter((item) => item.interviewStatus === "rejected").length, color: RED },
-      { name: "Selected", value: candidates.filter((item) => item.interviewStatus === "selected").length, color: SLATE },
-    ],
-    [candidates]
-  );
+  const rangeIsValid = Boolean(dateRange.start && dateRange.end && dateRange.start <= dateRange.end);
+  const rangeBucketCount = rangeIsValid
+    ? Math.ceil((new Date(`${dateRange.end}T00:00:00`) - new Date(`${dateRange.start}T00:00:00`) + 86400000) / (7 * 86400000))
+    : 0;
+  const interviewActivityTrend = useMemo(() => Array.from({ length: rangeBucketCount }, (_, index) => {
+    const week = index;
+    const count = candidates.reduce((total, candidate) => total + (candidate.interviewRounds || []).filter(
+      (round) => getRangeBucketIndex(round.date, dateRange.start, dateRange.end) === week
+    ).length, 0);
+    return { label: getRangeBucketLabel(dateRange.start, week), value: count };
+  }), [candidates, dateRange.end, dateRange.start, rangeBucketCount]);
 
-  const leaveStatusData = useMemo(
-    () => [
-      { name: "Pending", value: leaves.filter((item) => item.status === "pending").length },
-      { name: "Approved", value: leaves.filter((item) => item.status === "approved").length },
-      { name: "Rejected", value: leaves.filter((item) => item.status === "rejected").length },
-    ],
-    [leaves]
-  );
+  const leaveActivityTrend = useMemo(() => Array.from({ length: rangeBucketCount }, (_, index) => ({
+    label: getRangeBucketLabel(dateRange.start, index),
+    value: leaves.filter((leave) => getRangeBucketIndex(leave.createdAt, dateRange.start, dateRange.end) === index).length,
+  })), [dateRange.end, dateRange.start, leaves, rangeBucketCount]);
 
-  const activityTrend = useMemo(
-    () =>
-      [1, 2, 3, 4].map((week) => ({
-        name: `Week ${week}`,
-        interviews: candidates.filter((item) => getWeekOfMonth(item.updatedAt || item.createdAt) === week).length,
-        leaves: leaves.filter((item) => getWeekOfMonth(item.fromDate || item.createdAt) === week).length,
-      })),
-    [candidates, leaves]
-  );
+  const interviewTotal = interviewActivityTrend.reduce((total, point) => total + point.value, 0);
+  const leaveTotal = leaveActivityTrend.reduce((total, point) => total + point.value, 0);
+  const chartRangeLabel = rangeIsValid
+    ? `${new Date(`${dateRange.start}T12:00:00`).toLocaleDateString()} – ${new Date(`${dateRange.end}T12:00:00`).toLocaleDateString()}`
+    : "Select a valid date range";
 
   const quickActions = [
     {
       title: isTeamLead ? "Your Team" : "Manage Employees",
       description: isTeamLead ? "View employees assigned under your team." : "Update profiles, joining details, and document review.",
       path: "/hr/employees",
-      icon: <FiUsers className="text-[#f84525] w-5 h-5" />,
+      icon: <FiUsers className="h-4 w-4" />,
     },
     {
       title: "Reports & Calendar",
       description: isTeamLead ? "Review team attendance and calendar reports." : "Leave calendar, attendance reports, and approvals.",
       path: "/hr/reports",
-      icon: <FiClock className="text-[#f84525] w-5 h-5" />,
+      icon: <FiClock className="h-4 w-4" />,
     },
     {
       title: "Candidate Reviews",
       description: isTeamLead ? "Review and move your assigned candidate interviews." : "Assign rounds and move interviews forward.",
       path: "/hr/candidates/list",
-      icon: <FiUserCheck className="text-[#f84525] w-5 h-5" />,
+      icon: <FiUserCheck className="h-4 w-4" />,
     },
   ];
 
@@ -152,162 +162,108 @@ const HRDashboard = () => {
   }
 
   return (
-    <div className="space-y-5">
-      <section className="bg-white rounded-sm shadow p-4 md:p-5">
-        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {isTeamLead
-                ? "Team attendance, leaves, candidates, and daily activity in one place."
-                : "Interviews, leave handling, employee status, and daily HR operations in one place."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button text="Candidates" onClick={() => navigate("/hr/candidates/list")} />
-            <Button text="Reports" variant="secondary" onClick={() => navigate("/hr/reports")} />
-          </div>
-        </div>
-      </section>
+    <div className="min-h-full space-y-4  p-3 dark:bg-gray-950 sm:p-4">
+      <PageHeader
+        title={isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}
+        description={isTeamLead
+          ? "Team attendance, leaves, candidates, and daily activity in one place."
+          : "Interviews, leave handling, employee status, and daily HR operations in one place."}
+        actions={[
+          <DateRangePicker key="date-range" value={dateRange} onApply={setDateRange} />,
+          <Button key="candidates" text="Candidates" onClick={() => navigate("/hr/candidates/list")} />,
+          <Button key="reports" text="Reports" variant="secondary" onClick={() => navigate("/hr/reports")} />,
+        ]}
+      />
 
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {statCards.map((item, index) => (
-          <div
-            key={item.label}
-            className={`rounded-sm shadow p-4 min-h-[148px] flex flex-col justify-between ${
-              item.tone === "primary"
-                ? "bg-gradient-to-br from-[#f84525] via-[#f25d23] to-[#ffa826] text-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className={`text-sm ${item.tone === "primary" ? "text-white/85" : "text-gray-500"}`}>
-                  {item.label}
-                </p>
-                <p className={`text-4xl font-bold mt-3 ${item.tone === "primary" ? "text-white" : "text-gray-900"}`}>
-                  {item.value}
-                </p>
-              </div>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                item.tone === "primary" ? "bg-white/15 text-white" : "bg-[#fff5f3] text-[#f84525]"
-              }`}>
-                0{index + 1}
-              </div>
-            </div>
-            <p className={`text-xs mt-4 ${item.tone === "primary" ? "text-white/80" : "text-gray-500"}`}>
-              {item.note}
-            </p>
-          </div>
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((item) => (
+          <MetricCard key={item.label} {...item} />
         ))}
       </section>
 
       {birthdayReminders.length > 0 && (
-        <section className="bg-white rounded-sm shadow p-4 border-l-4 border-[#f84525]">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <section className="rounded-sm border border-gray-100 border-l-4 border-l-[#f84525] bg-white p-3 shadow-sm dark:border-gray-800 dark:border-l-[#f84525] dark:bg-gray-900 sm:p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-[#fff5f3] text-[#f84525] flex items-center justify-center">
                 <FiGift className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900">Birthday Reminder</h2>
-                <p className="text-sm text-gray-500">Kal birthday hai. HR aaj wish/plan kar sakta hai.</p>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Birthday Reminder</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Kal birthday hai. HR aaj wish/plan kar sakta hai.</p>
               </div>
             </div>
             <Button text="Employees" variant="secondary" onClick={() => navigate("/hr/employees")} />
           </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {birthdayReminders.map((employee) => (
-              <div key={employee._id} className="rounded-sm border border-red-100 bg-[#fff8f6] px-3 py-2">
-                <p className="font-semibold text-gray-900">{employee.name}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {employee.employeeId || "-"} | {employee.department || "No department"} | {employee.designation || "No designation"}
-                </p>
-              </div>
+              <CompactInfoRow
+                key={employee._id}
+                title={employee.name}
+                subtitle={`${employee.employeeId || "-"} | ${employee.department || "No department"} | ${employee.designation || "No designation"}`}
+                className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20"
+              />
             ))}
           </div>
         </section>
       )}
 
-      <section className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.95fr] gap-4">
-        <div className="bg-white rounded-sm shadow p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-lg">Interview Activity</h2>
-              <p className="text-xs text-gray-500 mt-1">Weekly candidate and leave movement</p>
+      <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <SectionCard title="Interview Activity" subtitle="Interview rounds scheduled in selected range" contentClassName="pt-3">
+          <ChartMetric icon={<FiUserCheck className="h-4 w-4" />} label="Interview rounds in range" value={interviewTotal} />
+          {rangeIsValid && interviewTotal > 0 ? (
+            <div className="h-36 sm:h-40">
+              <TrendAreaChart
+                data={interviewActivityTrend}
+                xKey="label"
+                series={[{ key: "value", name: "Interview rounds", color: ORANGE }]}
+                showYAxis={false}
+                showLatestDot
+                strokeWidth={2.5}
+                gradientOpacity={0.18}
+                variant="sparkline"
+              />
             </div>
-          </div>
-          <div className="h-72">
-            <TrendAreaChart
-              data={activityTrend}
-              series={[
-                { key: "interviews", name: "Interviews", color: ORANGE },
-                { key: "leaves", name: "Leaves", color: ORANGE_SOFT },
-              ]}
-            />
-          </div>
-        </div>
+          ) : (
+            <div className="flex h-36 items-center justify-center rounded-sm border border-dashed border-gray-200 bg-white px-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:h-40">
+              {chartRangeLabel}: no interview rounds recorded
+            </div>
+          )}
+        </SectionCard>
 
-        <div className="bg-white rounded-sm shadow p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-lg">Interview Stages</h2>
-              <p className="text-xs text-gray-500 mt-1">Current status distribution</p>
+        <SectionCard title="Leave Requests" subtitle="Requests submitted in selected range" contentClassName="pt-3">
+          <ChartMetric icon={<FiCalendar className="h-4 w-4" />} label="Leave requests in range" value={leaveTotal} iconClassName="bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" />
+          {rangeIsValid && leaveTotal > 0 ? (
+              <div className="h-36 sm:h-40">
+              <TrendAreaChart
+                data={leaveActivityTrend}
+                xKey="label"
+                series={[{ key: "value", name: "Leave requests", color: AMBER }]}
+                showYAxis={false}
+                showLatestDot
+                strokeWidth={2.5}
+                gradientOpacity={0.2}
+                variant="sparkline"
+              />
             </div>
-          </div>
-          <div className="h-72">
-            <TrendAreaChart
-              data={interviewStageData}
-              series={[{ key: "value", name: "Candidates", color: ORANGE }]}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {interviewStageData.map((item) => (
-              <div key={item.name} className="flex items-center gap-2 text-xs">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-gray-600">{item.name}</span>
-                <span className="font-semibold text-gray-900 ml-auto">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+          ) : (
+            <div className="flex h-36 items-center justify-center rounded-sm border border-dashed border-gray-200 bg-white px-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:h-40">
+              {chartRangeLabel}: no leave requests found
+            </div>
+          )}
+        </SectionCard>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
-        <div className="bg-white rounded-sm shadow p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-lg">Leave Requests</h2>
-              <p className="text-xs text-gray-500 mt-1">Pending, approved, and rejected requests</p>
-            </div>
-          </div>
-          <div className="h-72">
-            <TrendAreaChart
-              data={leaveStatusData}
-              series={[{ key: "value", name: "Leaves", color: ORANGE }]}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {quickActions.map((action) => (
-            <div
+            <ActionCard
               key={action.title}
-              onClick={() => navigate(action.path)}
-              className="bg-white rounded-sm shadow p-4 cursor-pointer hover:bg-[#fffaf8] transition"
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center mb-4"
-                style={{ backgroundColor: ORANGE_LIGHT }}
-              >
-                {action.icon}
-              </div>
-              <h3 className="font-semibold text-gray-900">{action.title}</h3>
-              <p className="text-sm text-gray-500 mt-2 min-h-[64px]">{action.description}</p>
-              <Button text="Open" className="mt-4 w-full" />
-            </div>
+              to={action.path}
+              title={action.title}
+              description={action.description}
+              icon={action.icon}
+            />
           ))}
-        </div>
       </section>
     </div>
   );

@@ -20,6 +20,7 @@ import HRLayout from "./layouts/HRLayout"; // New HR layout with sidebar
 import EmployeeLayout from "./layouts/EmployeeLayout";
 import HRDashboard from "./pages/hr/HRDashboard";
 import ManageEmployees from "./pages/hr/ManageEmployees";
+import EmployeeCreate from "./pages/hr/EmployeeCreate";
 import ViewReports from "./pages/hr/ViewReports";
 import TodayCheckIns from "./pages/hr/TodayCheckIns";
 import LeaveReports from "./pages/hr/LeaveReports";
@@ -74,6 +75,7 @@ function App() {
           <Route path="hrs" element={<ManageHR />} />
           <Route path="departments" element={<Departments />} />
           <Route path="employees" element={<ManageEmployees />} />
+          <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="candidates" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
@@ -99,6 +101,7 @@ function App() {
           <Route path="dashboard" element={<HRDashboard />} />
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employees/list" element={<ManageEmployees />} />
+          <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />

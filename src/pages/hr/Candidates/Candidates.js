@@ -1,152 +1,188 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useContext } from "react";
+import { FiCheckCircle } from "react-icons/fi";
 import { useCandidate } from "../../../contexts/Hr/CandidateContext";
-import { useEmployee } from "../../../contexts/Hr/EmployeeContext";
-import CommonTable from "../CommonTable.js";
-import CommonLoader from "../../../components/common/CommonLoader.js";
+import CommonTable from "../../../components/common/CommonTable";
+import EmptyState from "../../../components/common/EmptyState";
+import Pagination from "../../../components/common/Pagination";
+import TableToolbar from "../../../components/common/TableToolbar";
+import ViewSwitcher from "../../../components/common/ViewSwitcher";
 import { AuthContext } from "../../../contexts/AuthContext";
+import { useContext } from "react";
+
+const roundLabels = {
+  hr_round: "HR Round",
+  first_round: "Technical Round",
+  second_round: "Machine Test",
+  final: "Final Round",
+  third_round: "Final Round",
+  selected: "Selected",
+  rejected: "Rejected",
+};
+
+const formatDayKey = (candidate) => {
+  const value = candidate.updatedAt || candidate.createdAt;
+  if (!value) return "unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 function Candidates() {
-  const { candidates, loading, error, fetchCandidates } = useCandidate();
-  const { fetchEmployees } = useEmployee();
+  const { candidates, loading, error, pagination, fetchCandidates } = useCandidate();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const [viewMode, setViewMode] = useState("day");
-  const roundLabels = {
-    hr_round: "HR Round",
-    first_round: "Technical Round",
-    second_round: "Machine Test",
-    final: "Final",
-    selected: "Selected",
-    rejected: "Rejected",
-  };
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
-    fetchCandidates();
-    fetchEmployees();
-    // eslint-disable-next-line
-  }, []);
+    const timer = window.setTimeout(() => {
+      fetchCandidates({ page, limit: pageSize, search });
+    }, search.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchCandidates, page, pageSize, search]);
 
-  const InstaBlueTick = () => (
-    <svg viewBox="0 0 24 24" className="w-4 h-4">
-      {/* Star-like background */}
-      <path
-        fill="#f84525"
-        d="M12 2.5l2.2 1.3 2.5-.2 1.3 2.2 2.2 1.3-.2 2.5 1.3 2.2-1.3 2.2.2 2.5-2.2 1.3-1.3 2.2-2.5-.2L12 21.5l-2.2-1.3-2.5.2-1.3-2.2-2.2-1.3.2-2.5-1.3-2.2 1.3-2.2-.2-2.5 2.2-1.3 1.3-2.2 2.5.2L12 2.5z"
-      />
-
-      {/* White check */}
-      <path fill="#fff" d="M10 14.2l-2.2-2.2-1.2 1.2L10 16.6l6-6-1.2-1.2z" />
-    </svg>
-  );
-
-  const columns = [
+  const columns = useMemo(() => [
     {
       header: "Name",
       accessor: "name",
       render: (value, row) => (
-        <div className="flex items-center gap-1">
-          {row.otpVerified && <InstaBlueTick />}
-          <span>{value}</span>
-        </div>
+        <span className="inline-flex items-center gap-1.5">
+          {row.otpVerified && <FiCheckCircle aria-label="Verified" className="h-4 w-4 shrink-0 text-[#f84525]" />}
+          {value || "N/A"}
+        </span>
       ),
     },
-    { header: "Email", accessor: "email", render: (value) => <span className="break-all">{value}</span> },
+    { header: "Email", accessor: "email", render: (value) => <span className="break-all">{value || "N/A"}</span> },
     { header: "Mobile", accessor: "mobile" },
     { header: "Role", accessor: "jobRole" },
-    {
-      header: "Assigned To",
-      accessor: "assignedTo",
-      render: (value) => value?.name || "Unassigned",
-    },
+    { header: "Assigned To", accessor: "assignedTo", render: (value) => value?.name || "Unassigned" },
     {
       header: "Status",
       accessor: "interviewStatus",
       render: (value) => (
-        <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-700">
-          {roundLabels[value] || value}
+        <span className="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-700">
+          {roundLabels[value] || value || "N/A"}
         </span>
       ),
     },
     {
       header: "Experience",
       accessor: "experience",
-      render: (val) => `${val} yrs`,
+      render: (value, row) => row.experienceType === "fresher" ? "Fresher" : value == null ? "N/A" : `${value} yrs`,
     },
-  ];
+  ], []);
 
-  const groupedCandidates = useMemo(() => {
-    return candidates.reduce((acc, candidate) => {
-      const dateKey = new Date(candidate.updatedAt || candidate.createdAt).toISOString().slice(0, 10);
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(candidate);
-      return acc;
-    }, {});
-  }, [candidates]);
+  const filteredCandidates = candidates;
+
+  const paginationControls = useMemo(() => ({
+    page: pagination.page || page,
+    pageSize: pagination.limit || pageSize,
+    setPage,
+    setPageSize: (nextSize) => {
+      setPageSize(Number(nextSize));
+      setPage(1);
+    },
+    totalItems: pagination.totalItems || 0,
+    totalPages: pagination.totalPages || 1,
+  }), [pagination, page, pageSize]);
+
+  const groupedCandidates = useMemo(() => filteredCandidates.reduce((groups, candidate) => {
+    const key = formatDayKey(candidate);
+    (groups[key] ||= []).push(candidate);
+    return groups;
+  }, {}), [filteredCandidates]);
 
   const sortedDays = useMemo(
-    () => Object.keys(groupedCandidates).sort((a, b) => new Date(b) - new Date(a)),
+    () => Object.keys(groupedCandidates).sort((a, b) => b.localeCompare(a)),
     [groupedCandidates]
   );
 
-  const actions = [
-    {
-      label: "View",
-      className: "bg-[#f84525] text-white",
-      onClick: (row) => {
-        navigate(
-          user?.role === "superadmin"
-            ? `/admin/candidates/${row._id}`
-            : `/hr/candidates/${row._id}`
-        );
-      },
-    },
-  ];
+  const actions = useMemo(() => [{
+    label: "View",
+    className: "bg-[#f84525] text-white hover:bg-[#e93d20]",
+    onClick: (row) => navigate(
+      user?.role === "superadmin" ? `/admin/candidates/${row._id}` : `/hr/candidates/${row._id}`
+    ),
+  }], [navigate, user?.role]);
 
-  if (loading) return <CommonLoader text="Fetching candidates..." />;
-  if (error) return <p className="text-red-500">{error}</p>;
+  const toolbar = (
+    <TableToolbar
+      value={search}
+      onChange={(value) => {
+        setSearch(value);
+        setPage(1);
+      }}
+      label="Search candidates"
+      placeholder="Name, email, mobile, role, interviewer, status..."
+      summary={`Showing ${filteredCandidates.length} of ${pagination.totalItems || 0} candidates`}
+      loading={loading}
+      loadingText="Refreshing candidates…"
+    />
+  );
 
   return (
-    <div className="relative space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="space-y-4 p-2">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Interview Candidates</h1>
           <p className="text-sm text-gray-500">Candidates are grouped by interview/update day for easy interview handling.</p>
         </div>
-        <div className="bg-white border rounded-sm p-1 flex">
-          <button
-            className={`px-3 py-2 text-sm font-semibold rounded-sm ${viewMode === "day" ? "bg-[#f84525] text-white" : "text-gray-600"}`}
-            onClick={() => setViewMode("day")}
-          >
-            Day Wise
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-semibold rounded-sm ${viewMode === "table" ? "bg-[#f84525] text-white" : "text-gray-600"}`}
-            onClick={() => setViewMode("table")}
-          >
-            Table
-          </button>
-        </div>
+        <ViewSwitcher
+          value={viewMode}
+          onChange={setViewMode}
+          options={[{ value: "day", label: "Day Wise" }, { value: "table", label: "Table" }]}
+        />
       </div>
+
+      {error && (
+        <EmptyState
+          variant="error"
+          text={error}
+          className="rounded-sm"
+          action={(
+            <button type="button" onClick={() => fetchCandidates({ page, limit: pageSize, search })} className="rounded-sm border border-red-200 bg-white px-3 py-1.5 font-semibold text-red-700 hover:bg-red-50">
+              Retry
+            </button>
+          )}
+        />
+      )}
+
       {viewMode === "table" ? (
-        <CommonTable columns={columns} data={candidates} actions={actions} />
-      ) : sortedDays.length === 0 ? (
-        <div className="bg-white rounded-sm shadow p-6 text-center text-gray-500">No candidates found</div>
+        <CommonTable columns={columns} data={filteredCandidates} actions={actions} toolbar={toolbar} loading={loading} pagination={paginationControls} emptyText={error && candidates.length === 0 ? "Candidate list unavailable." : "No candidates match your search."} loadingText="Fetching candidates..." />
       ) : (
-        <div className="space-y-4">
-          {sortedDays.map((day) => (
-            <section key={day} className="bg-white rounded-sm shadow overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-                <h2 className="font-semibold">{new Date(day).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", year: "numeric" })}</h2>
-                <span className="text-xs bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm font-semibold">
-                  {groupedCandidates[day].length} Candidates
-                </span>
+        <>
+          <div className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            {toolbar}
+            {loading ? (
+              <div className="py-6 text-center text-sm text-gray-500" role="status">Fetching candidates...</div>
+            ) : sortedDays.length === 0 ? (
+              <EmptyState text={error && candidates.length === 0 ? "Candidate list unavailable." : candidates.length ? "No candidates match your search." : "No candidates found."} />
+            ) : (
+              <div className="space-y-4 p-3">
+                {sortedDays.map((day) => (
+                  <section key={day} className="overflow-hidden rounded-sm border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
+                      <h2 className="font-semibold">
+                        {day === "unknown" ? "Date unavailable" : new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", year: "numeric" })}
+                      </h2>
+                      <span className="rounded-sm bg-[#fff5f3] px-2 py-1 text-xs font-semibold text-[#f84525] dark:bg-[#f84525]/10">
+                        {groupedCandidates[day].length} Candidates
+                      </span>
+                    </div>
+                    <CommonTable columns={columns} data={groupedCandidates[day]} actions={actions} showPagination={false} />
+                  </section>
+                ))}
               </div>
-              <CommonTable columns={columns} data={groupedCandidates[day]} actions={actions} />
-            </section>
-          ))}
-        </div>
+            )}
+            {!loading && !error && sortedDays.length > 0 && <Pagination {...paginationControls} />}
+          </div>
+        </>
       )}
     </div>
   );
