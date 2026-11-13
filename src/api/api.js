@@ -72,11 +72,16 @@ export const hrApi = {
   activateEmployee: (employeeId) =>
     API.patch(`/hr/employees/${employeeId}/activate`),
   deleteEmployee: (employeeId) => API.delete(`/hr/employees/${employeeId}`),
-  getAttendance: (month) => API.get("/hr/attendance", { params: { month } }),
+  getAttendance: (params) =>
+    API.get("/hr/attendance", {
+      params: typeof params === "string" ? { month: params } : params,
+    }),
   getEmployeeMonthlyReport: (employeeId, month) =>
     API.get(`/hr/attendance/employees/${employeeId}/monthly`, { params: { month } }),
   getLeaves: (params) => API.get("/hr/leaves", { params }),
   reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload),
+  getEmployeeLeaveBalance: (employeeId) => API.get(`/hr/leave-balances/${employeeId}`),
+  adjustEmployeeLeaveBalance: (employeeId, payload) => API.patch(`/hr/leave-balances/${employeeId}/adjust`, payload),
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
   deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),

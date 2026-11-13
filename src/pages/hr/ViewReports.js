@@ -1,9 +1,14 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FiCalendar, FiChevronLeft, FiChevronRight, FiEye } from "react-icons/fi";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { FiCalendar, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import * as XLSX from "xlsx";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
-import FilePreviewModal from "../../components/common/FilePreviewModal";
-import Pagination, { usePagination } from "../../components/common/Pagination";
+import CalendarPicker from "../../components/common/CalendarPicker";
+import CommonTable from "../../components/common/CommonTable";
+import CustomDropdown from "../../components/common/CustomDropdown";
+import { usePagination } from "../../components/common/Pagination";
+import { MetricCard, PageHeader, SectionCard } from "../../components/common/ReusableCards";
+import TableToolbar from "../../components/common/TableToolbar";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -16,14 +21,6 @@ const formatTime = (value) =>
         minute: "2-digit",
       })
     : "-";
-
-const statusClasses = {
-  present: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  half_day: "bg-orange-50 text-orange-700 border-orange-200",
-  running: "bg-blue-50 text-blue-700 border-blue-200",
-  absent: "bg-red-50 text-red-700 border-red-200",
-  leave: "bg-violet-50 text-violet-700 border-violet-200",
-};
 
 const statusLabel = (status = "") => status.replace(/_/g, " ") || "-";
 const getMonthCursor = (date = new Date()) => date.getFullYear() * 12 + date.getMonth();
@@ -44,8 +41,7 @@ const ViewReports = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const { mode } = useContext(ThemeContext);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [reportView, setReportView] = useState("employee");
+  const [month, setMonth] = useState(() => getLocalDateKey().slice(0, 7));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [search, setSearch] = useState("");
@@ -61,7 +57,8 @@ const ViewReports = () => {
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [reportError, setReportError] = useState("");
+  const reportRequestId = useRef(0);
   const [holidayForm, setHolidayForm] = useState({
     date: "",
     title: "",
@@ -70,42 +67,40 @@ const ViewReports = () => {
   });
 
   const loadReports = useCallback(async () => {
+    const requestId = ++reportRequestId.current;
     setPageLoading(true);
+    setReportError("");
     try {
       const [attendanceRes, leavesRes, employeesRes] = await Promise.all([
         hrApi.getAttendance(month),
         hrApi.getLeaves({ month, status: "approved" }),
         hrApi.getEmployees(),
       ]);
+      if (requestId !== reportRequestId.current) return;
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data || []);
       setEmployees(employeesRes.data.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load reports");
+      if (requestId !== reportRequestId.current) return;
+      const message = err.response?.data?.message || "Unable to load reports";
+      setAttendance([]);
+      setLeaves([]);
+      setEmployees([]);
+      setReportError(message);
+      toast.error(message);
     } finally {
-      setPageLoading(false);
+      if (requestId === reportRequestId.current) setPageLoading(false);
     }
   }, [month, toast]);
 
   useEffect(() => {
     loadReports();
+    return () => {
+      reportRequestId.current += 1;
+    };
   }, [loadReports]);
 
-  const summary = useMemo(() => {
-    return attendance.reduce(
-      (acc, item) => {
-        acc.total += 1;
-        acc.present += item.status === "present" ? 1 : 0;
-        acc.halfDay += item.status === "half_day" ? 1 : 0;
-        acc.running += item.status === "running" ? 1 : 0;
-        return acc;
-      },
-      { total: 0, present: 0, halfDay: 0, running: 0 }
-    );
-  }, [attendance]);
-
   const employeeMonthlySummary = useMemo(() => {
-    const monthKey = month;
     const map = {};
 
     employees.forEach((employee) => {
@@ -150,8 +145,10 @@ const ViewReports = () => {
       map[employeeId].breakMinutes += item.totalBreakMinutes || 0;
     });
 
+    // The API already returns approved leave requests overlapping this month.
+    // Do not re-filter by fromDate: that would drop requests that began last month.
     leaves
-      .filter((leave) => leave.status === "approved" && new Date(leave.fromDate).toISOString().startsWith(monthKey))
+      .filter((leave) => leave.status === "approved")
       .forEach((leave) => {
         const employeeId = leave.employee?._id;
         if (!employeeId) return;
@@ -179,7 +176,7 @@ const ViewReports = () => {
     return Object.values(map).sort((a, b) =>
       (a.employee?.name || "").localeCompare(b.employee?.name || "")
     );
-  }, [attendance, employees, leaves, month]);
+  }, [attendance, employees, leaves]);
 
   const filteredEmployeeSummary = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -200,7 +197,7 @@ const ViewReports = () => {
     return attendance.filter((item) => {
       const employee = item.employee || {};
       const matchesEmployee = !selectedEmployeeId || employee._id === selectedEmployeeId;
-      const matchesDate = reportView !== "day" || !selectedDate || item.dateKey === selectedDate;
+      const matchesDate = !selectedDate || item.dateKey === selectedDate;
       const matchesSearch =
         !term ||
         [employee.name, employee.employeeId, employee.email, item.status, item.dateKey]
@@ -208,9 +205,8 @@ const ViewReports = () => {
           .some((value) => String(value).toLowerCase().includes(term));
       return matchesEmployee && matchesDate && matchesSearch;
     });
-  }, [attendance, reportView, search, selectedDate, selectedEmployeeId]);
+  }, [attendance, search, selectedDate, selectedEmployeeId]);
   const summaryPagination = usePagination(filteredEmployeeSummary, [month, selectedEmployeeId, search]);
-  const attendancePagination = usePagination(filteredAttendance, [month, reportView, selectedEmployeeId, selectedDate, search]);
 
   const visibleCalendarMonths = useMemo(
     () => [getMonthFromCursor(monthCursor), getMonthFromCursor(monthCursor + 1)],
@@ -320,6 +316,16 @@ const ViewReports = () => {
   };
 
   const downloadMonthlyPdf = () => {
+    const reportTotals = filteredAttendance.reduce(
+      (acc, item) => {
+        acc.total += 1;
+        acc.present += item.status === "present" ? 1 : 0;
+        acc.halfDay += item.status === "half_day" ? 1 : 0;
+        acc.running += item.status === "running" ? 1 : 0;
+        return acc;
+      },
+      { total: 0, present: 0, halfDay: 0, running: 0 }
+    );
     const summaryRows = filteredEmployeeSummary
       .map(
         (item) => `
@@ -331,7 +337,9 @@ const ViewReports = () => {
             <td>${item.earnedLeave}</td>
             <td>${item.sickLeave}</td>
             <td>${item.urgentLeave}</td>
+            <td>${item.otherLeave}</td>
             <td>${minutesToHours(item.workMinutes)}</td>
+            <td>${minutesToHours(item.breakMinutes)}</td>
           </tr>
         `
       )
@@ -353,6 +361,10 @@ const ViewReports = () => {
       )
       .join("");
     const win = window.open("", "_blank");
+    if (!win) {
+      toast.error("Allow pop-ups to open the attendance report.");
+      return;
+    }
     win.document.write(`
       <html>
         <head>
@@ -370,15 +382,15 @@ const ViewReports = () => {
         <body>
           <h1>Monthly Attendance Report - ${month}</h1>
           <div class="summary">
-            <div class="box">Records: ${summary.total}</div>
-            <div class="box">Present: ${summary.present}</div>
-            <div class="box">Half Day: ${summary.halfDay}</div>
-            <div class="box">Running: ${summary.running}</div>
+            <div class="box">Records: ${reportTotals.total}</div>
+            <div class="box">Present: ${reportTotals.present}</div>
+            <div class="box">Half Day: ${reportTotals.halfDay}</div>
+            <div class="box">Running: ${reportTotals.running}</div>
           </div>
           <h2>Employee Monthly Summary</h2>
           <table>
-            <thead><tr><th>ID</th><th>Employee</th><th>Present</th><th>Half Day</th><th>EL</th><th>SL</th><th>Urgent</th><th>Work</th></tr></thead>
-            <tbody>${summaryRows || "<tr><td colspan='8'>No employee data found</td></tr>"}</tbody>
+            <thead><tr><th>ID</th><th>Employee</th><th>Present</th><th>Half Day</th><th>EL Requests</th><th>SL Requests</th><th>Urgent Requests</th><th>Other Leave Requests</th><th>Work</th><th>Break</th></tr></thead>
+            <tbody>${summaryRows || "<tr><td colspan='10'>No employee data found</td></tr>"}</tbody>
           </table>
           <table>
             <thead><tr><th>Date</th><th>Employee</th><th>Selfie</th><th>Login</th><th>Logout</th><th>Work</th><th>Break</th><th>Status</th></tr></thead>
@@ -391,9 +403,69 @@ const ViewReports = () => {
     win.document.close();
   };
 
+  const exportExcel = () => {
+    try {
+      const summarySheet = XLSX.utils.aoa_to_sheet([
+        ["Employee ID", "Employee", "Department", "Present", "Half Day", "Earned Leave Requests", "Sick Leave Requests", "Urgent Leave Requests", "Other Leave Requests", "Work Minutes", "Break Minutes"],
+        ...filteredEmployeeSummary.map((item) => [
+          item.employee?.employeeId || "",
+          item.employee?.name || "",
+          item.employee?.department || "",
+          item.present,
+          item.halfDay,
+          item.earnedLeave,
+          item.sickLeave,
+          item.urgentLeave,
+          item.otherLeave,
+          item.workMinutes,
+          item.breakMinutes,
+        ]),
+      ]);
+      const attendanceSheet = XLSX.utils.aoa_to_sheet([
+        ["Date", "Employee ID", "Employee", "Login", "Logout", "Work Minutes", "Break Minutes", "Mode", "Status", "Selfie URL"],
+        ...filteredAttendance.map((item) => [
+          item.dateKey || "",
+          item.employee?.employeeId || "",
+          item.employee?.name || "",
+          item.loginAt ? new Date(item.loginAt) : "",
+          item.logoutAt ? new Date(item.logoutAt) : "",
+          item.totalWorkMinutes || 0,
+          item.totalBreakMinutes || 0,
+          item.attendanceMode === "work_from_home" ? "Work from home" : "Office",
+          statusLabel(item.status),
+          item.loginSelfie?.url || "",
+        ]),
+      ]);
+      summarySheet["!cols"] = [
+        { wch: 16 }, { wch: 26 }, { wch: 22 }, { wch: 12 }, { wch: 12 },
+        { wch: 22 }, { wch: 20 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 },
+      ];
+      attendanceSheet["!cols"] = [
+        { wch: 14 }, { wch: 16 }, { wch: 26 }, { wch: 22 }, { wch: 22 },
+        { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 48 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, summarySheet, "Employee Summary");
+      XLSX.utils.book_append_sheet(workbook, attendanceSheet, "Attendance Records");
+      const suffix = selectedDate ? `-${selectedDate}` : "";
+      XLSX.writeFile(workbook, `attendance-report-${month}${suffix}.xlsx`);
+      toast.success("Excel report exported");
+    } catch (err) {
+      toast.error("Unable to export the Excel report");
+    }
+  };
+
   const downloadEmployeeMonthlyPdf = async () => {
     if (!selectedEmployeeId) {
       toast.error("Select an employee first");
+      return;
+    }
+    // Open the tab synchronously from the click event so browsers do not block it
+    // while the employee report request is in flight.
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast.error("Allow pop-ups to open the employee report.");
       return;
     }
     try {
@@ -417,7 +489,6 @@ const ViewReports = () => {
           `
         )
         .join("");
-      const win = window.open("", "_blank");
       win.document.write(`
         <html>
           <head>
@@ -451,209 +522,139 @@ const ViewReports = () => {
       `);
       win.document.close();
     } catch (err) {
+      win.close();
       toast.error(err.response?.data?.message || "Unable to download employee report");
     }
   };
 
+  const summaryColumns = [
+    { accessor: "employeeId", header: "ID", render: (_, item) => item.employee?.employeeId || "-" },
+    {
+      accessor: "employee",
+      header: "Employee",
+      render: (_, item) => (
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-gray-100">{item.employee?.name || "N/A"}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{item.employee?.department || item.employee?.email || "-"}</p>
+        </div>
+      ),
+    },
+    { accessor: "present", header: "Present" },
+    { accessor: "halfDay", header: "Half Day" },
+    { accessor: "earnedLeave", header: "EL Requests" },
+    { accessor: "sickLeave", header: "SL Requests" },
+    { accessor: "urgentLeave", header: "Urgent Requests" },
+    { accessor: "otherLeave", header: "Other Leave" },
+    { accessor: "workMinutes", header: "Work", render: (value) => minutesToHours(value) },
+    { accessor: "breakMinutes", header: "Break", render: (value) => minutesToHours(value) },
+  ];
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-sm shadow p-4">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
-            <p className="text-sm text-gray-500">Monthly work hours, breaks, half days, and approved leave totals.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2 min-h-10" />
-            <Button text="Download View" onClick={downloadMonthlyPdf} className="min-h-10" />
-            <Button text="Employee PDF" variant="secondary" onClick={downloadEmployeeMonthlyPdf} disabled={!selectedEmployeeId} className="min-h-10" />
-            <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="min-h-10" />
-          </div>
-        </div>
-        {pageLoading && (
-          <div className="mt-3 rounded-sm border border-[#ffd8cf] bg-[#fff5f3] px-3 py-2 text-sm font-semibold text-[#f84525]">
-            Updating reports...
+      <PageHeader
+        title="Attendance Reports"
+        description="Monthly work hours, breaks, half days, and approved leave totals."
+        actions={(
+          <div className="flex w-full flex-wrap items-end gap-2 xl:w-auto xl:flex-nowrap">
+            <div className="w-full min-w-[180px] sm:w-[190px] sm:flex-none">
+              <CalendarPicker
+                value={month}
+                onChange={(value) => {
+                  if (!value) return;
+                  setMonth(value);
+                  if (selectedDate && !selectedDate.startsWith(value)) setSelectedDate("");
+                }}
+                mode="month"
+                label="Report month"
+              />
+            </div>
+            <Button text="Export Excel" variant="secondary" onClick={exportExcel} className="min-h-10 whitespace-nowrap" />
+            <Button text="Download View" onClick={downloadMonthlyPdf} className="min-h-10 whitespace-nowrap" />
+            <Button
+              text="Employee PDF"
+              variant="secondary"
+              onClick={downloadEmployeeMonthlyPdf}
+              disabled={!selectedEmployeeId}
+              title={selectedEmployeeId ? "Download this employee's monthly report" : "Select an employee first"}
+              className="min-h-10 whitespace-nowrap disabled:bg-gray-100 disabled:text-gray-500 disabled:opacity-100"
+            />
+            <Button text="View Leave Calendar" variant="secondary" onClick={() => setCalendarModalOpen(true)} className="min-h-10 whitespace-nowrap" />
           </div>
         )}
-      </div>
-
-      <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-        <label className="text-sm font-medium">
-          View
-          <select value={reportView} onChange={(e) => setReportView(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10">
-            <option value="employee">Employee View</option>
-            <option value="day">Day View</option>
-            <option value="records">All Records</option>
-          </select>
-        </label>
-        <label className="text-sm font-medium xl:col-span-2">
-          Employee
-          <select
+      />
+      <SectionCard className="overflow-visible">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <CustomDropdown
+            label="Employee"
             value={selectedEmployeeId}
-            onChange={(e) => {
-              setSelectedEmployeeId(e.target.value);
-              setReportView("employee");
+            onChange={(value) => {
+              setSelectedEmployeeId(value);
               setSelectedDate("");
             }}
-            className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10"
-          >
-            <option value="">All employees</option>
-            {employees.map((employee) => (
-              <option key={employee._id} value={employee._id}>
-                {employee.employeeId || "-"} - {employee.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium">
-          Day
-          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} disabled={reportView !== "day"} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10 disabled:bg-gray-50" />
-        </label>
-        <label className="text-sm font-medium">
-          Search
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID, status" className="mt-1 w-full border rounded-sm px-3 py-2 min-h-10" />
-        </label>
-      </section>
+            placeholder="All employees"
+            options={employees.map((employee) => ({
+              value: employee._id,
+              label: `${employee.employeeId || "-"} - ${employee.name || "Unnamed employee"}`,
+            }))}
+          />
+          <CalendarPicker
+            value={selectedDate}
+            onChange={(value) => {
+              setSelectedDate(value);
+              if (value) setMonth(value.slice(0, 7));
+            }}
+            label="Day"
+            className="mt-1"
+            timeZone="Asia/Kolkata"
+          />
+          <div className="flex items-end">
+            <Button
+              text="Clear filters"
+              variant="secondary"
+              onClick={() => {
+                setSelectedEmployeeId("");
+                setSelectedDate("");
+                setSearch("");
+              }}
+              className="min-h-10 w-full"
+            />
+          </div>
+        </div>
+      </SectionCard>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["Employees", filteredEmployeeSummary.length],
-          ["Records", filteredAttendance.length],
-          ["Present", filteredAttendance.filter((item) => item.status === "present").length],
-          ["Half Day", filteredAttendance.filter((item) => item.status === "half_day").length],
-        ].map(([label, value]) => (
-          <div key={label} className="bg-white rounded-sm shadow p-4 border-l-4 border-[#f84525]">
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-          </div>
+          { label: "Employees", value: filteredEmployeeSummary.length },
+          { label: selectedDate ? "Day Records" : "Monthly Records", value: filteredAttendance.length },
+          { label: selectedDate ? "Day Present" : "Present", value: filteredAttendance.filter((item) => item.status === "present").length },
+          { label: selectedDate ? "Day Half Day" : "Half Day", value: filteredAttendance.filter((item) => item.status === "half_day").length },
+        ].map(({ label, value }, index) => (
+          <MetricCard key={label} label={label} value={value} index={index + 1} />
         ))}
       </section>
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold">Employee Monthly Summary</h2>
-          <p className="text-xs text-gray-500 mt-1">Approved EL, SL, urgent leave and attendance totals for every employee.</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-600">
-              <tr>
-                {["ID", "Employee", "Present", "Half Day", "EL", "SL", "Urgent", "Work"].map((item) => (
-                  <th key={item} className="px-4 py-3 text-left font-semibold">{item}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEmployeeSummary.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="p-4 text-center text-gray-500">No employee data found</td>
-                </tr>
-              ) : (
-                summaryPagination.pageItems.map((item) => (
-                  <tr key={item.employee?._id || item.employee?.email} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{item.employee?.employeeId || "-"}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
-                      <p className="text-xs text-gray-500">{item.employee?.department || item.employee?.email || "-"}</p>
-                    </td>
-                    <td className="px-4 py-3">{item.present}</td>
-                    <td className="px-4 py-3">{item.halfDay}</td>
-                    <td className="px-4 py-3">{item.earnedLeave}</td>
-                    <td className="px-4 py-3">{item.sickLeave}</td>
-                    <td className="px-4 py-3">{item.urgentLeave}</td>
-                    <td className="px-4 py-3 font-medium">{minutesToHours(item.workMinutes)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination {...summaryPagination} />
-      </section>
-
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>
-            <h2 className="font-semibold">Monthly Attendance</h2>
-            <p className="text-xs text-gray-500 mt-1">App work-start selfies appear here when employees checked in with an image.</p>
-          </div>
-          <span className="text-xs text-gray-500">
-            {filteredAttendance.filter((item) => item.loginSelfie?.url).length} selfie records
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-600">
-              <tr>
-                {["Date", "Employee", "Selfie", "Login", "Logout", "Work", "Break", "Mode", "Status"].map((item) => (
-                  <th key={item} className="px-4 py-3 text-left font-semibold">{item}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAttendance.length === 0 ? (
-                <tr>
-                  <td colSpan="9" className="p-4 text-center text-gray-500">No attendance found</td>
-                </tr>
-              ) : (
-                attendancePagination.pageItems.map((item) => (
-                  <tr key={item._id} className="border-t hover:bg-gray-50 align-middle">
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">{item.dateKey}</td>
-                    <td className="px-4 py-3 min-w-44">
-                      <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
-                      <p className="text-xs text-gray-500">{item.employee?.employeeId || "-"}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.loginSelfie?.url ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreview({
-                              title: `${item.employee?.name || "Employee"} work-start selfie - ${item.dateKey}`,
-                              url: item.loginSelfie.url,
-                            })
-                          }
-                          className="inline-flex items-center gap-2 text-[#f84525] hover:text-[#d93a1e]"
-                        >
-                          <img
-                            src={item.loginSelfie.url}
-                            alt="Work start selfie"
-                            className="w-11 h-11 object-cover rounded-sm border bg-gray-50"
-                          />
-                          <FiEye aria-hidden="true" />
-                        </button>
-                      ) : (
-                        <span className="text-gray-400">No image</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(item.loginAt)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(item.logoutAt)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{minutesToHours(item.totalWorkMinutes)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{minutesToHours(item.totalBreakMinutes)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {item.attendanceMode === "work_from_home" ? "WFH" : "Office"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 border rounded-sm text-xs font-semibold capitalize ${statusClasses[item.status] || "bg-gray-50 text-gray-700 border-gray-200"}`}>
-                        {statusLabel(item.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination {...attendancePagination} />
-      </section>
-
-      {preview && (
-        <FilePreviewModal
-          title={preview.title}
-          url={preview.url}
-          onClose={() => setPreview(null)}
+      <SectionCard
+        title="Employee Monthly Summary"
+        subtitle="Attendance totals and approved leave request counts for each employee, including break time."
+      >
+        <CommonTable
+          columns={summaryColumns}
+          data={summaryPagination.pageItems}
+          pagination={summaryPagination}
+          loading={pageLoading}
+          error={reportError}
+          errorAction={<Button text="Retry" onClick={loadReports} className="!py-1.5" />}
+          emptyText="No employee data found for this month."
+          toolbar={(
+            <TableToolbar
+              value={search}
+              onChange={setSearch}
+              label="Search employees"
+              placeholder="Employee name, ID, email, department..."
+              summary={`${filteredEmployeeSummary.length} employees`}
+            />
+          )}
         />
-      )}
+      </SectionCard>
 
       {calendarModalOpen && (
       <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-3 sm:p-4">

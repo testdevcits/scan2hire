@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FiEye, FiRefreshCw } from "react-icons/fi";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiActivity, FiCalendar, FiCamera, FiDownload, FiRefreshCw, FiUsers } from "react-icons/fi";
 import { hrApi } from "../../api";
 import { createSocket } from "../../api/socket";
-import CommonLoader from "../../components/common/CommonLoader";
+import Button from "../../components/common/Button";
+import CalendarPicker from "../../components/common/CalendarPicker";
+import CommonTable from "../../components/common/CommonTable";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
-import Pagination, { usePagination } from "../../components/common/Pagination";
-import { useToast } from "../../contexts/ToastContext";
+import { MetricCard, PageHeader } from "../../components/common/ReusableCards";
+import TableToolbar from "../../components/common/TableToolbar";
+import { Link } from "react-router-dom";
 
 const getDateKey = (date = new Date()) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -17,200 +20,363 @@ const getDateKey = (date = new Date()) =>
 
 const formatTime = (value) =>
   value
-    ? new Date(value).toLocaleTimeString([], {
+    ? new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
         hour: "2-digit",
         minute: "2-digit",
-      })
+      }).format(new Date(value))
     : "-";
 
-const minutesToHours = (minutes = 0) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const formatDateLabel = (dateKey) => {
+  if (!dateKey) return "-";
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${dateKey}T00:00:00+05:30`));
+};
+
+const minutesToHours = (minutes = 0) => {
+  const total = Number(minutes) || 0;
+  return `${Math.floor(total / 60)}h ${total % 60}m`;
+};
+
+const csvCell = (value) => {
+  const text = String(value ?? "");
+  const safeText = /^[=+@\-\t\r]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replaceAll('"', '""')}"`;
+};
 
 const TodayCheckIns = () => {
-  const toast = useToast();
   const todayKey = getDateKey();
+  const [selectedDate, setSelectedDate] = useState(todayKey);
   const [attendance, setAttendance] = useState([]);
+  const [summary, setSummary] = useState({ checkedIn: 0, running: 0, withSelfie: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1 });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
+  const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
+  const hasLoaded = useRef(false);
+  const requestId = useRef(0);
+  const loadRef = useRef(null);
 
   const loadCheckIns = useCallback(async () => {
-    setLoading(true);
+    const currentRequestId = ++requestId.current;
+    if (hasLoaded.current) setRefreshing(true);
+    else setLoading(true);
+
     try {
-      const res = await hrApi.getAttendance(todayKey.slice(0, 7));
-      setAttendance(res.data.data || []);
+      const response = await hrApi.getAttendance({
+        date: selectedDate,
+        page,
+        limit: pageSize,
+        search: search.trim(),
+      });
+      if (currentRequestId !== requestId.current) return;
+
+      setAttendance(response.data?.data || []);
+      setSummary(response.data?.summary || { checkedIn: 0, running: 0, withSelfie: 0 });
+      const nextPagination = response.data?.pagination;
+      if (nextPagination) {
+        setPagination({
+          page: nextPagination.page || page,
+          limit: nextPagination.limit || pageSize,
+          totalItems: nextPagination.totalItems || 0,
+          totalPages: nextPagination.totalPages || 1,
+        });
+      }
+      setError("");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load today's check-ins");
+      if (currentRequestId !== requestId.current) return;
+      setError(err.response?.data?.message || `Unable to load check-ins for ${selectedDate}.`);
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) {
+        hasLoaded.current = true;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [todayKey, toast]);
+  }, [selectedDate, page, pageSize, search]);
+
+  const exportCheckIns = useCallback(async () => {
+    setExporting(true);
+    setExportProgress(null);
+    try {
+      const firstResponse = await hrApi.getAttendance({ date: selectedDate, page: 1, limit: 100, search: search.trim() });
+      const allRecords = firstResponse.data?.data || [];
+      const pageInfo = firstResponse.data?.pagination;
+      const totalPages = pageInfo?.totalPages || 1;
+      const totalItems = pageInfo?.totalItems ?? allRecords.length;
+      setExportProgress({ loaded: allRecords.length, total: totalItems });
+      for (let currentPage = 2; currentPage <= totalPages; currentPage += 1) {
+        const response = await hrApi.getAttendance({ date: selectedDate, page: currentPage, limit: 100, search: search.trim() });
+        allRecords.push(...(response.data?.data || []));
+        setExportProgress({ loaded: allRecords.length, total: totalItems });
+      }
+
+      const headers = ["Employee ID", "Employee", "Department", "Date", "Login", "Logout", "Mode", "Distance (m)", "Work", "Status"];
+      const rows = allRecords.map((item) => [
+        item.employee?.employeeId,
+        item.employee?.name,
+        item.employee?.department,
+        item.dateKey,
+        formatTime(item.loginAt),
+        formatTime(item.logoutAt),
+        item.attendanceMode === "work_from_home" ? "WFH" : "Office",
+        item.loginLocation?.distanceFromOfficeMeters,
+        minutesToHours(item.totalWorkMinutes),
+        item.status,
+      ]);
+      const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+      const fileUrl = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = `check-ins-${selectedDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to export check-ins. Please try again.");
+    } finally {
+      setExporting(false);
+      setExportProgress(null);
+    }
+  }, [selectedDate, search]);
+
+  loadRef.current = loadCheckIns;
+
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
 
   useEffect(() => {
-    loadCheckIns();
-  }, [loadCheckIns]);
+    requestId.current += 1;
+    const timer = window.setTimeout(() => loadCheckIns(), search.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadCheckIns, search]);
 
   useEffect(() => {
     const socket = createSocket();
-    socket.emit("attendance:join");
-    socket.on("attendance:update", (payload) => {
-      const updated = payload?.attendance;
-      if (!updated?._id) return;
-      setAttendance((prev) => {
-        const exists = prev.some((item) => item._id === updated._id);
-        if (!exists) return [updated, ...prev];
-        return prev.map((item) => (item._id === updated._id ? updated : item));
-      });
+    let refreshTimer;
+    let fallbackPoll;
+    let fallbackInterval = null;
+    const startFallbackPoll = (interval = 30000) => {
+      if (fallbackPoll && fallbackInterval === interval) return;
+      if (fallbackPoll) window.clearInterval(fallbackPoll);
+      fallbackInterval = interval;
+      fallbackPoll = window.setInterval(() => loadRef.current?.(), interval);
+    };
+
+    // REST remains the safety net if sockets fail, and periodically reconciles missed events.
+    startFallbackPoll();
+    socket.on("connect", () => {
+      setSocketConnected(true);
+      socket.emit("attendance:join");
+      startFallbackPoll(60000);
+      loadRef.current?.();
     });
-    return () => socket.disconnect();
+    socket.on("disconnect", () => {
+      setSocketConnected(false);
+      startFallbackPoll();
+    });
+    socket.on("connect_error", () => {
+      setSocketConnected(false);
+      startFallbackPoll();
+    });
+    socket.on("attendance:update", (payload) => {
+      if (payload?.attendance?.dateKey !== selectedDateRef.current) return;
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => loadRef.current?.(), 150);
+    });
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      window.clearInterval(fallbackPoll);
+      fallbackInterval = null;
+      socket.disconnect();
+    };
   }, []);
 
-  const todayCheckIns = useMemo(
-    () =>
-      attendance
-        .filter((item) => item.dateKey === todayKey && item.loginAt)
-        .sort((a, b) => new Date(b.loginAt) - new Date(a.loginAt)),
-    [attendance, todayKey]
-  );
-  const checkInsPagination = usePagination(todayCheckIns, [todayKey]);
+  const paginationControls = useMemo(() => ({
+    page: pagination.page || page,
+    pageSize: pagination.limit || pageSize,
+    setPage,
+    setPageSize: (nextSize) => {
+      setPageSize(Number(nextSize));
+      setPage(1);
+    },
+    totalItems: pagination.totalItems,
+    totalPages: pagination.totalPages,
+  }), [pagination, page, pageSize]);
 
-  if (loading) return <CommonLoader text="Loading today's check-ins..." />;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Today Check-ins</h1>
-          <p className="text-sm text-gray-500">
-            Employees who checked in today from app or desktop. App check-ins include selfie proof.
+  const columns = useMemo(() => [
+    {
+      accessor: "employee",
+      header: "Employee",
+      render: (employee) => (
+        <div className="min-w-36">
+          {employee?._id ? (
+            <Link to={`/hr/employees/${employee._id}`} className="font-semibold text-[#f84525] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f84525]">
+              {employee.name || "N/A"}
+            </Link>
+          ) : <p className="font-semibold text-gray-900 dark:text-gray-100">{employee?.name || "N/A"}</p>}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {employee?.employeeId || "-"} · {employee?.department || "-"}
           </p>
         </div>
+      ),
+    },
+    {
+      accessor: "loginSelfie",
+      header: "Selfie",
+      render: (selfie, record) => selfie?.url ? (
         <button
           type="button"
-          onClick={loadCheckIns}
-          className="inline-flex items-center justify-center gap-2 border rounded-sm px-3 py-2 text-sm"
+          onClick={() => setPreview({
+            title: `${record.employee?.name || "Employee"} check-in selfie`,
+            url: selfie.url,
+          })}
+          aria-label={`Preview ${record.employee?.name || "employee"} selfie`}
+          className="inline-flex rounded-sm text-[#f84525] hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f84525]"
         >
-          <FiRefreshCw />
-          Refresh
+          <img src={selfie.url} alt="Preview check-in selfie" title="Click to preview selfie" className="h-10 w-10 rounded-sm border border-gray-200 object-cover dark:border-gray-700" />
         </button>
-      </div>
+      ) : <span className="text-gray-400">No selfie</span>,
+    },
+    { accessor: "loginAt", header: "Login", render: formatTime },
+    { accessor: "logoutAt", header: "Logout", render: formatTime },
+    {
+      accessor: "attendanceMode",
+      header: "Mode",
+      render: (mode) => mode === "work_from_home" ? "WFH" : mode === "office" ? "Office" : "-",
+    },
+    {
+      accessor: "loginLocation",
+      header: "Distance",
+      render: (location) => {
+        const distance = location?.distanceFromOfficeMeters;
+        if (distance === null || distance === undefined || !Number.isFinite(Number(distance))) return "-";
+        return (
+          <div>
+            <p className={location.withinRadius === false ? "font-semibold text-red-600" : "font-medium text-gray-900 dark:text-gray-100"}>
+              {Math.round(Number(distance))}m
+            </p>
+            {location.withinRadius === false && <span className="text-xs text-red-600">Outside</span>}
+          </div>
+        );
+      },
+    },
+    { accessor: "totalWorkMinutes", header: "Work", render: minutesToHours },
+    {
+      accessor: "status",
+      header: "Status",
+      render: (status) => {
+        const running = status === "running";
+        return (
+          <span className={`inline-flex rounded-sm px-2 py-1 text-xs font-medium ${running ? "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
+            {running ? "Running" : String(status || "Unknown").replaceAll("_", " ")}
+          </span>
+        );
+      },
+    },
+  ], []);
 
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-sm shadow p-4">
-          <p className="text-sm text-gray-500">Date</p>
-          <p className="text-xl font-semibold">{todayKey}</p>
-        </div>
-        <div className="bg-white rounded-sm shadow p-4">
-          <p className="text-sm text-gray-500">Checked In</p>
-          <p className="text-xl font-semibold">{todayCheckIns.length}</p>
-        </div>
-        <div className="bg-white rounded-sm shadow p-4">
-          <p className="text-sm text-gray-500">Running</p>
-          <p className="text-xl font-semibold">
-            {todayCheckIns.filter((item) => item.status === "running").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-sm shadow p-4">
-          <p className="text-sm text-gray-500">With Selfie</p>
-          <p className="text-xl font-semibold">
-            {todayCheckIns.filter((item) => item.loginSelfie?.url).length}
-          </p>
-        </div>
-      </section>
+  const toolbar = (
+    <TableToolbar
+      value={search}
+      onChange={(value) => {
+        setSearch(value);
+        setPage(1);
+      }}
+      label="Search today's check-ins"
+      placeholder="Employee, ID, department, mode..."
+      summary={`${pagination.totalItems} check-ins`}
+      loading={refreshing}
+      loadingText="Updating..."
+    />
+  );
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="text-left px-4 py-3">Employee</th>
-                <th className="text-left px-4 py-3">Selfie</th>
-                <th className="text-left px-4 py-3">Login</th>
-                <th className="text-left px-4 py-3">Logout</th>
-                <th className="text-left px-4 py-3">Mode</th>
-                <th className="text-left px-4 py-3">Distance</th>
-                <th className="text-left px-4 py-3">Work</th>
-                <th className="text-left px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todayCheckIns.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                    No check-ins found for today.
-                  </td>
-                </tr>
-              ) : (
-                checkInsPagination.pageItems.map((item) => (
-                  <tr key={item._id} className="border-t">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-900">{item.employee?.name || "N/A"}</p>
-                      <p className="text-xs text-gray-500">
-                        {item.employee?.employeeId || "-"} • {item.employee?.department || "-"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.loginSelfie?.url ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreview({
-                              title: `${item.employee?.name || "Employee"} check-in selfie`,
-                              url: item.loginSelfie.url,
-                            })
-                          }
-                          className="flex items-center gap-2 text-[#f84525]"
-                        >
-                          <img
-                            src={item.loginSelfie.url}
-                            alt="Check-in selfie"
-                            className="w-10 h-10 object-cover rounded-sm border"
-                          />
-                          <FiEye />
-                        </button>
-                      ) : (
-                        <span className="text-gray-400">No selfie</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatTime(item.loginAt)}</td>
-                    <td className="px-4 py-3">{formatTime(item.logoutAt)}</td>
-                    <td className="px-4 py-3">
-                      {item.attendanceMode === "work_from_home" ? "WFH" : "Office"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {Number.isFinite(item.loginLocation?.distanceFromOfficeMeters) ? (
-                        <div>
-                          <p
-                            className={
-                              item.loginLocation?.withinRadius === false
-                                ? "font-semibold text-red-600"
-                                : "font-medium text-gray-900"
-                            }
-                          >
-                            {item.loginLocation.distanceFromOfficeMeters}m
-                          </p>
-                          {item.loginLocation?.withinRadius === false && (
-                            <span className="mt-1 inline-block rounded-sm bg-red-50 px-2 py-0.5 text-xs text-red-700">
-                              Outside
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{minutesToHours(item.totalWorkMinutes || 0)}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 rounded-sm bg-gray-100 text-gray-700 text-xs">
-                        {item.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+  const metrics = [
+    { label: "Date", value: formatDateLabel(selectedDate), icon: <FiActivity />, iconClassName: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300" },
+    { label: "Checked In", value: summary.checkedIn, icon: <FiUsers /> },
+    { label: "Running", value: summary.running, icon: <FiActivity />, iconClassName: "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-300" },
+    { label: "With Selfie", value: summary.withSelfie, icon: <FiCamera />, iconClassName: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300" },
+  ];
+
+  return (
+    <div className="space-y-4 p-2">
+      <PageHeader
+        title={selectedDate === todayKey ? "Today Check-ins" : "Check-ins"}
+        description={selectedDate === todayKey
+          ? "Employees who checked in today from app or desktop. App check-ins include selfie proof."
+          : "Employees who checked in on the selected date. App check-ins include selfie proof."}
+        actions={(
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <span className={`inline-flex items-center gap-2 self-start rounded-sm border px-2.5 py-2 text-xs font-medium sm:self-end ${socketConnected ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
+              <span className={`h-2 w-2 rounded-full ${socketConnected ? "bg-green-500" : "bg-gray-400"}`} />
+              {socketConnected ? "Live" : "API auto-refresh"}
+            </span>
+            <CalendarPicker
+              value={selectedDate}
+              onChange={(value) => {
+                if (!value) return;
+                setSelectedDate(value);
+                setPage(1);
+              }}
+              timeZone="Asia/Kolkata"
+              className="min-w-[190px]"
+            />
+            <div className="flex flex-wrap gap-2">
+              {selectedDate !== todayKey && (
+                <Button
+                  onClick={() => { setSelectedDate(todayKey); setPage(1); }}
+                  variant="secondary"
+                  className="inline-flex items-center justify-center gap-2"
+                >
+                  <FiCalendar aria-hidden="true" /> Today
+                </Button>
               )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination {...checkInsPagination} />
+              <Button
+                onClick={exportCheckIns}
+                loading={exporting}
+                text={exportProgress ? `Exporting ${exportProgress.loaded} / ${exportProgress.total}` : "Preparing export..."}
+                disabled={loading}
+                variant="secondary"
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <FiDownload aria-hidden="true" /> Export CSV
+              </Button>
+              <Button onClick={() => loadCheckIns()} loading={refreshing} disabled={loading} variant="secondary" className="inline-flex items-center justify-center gap-2">
+                <FiRefreshCw aria-hidden="true" /> Refresh
+              </Button>
+            </div>
+          </div>
+        )}
+      />
+
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
       </section>
+
+      <CommonTable
+        columns={columns}
+        data={attendance}
+        toolbar={toolbar}
+        pagination={paginationControls}
+        loading={loading}
+        error={error}
+        errorAction={<Button onClick={() => loadCheckIns()} loading={refreshing} variant="secondary">Retry</Button>}
+        emptyText={`No check-ins found for ${selectedDate === todayKey ? "today" : selectedDate}.`}
+        loadingText={`Loading check-ins for ${selectedDate}...`}
+      />
 
       {preview && (
         <FilePreviewModal

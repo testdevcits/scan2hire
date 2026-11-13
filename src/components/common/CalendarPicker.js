@@ -3,13 +3,21 @@ import { createPortal } from "react-dom";
 import { FiCalendar, FiChevronDown, FiChevronLeft, FiChevronRight, FiX } from "react-icons/fi";
 
 const toKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const todayKeyForZone = (date, timeZone) => timeZone
+  ? new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date)
+  : toKey(date);
 const fromKey = (value) => {
   if (!value) return null;
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day || 1);
 };
 
-const CalendarPicker = ({ value, onChange, mode = "date", label, className = "", error = "", inlineLabel = false }) => {
+const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName = "", className = "", error = "", inlineLabel = false, timeZone, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
   const [visibleMonth, setVisibleMonth] = useState(() => fromKey(value) || new Date());
@@ -28,7 +36,7 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, className = "",
     });
   }, [month, year]);
   const weekdays = useMemo(() => Array.from({ length: 7 }, (_, index) => new Date(2024, 0, 7 + index).toLocaleDateString(undefined, { weekday: "short" })), []);
-  const today = toKey(new Date());
+  const today = todayKeyForZone(new Date(), timeZone);
   const selected = fromKey(value);
   const triggerText = selected
     ? selected.toLocaleDateString(undefined, isMonth ? { month: "long", year: "numeric" } : { day: "2-digit", month: "short", year: "numeric" })
@@ -64,8 +72,8 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, className = "",
   return (
     <>
       <div className={inlineLabel ? "flex min-w-0 items-center gap-2" : "min-w-0"}>
-      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 block"} text-xs font-semibold uppercase tracking-wide text-gray-500`}>{label}</span> : null}
-      <button type="button" onClick={openPicker} aria-haspopup="dialog" aria-expanded={open} className={`inline-flex min-h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 shadow-sm transition hover:border-[#f84525] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f84525]/30 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
+      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 block"} ${labelClassName || "text-xs font-semibold uppercase tracking-wide text-gray-500"}`}>{label}</span> : null}
+      <button type="button" onClick={openPicker} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} className={`inline-flex min-h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 shadow-sm transition hover:border-[#f84525] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f84525]/30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-900 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
         <span className="flex min-w-0 items-center gap-2"><FiCalendar className="h-4 w-4 shrink-0 text-[#f84525]" /><span className="truncate">{triggerText}</span></span>
         <FiChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
       </button>
@@ -105,7 +113,7 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, className = "",
                 </div>
               )}
               <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-orange-100 pt-4 dark:border-gray-800">
-                <div className="flex gap-2"><button type="button" onClick={() => { const now = new Date(); const key = toKey(now); setDraft(isMonth ? key.slice(0, 7) : key); setVisibleMonth(now); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{isMonth ? "This month" : "Today"}</button><button type="button" onClick={() => { setDraft(""); onChange(""); setOpen(false); }} className="rounded-lg bg-orange-50 px-3 py-2 text-xs font-medium text-[#c6381e] hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200">Clear</button></div>
+                <div className="flex gap-2"><button type="button" onClick={() => { const now = new Date(); const key = todayKeyForZone(now, timeZone); const todayDate = fromKey(key); setDraft(isMonth ? key.slice(0, 7) : key); setVisibleMonth(todayDate); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{isMonth ? "This month" : "Today"}</button><button type="button" onClick={() => { setDraft(""); onChange(""); setOpen(false); }} className="rounded-lg bg-orange-50 px-3 py-2 text-xs font-medium text-[#c6381e] hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200">Clear</button></div>
                 <div className="ml-auto flex gap-2"><button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">Cancel</button><button type="button" onClick={apply} disabled={!draft} className="rounded-lg bg-[#f84525] px-4 py-2 text-xs font-semibold text-white hover:bg-[#d93a1e] disabled:cursor-not-allowed disabled:opacity-40">Apply</button></div>
               </footer>
             </div>

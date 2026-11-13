@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FiChevronDown, FiSearch, FiX } from "react-icons/fi";
 
 const normalizeOption = (option) =>
@@ -17,14 +18,20 @@ const CustomDropdown = ({
   searchable = false,
   error = "",
   className = "",
+  labelClassName = "",
+  buttonClassName = "",
   compact = false,
   placement = "bottom",
   showPlaceholder = true,
+  portalMenu = false,
 }) => {
   const wrapperRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
   const searchRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [portalStyle, setPortalStyle] = useState(null);
 
   const normalizedOptions = useMemo(() => options.map(normalizeOption), [options]);
   const selectedOption = normalizedOptions.find((option) => String(option.value) === String(value));
@@ -40,7 +47,7 @@ const CustomDropdown = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!wrapperRef.current?.contains(event.target)) {
+      if (!wrapperRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) {
         setOpen(false);
         setSearch("");
       }
@@ -49,6 +56,32 @@ const CustomDropdown = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open || !portalMenu) return undefined;
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      const openAbove = placement === "top" || (spaceBelow < 180 && spaceAbove > spaceBelow);
+      const maxHeight = Math.max(100, Math.min(240, openAbove ? spaceAbove : spaceBelow));
+      setPortalStyle({
+        position: "fixed",
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+        ...(openAbove ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+      });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, placement, portalMenu]);
 
   useEffect(() => {
     if (open && searchable) {
@@ -65,15 +98,16 @@ const CustomDropdown = ({
   return (
     <label ref={wrapperRef} className={`relative text-sm font-medium ${compact ? "inline-flex items-center gap-2" : "block"} ${className}`}>
       {label ? (
-        <span>
+        <span className={`mb-1 block ${labelClassName}`}>
           {label} {required && <span className="text-red-500">*</span>}
         </span>
       ) : null}
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={`${compact ? "min-h-9 min-w-[72px] px-2.5 py-1.5" : "mt-1 min-h-[38px] w-full px-3 py-2"} flex items-center justify-between gap-2 rounded-sm border bg-white text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
+        className={`${compact ? "min-h-9 min-w-[72px] px-2.5 py-1.5" : "min-h-[38px] w-full px-3 py-2"} ${buttonClassName} flex items-center justify-between gap-2 rounded-sm border bg-white text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
           error ? "border-red-500" : "border-gray-300"
         }`}
         aria-haspopup="listbox"
@@ -85,8 +119,8 @@ const CustomDropdown = ({
         <FiChevronDown className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && !disabled && (
-        <div className={`absolute z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 ${compact ? "right-0 min-w-full" : "left-0 right-0"} ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}>
+      {open && !disabled && (portalMenu ? createPortal(
+        <div ref={menuRef} style={portalStyle || { visibility: "hidden" }} className="z-[160] overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
           {searchable && (
             <div className="relative border-b border-gray-100 p-2">
               <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -138,8 +172,23 @@ const CustomDropdown = ({
               ))
             )}
           </div>
+        </div>,
+        document.body
+      ) : (
+        <div ref={menuRef} className={`absolute z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 ${compact ? "right-0 min-w-full" : "left-0 right-0"} ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}>
+          {searchable && (
+            <div className="relative border-b border-gray-100 p-2">
+              <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-sm border border-gray-200 py-2 pl-9 pr-8 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10" placeholder="Search" />
+              {search && <button type="button" onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm p-1 text-gray-400 hover:text-gray-700" aria-label="Clear search"><FiX /></button>}
+            </div>
+          )}
+          <div className="max-h-60 overflow-y-auto py-1" role="listbox">
+            {showPlaceholder && <button type="button" onClick={() => selectOption("")} className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${!value ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-500 dark:text-gray-400"}`}>{placeholder}</button>}
+            {filteredOptions.length === 0 ? <p className="px-3 py-3 text-sm text-gray-500">No options found</p> : filteredOptions.map((option) => <button key={option.value} type="button" onClick={() => selectOption(option.value)} className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"}`} role="option" aria-selected={String(value) === String(option.value)}>{option.label}</button>)}
+          </div>
         </div>
-      )}
+      ))}
       {error ? <span className="mt-1 block text-xs text-red-500">{error}</span> : null}
     </label>
   );

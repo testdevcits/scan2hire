@@ -16,12 +16,14 @@ const Button = ({
   loading = false,
   type = "button",
   variant = "primary",
+  title,
 }) => {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
+      title={title}
       className={`py-2 px-4 rounded-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
         variants[variant] || variants.primary
       } ${className}`}

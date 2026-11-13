@@ -59,6 +59,7 @@ const AdminSettings = () => {
     mailEnabled: true,
     notificationsEnabled: true,
     noticeNotificationsEnabled: true,
+    allowLeaveBeyondBalance: false,
     adminApprovalEmail: "",
     employeeVaultPassword: "",
     officeLocation: {
@@ -108,6 +109,7 @@ const AdminSettings = () => {
           mailEnabled: Boolean(data.mailEnabled),
           notificationsEnabled: Boolean(data.notificationsEnabled),
           noticeNotificationsEnabled: Boolean(data.noticeNotificationsEnabled),
+          allowLeaveBeyondBalance: Boolean(data.allowLeaveBeyondBalance),
           adminApprovalEmail: data.adminApprovalEmail || "",
           officeLocation: {
             latitude: data.officeLocation?.latitude ?? "",
@@ -171,6 +173,7 @@ const AdminSettings = () => {
         mailEnabled: form.mailEnabled,
         notificationsEnabled: form.notificationsEnabled,
         noticeNotificationsEnabled: form.noticeNotificationsEnabled,
+        allowLeaveBeyondBalance: form.allowLeaveBeyondBalance,
         adminApprovalEmail: form.adminApprovalEmail,
         employeeVaultPassword: form.employeeVaultPassword,
       };
@@ -540,6 +543,12 @@ const AdminSettings = () => {
                   setForm((prev) => ({ ...prev, noticeNotificationsEnabled: e.target.checked }))
                 }
               />
+              <ToggleRow
+                label="Allow employees to request leave beyond their available days"
+                checked={form.allowLeaveBeyondBalance}
+                onChange={(e) => setForm((prev) => ({ ...prev, allowLeaveBeyondBalance: e.target.checked }))}
+              />
+              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">When disabled, leave requests are checked against the employee's available leave before submission.</p>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 pt-1">
                 Admin Approval Email
                 <input

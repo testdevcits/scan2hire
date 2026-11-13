@@ -191,9 +191,12 @@ const EmployeeLeaveCalendar = () => {
       {leaveBalance && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            ["EL", leaveBalance.earned_leave],
-            ["SL", leaveBalance.sick_leave],
-            ["Urgent", leaveBalance.urgent_leave],
+            ["Earned Leave", leaveBalance.earned_leave],
+            ["Sick Leave", leaveBalance.sick_leave],
+            ["Urgent Leave", leaveBalance.urgent_leave],
+            ["Optional Leave", leaveBalance.optional_leave],
+            ["Half Day", leaveBalance.half_day],
+            ["Full Day", leaveBalance.full_day],
           ].map(([label, item]) => (
             <Card key={label} className="p-4">
               <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>

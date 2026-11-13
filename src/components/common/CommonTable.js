@@ -9,12 +9,14 @@ const CommonTable = ({
   actions,
   toolbar,
   error,
+  errorAction,
   emptyText = "No data found",
   pagination,
   loading = false,
   loadingText = "Loading records...",
   showPagination = true,
   className = "",
+  actionsLayout = "row",
 }) => {
   const localPagination = usePagination(data);
   const pageState = pagination || localPagination;
@@ -24,7 +26,7 @@ const CommonTable = ({
   return (
     <div className={`overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 ${className}`}>
       {toolbar}
-      {error && <EmptyState variant="error" text={error} className="py-3" />}
+      {error && <EmptyState variant="error" text={error} action={errorAction} className="py-3" />}
       {loading ? (
         <CommonLoader text={loadingText} compact />
       ) : totalItems === 0 ? (
@@ -46,20 +48,23 @@ const CommonTable = ({
                   <tr key={row._id || index} className="border-t text-gray-700 hover:bg-[#fff8f6] dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-800">
                     {columns.map((column) => (
                       <td key={column.accessor} className="max-w-xs px-4 py-3 align-top">
-                        {column.render ? column.render(row[column.accessor], row) : row[column.accessor] || "N/A"}
+                        {column.render ? column.render(row[column.accessor], row) : row[column.accessor] ?? "N/A"}
                       </td>
                     ))}
                     {actions && (
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
+                        <div className={`flex min-w-max gap-2 ${actionsLayout === "stack" ? "w-24 flex-col items-stretch" : "flex-nowrap"}`}>
                           {actions.map((action, actionIndex) => (
                             <button
                               key={action.key || actionIndex}
                               type="button"
                               onClick={() => action.onClick(row)}
-                              className={`rounded-sm px-3 py-1.5 text-xs font-semibold ${action.className || "bg-blue-500 text-white"}`}
+                              disabled={typeof action.disabled === "function" ? action.disabled(row) : action.disabled}
+                              title={action.title || (action.iconOnly ? (typeof action.label === "string" ? action.label : "View") : undefined)}
+                              aria-label={action.iconOnly ? (action.title || (typeof action.label === "string" ? action.label : "View")) : undefined}
+                              className={`whitespace-nowrap rounded-sm px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:!bg-gray-100 disabled:!text-gray-400 disabled:!shadow-none ${action.iconOnly ? "inline-flex min-h-8 items-center justify-center !px-2 !py-1.5" : ""} ${action.className || "bg-blue-500 text-white"}`}
                             >
-                              {action.label}
+                              {action.iconOnly ? action.icon : typeof action.label === "function" ? action.label(row) : action.label}
                             </button>
                           ))}
                         </div>
@@ -78,7 +83,7 @@ const CommonTable = ({
                     <div key={column.accessor} className="grid grid-cols-[105px_1fr] gap-2">
                       <span className="font-semibold text-gray-600 dark:text-gray-300">{column.header}:</span>
                       <span className="break-words text-right text-gray-900 dark:text-gray-100">
-                        {column.render ? column.render(row[column.accessor], row) : row[column.accessor] || "N/A"}
+                        {column.render ? column.render(row[column.accessor], row) : row[column.accessor] ?? "N/A"}
                       </span>
                     </div>
                   ))}
@@ -90,9 +95,12 @@ const CommonTable = ({
                         key={action.key || actionIndex}
                         type="button"
                         onClick={() => action.onClick(row)}
-                        className={`flex-1 rounded-sm px-3 py-2 text-xs font-semibold ${action.className || "bg-blue-500 text-white"}`}
+                        disabled={typeof action.disabled === "function" ? action.disabled(row) : action.disabled}
+                        title={action.title || (action.iconOnly ? (typeof action.label === "string" ? action.label : "View") : undefined)}
+                        aria-label={action.iconOnly ? (action.title || (typeof action.label === "string" ? action.label : "View")) : undefined}
+                        className={`${action.iconOnly ? "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm" : "flex-1 rounded-sm px-3 py-2"} text-xs font-semibold disabled:cursor-not-allowed disabled:!bg-gray-100 disabled:!text-gray-400 disabled:!shadow-none ${action.className || "bg-blue-500 text-white"}`}
                       >
-                        {action.label}
+                        {action.iconOnly ? action.icon : typeof action.label === "function" ? action.label(row) : action.label}
                       </button>
                     ))}
                   </div>
