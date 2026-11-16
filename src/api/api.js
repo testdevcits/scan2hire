@@ -65,8 +65,8 @@ export const hrApi = {
   updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
-  getEmployeeAccountCredentials: (employeeId) =>
-    API.get(`/hr/employees/${employeeId}/account-credentials`),
+  getEmployeeAccountCredentials: (employeeId, vaultPassword) =>
+    API.post(`/hr/employees/${employeeId}/account-credentials/open`, { vaultPassword }),
   deactivateEmployee: (employeeId) =>
     API.patch(`/hr/employees/${employeeId}/deactivate`),
   activateEmployee: (employeeId) =>
@@ -85,13 +85,14 @@ export const hrApi = {
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
   deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),
-  getEmployeeCredentials: (vaultPassword) =>
-    API.get("/hr/employee-credentials", { params: { vaultPassword } }),
+  openEmployeeCredentials: (vaultPassword) =>
+    API.post("/hr/employee-credentials/open", { vaultPassword }),
   getEmployeeAccess: () => API.get("/hr/employee-access"),
   updateEmployeeAccess: (employeeId, payload) =>
     API.put(`/hr/employee-access/${employeeId}`, payload),
   assignTeamLeadEmployees: (teamLeadId, payload) =>
     API.put(`/hr/employee-access/team-leads/${teamLeadId}/assign`, payload),
+  getSystemAllotmentOverview: (params) => API.get("/hr/system-allotments/overview", { params }),
   getSystemAllotments: (params) => API.get("/hr/system-allotments", { params }),
   getSystemAssets: (type, params) => API.get(`/hr/system-allotments/assets/${type}`, { params }),
   createSystemAsset: (type, payload) => API.post(`/hr/system-allotments/assets/${type}`, payload),
@@ -138,6 +139,7 @@ export const employeeApi = {
   getInterviewLogs: () => API.get("/employees/interview-logs"),
   updateRound: (candidateId, payload) =>
     API.put(`/employees/candidates/${candidateId}/round`, payload),
+  getSystemAllotmentOverview: (params) => API.get("/employees/system-allotments/overview", { params }),
   getSystemAllotments: (params) => API.get("/employees/system-allotments", { params }),
   getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
   getSystemAssets: (type, params) => API.get(`/employees/system-allotments/assets/${type}`, { params }),

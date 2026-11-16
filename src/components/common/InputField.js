@@ -17,10 +17,12 @@ const InputField = ({
   inputMode,
   autoComplete,
   disabled = false,
+  labelClassName = "",
+  inputClassName = "",
 }) => {
   return (
     <div className="flex flex-col min-w-0">
-      <label className="font-medium text-sm text-gray-700 dark:text-gray-200 sm:text-base">
+      <label className={`font-medium text-sm text-gray-700 dark:text-gray-200 sm:text-base ${labelClassName}`}>
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
@@ -38,7 +40,7 @@ const InputField = ({
         inputMode={inputMode}
         autoComplete={autoComplete}
         disabled={disabled}
-        className={`border rounded-sm px-3 py-2 mt-1 text-sm sm:text-base min-h-10 w-full min-w-0 bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${
+        className={`border rounded-sm px-3 py-2 mt-1 text-sm sm:text-base min-h-10 w-full min-w-0 bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${inputClassName} ${
           error ? "border-[#f84525]" : "border-gray-300 dark:border-gray-700"
         }`}
       />

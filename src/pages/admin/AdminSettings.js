@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { FiCopy, FiEye, FiEyeOff, FiKey, FiMapPin, FiMoon, FiPlus, FiSettings, FiSun, FiUser } from "react-icons/fi";
+import { FiCalendar, FiCopy, FiEye, FiEyeOff, FiKey, FiMapPin, FiMoon, FiPlus, FiSettings, FiSun, FiUser } from "react-icons/fi";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
 import FileUploadField from "../../components/common/FileUploadField";
@@ -36,6 +36,15 @@ const CardHeader = ({ icon, title, subtitle, action }) => (
 const inputClass =
   "mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525] disabled:bg-gray-50 dark:disabled:bg-gray-800/60 disabled:text-gray-500";
 
+const leaveEntitlementFields = [
+  ["earned_leave", "Earned Leave"],
+  ["sick_leave", "Sick Leave"],
+  ["urgent_leave", "Urgent Leave"],
+  ["optional_leave", "Optional Leave"],
+  ["half_day", "Half Day"],
+  ["full_day", "Full Day"],
+];
+
 const ToggleRow = ({ label, checked, onChange }) => (
   <label className="flex items-center justify-between gap-3 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 text-sm cursor-pointer">
     <span className="text-gray-700 dark:text-gray-300">{label}</span>
@@ -60,6 +69,14 @@ const AdminSettings = () => {
     notificationsEnabled: true,
     noticeNotificationsEnabled: true,
     allowLeaveBeyondBalance: false,
+    leaveEntitlements: {
+      earned_leave: 12,
+      sick_leave: 4,
+      urgent_leave: 4,
+      optional_leave: 0,
+      half_day: 0,
+      full_day: 0,
+    },
     adminApprovalEmail: "",
     employeeVaultPassword: "",
     officeLocation: {
@@ -110,6 +127,7 @@ const AdminSettings = () => {
           notificationsEnabled: Boolean(data.notificationsEnabled),
           noticeNotificationsEnabled: Boolean(data.noticeNotificationsEnabled),
           allowLeaveBeyondBalance: Boolean(data.allowLeaveBeyondBalance),
+          leaveEntitlements: { ...prev.leaveEntitlements, ...(data.leaveEntitlements || {}) },
           adminApprovalEmail: data.adminApprovalEmail || "",
           officeLocation: {
             latitude: data.officeLocation?.latitude ?? "",
@@ -174,6 +192,9 @@ const AdminSettings = () => {
         notificationsEnabled: form.notificationsEnabled,
         noticeNotificationsEnabled: form.noticeNotificationsEnabled,
         allowLeaveBeyondBalance: form.allowLeaveBeyondBalance,
+        leaveEntitlements: Object.fromEntries(
+          leaveEntitlementFields.map(([key]) => [key, Number(form.leaveEntitlements[key])])
+        ),
         adminApprovalEmail: form.adminApprovalEmail,
         employeeVaultPassword: form.employeeVaultPassword,
       };
@@ -544,11 +565,11 @@ const AdminSettings = () => {
                 }
               />
               <ToggleRow
-                label="Allow employees to request leave beyond their available days"
+                label="Allow employees to request more leave days than they have available"
                 checked={form.allowLeaveBeyondBalance}
                 onChange={(e) => setForm((prev) => ({ ...prev, allowLeaveBeyondBalance: e.target.checked }))}
               />
-              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">When disabled, leave requests are checked against the employee's available leave before submission.</p>
+              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">When disabled, requests beyond an employee's available leave days are rejected.</p>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 pt-1">
                 Admin Approval Email
                 <input
@@ -558,6 +579,36 @@ const AdminSettings = () => {
                   className={inputClass}
                 />
               </label>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              icon={<FiCalendar />}
+              title="Leave Allocations"
+              subtitle="Earned Leave accrues monthly and carries forward. Sick Leave accrues quarterly. Urgent Leave is allocated annually (4 days by default)."
+            />
+            <div className="space-y-4 p-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {leaveEntitlementFields.map(([key, label]) => (
+                  <label key={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {label} (days per year)
+                    <input
+                      type="number"
+                      min="0"
+                      max="365"
+                      step="0.5"
+                      value={form.leaveEntitlements[key]}
+                      onChange={(event) => setForm((prev) => ({
+                        ...prev,
+                        leaveEntitlements: { ...prev.leaveEntitlements, [key]: event.target.value },
+                      }))}
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">Earned Leave adds 1 day per completed month, capped by its annual allocation and carried forward. Sick Leave adds 1 day per completed three-month period, up to its annual allocation. Urgent Leave is available as an annual allocation. Optional Leave dates are taken from the HR Leave Calendar. HR adjustments are added on top.</p>
             </div>
           </Card>
 

@@ -709,6 +709,11 @@ const ViewReports = () => {
             <option value="event">Event</option>
             <option value="notice">Notice</option>
           </select>
+          {holidayForm.type === "optional_leave" && (
+            <p className="text-xs text-gray-500">
+              Employees can request Optional Leave only on dates marked this way. The annual allowance is configured in Admin Settings.
+            </p>
+          )}
           <textarea
             value={holidayForm.description}
             onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}

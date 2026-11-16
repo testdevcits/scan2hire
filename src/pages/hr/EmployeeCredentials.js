@@ -1,8 +1,10 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import CustomDropdown from "../../components/common/CustomDropdown";
+import InputField from "../../components/common/InputField";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -24,6 +26,7 @@ const EmployeeCredentials = () => {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [accountLoading, setAccountLoading] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [showEmployeeLoginPassword, setShowEmployeeLoginPassword] = useState(false);
   const [myCredentials, setMyCredentials] = useState([]);
   const [myCredentialForm, setMyCredentialForm] = useState({
     accountType: "Email",
@@ -36,6 +39,7 @@ const EmployeeCredentials = () => {
   const [showMyCredentialForm, setShowMyCredentialForm] = useState(false);
   const myCredentialsPagination = usePagination(myCredentials);
   const selectedAccountsPagination = usePagination(selectedAccounts, [selectedEmployeeId]);
+  const accountRequestId = useRef(0);
 
   useEffect(() => {
     if (pageUnlocked) loadMyCredentials();
@@ -74,13 +78,8 @@ const EmployeeCredentials = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const verifyRes = await authApi.verifyVaultPassword({ password: vaultPassword });
-      if (!verifyRes.data.data?.isValid) {
-        toast.error("Invalid vault password");
-        return;
-      }
       const [credentialsRes, employeesRes] = await Promise.all([
-        hrApi.getEmployeeCredentials(vaultPassword),
+        hrApi.openEmployeeCredentials(vaultPassword),
         hrApi.getEmployees(),
       ]);
       const loadedCredentials = credentialsRes.data.data || [];
@@ -115,25 +114,55 @@ const EmployeeCredentials = () => {
   useEffect(() => {
     if (unlocked && selectedEmployeeId) {
       loadAccountCredentials(selectedEmployeeId);
+    } else if (!selectedEmployeeId) {
+      accountRequestId.current += 1;
+      setSelectedAccounts([]);
+      setAccountLoading(false);
     }
     // eslint-disable-next-line
   }, [unlocked, selectedEmployeeId]);
 
   const loadAccountCredentials = async (employeeId) => {
+    const requestId = ++accountRequestId.current;
     if (!employeeId) {
       setSelectedAccounts([]);
+      setAccountLoading(false);
       return;
     }
     setAccountLoading(true);
     try {
-      const res = await hrApi.getEmployeeAccountCredentials(employeeId);
-      setSelectedAccounts(res.data.data || []);
+      const res = await hrApi.getEmployeeAccountCredentials(employeeId, vaultPassword);
+      if (requestId === accountRequestId.current) setSelectedAccounts(res.data.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load saved account credentials");
+      if (requestId === accountRequestId.current) {
+        setSelectedAccounts([]);
+        if (err.response?.status === 403) {
+          lockVault();
+          toast.error("Vault password is no longer valid. Please unlock the vault again.");
+          return;
+        }
+        toast.error(err.response?.data?.message || "Unable to load saved account credentials");
+      }
     } finally {
-      setAccountLoading(false);
+      if (requestId === accountRequestId.current) setAccountLoading(false);
     }
   };
+
+  const lockVault = () => {
+    accountRequestId.current += 1;
+    setUnlocked(false);
+    setVaultPassword("");
+    setCredentials([]);
+    setEmployees([]);
+    setSelectedEmployeeId("");
+    setSelectedAccounts([]);
+    setRevealedPasswords({});
+    setShowEmployeeLoginPassword(false);
+    setAccountLoading(false);
+  };
+
+  const confirmCredentialExport = () =>
+    window.confirm("This CSV contains passwords in plain text. Store and share it carefully. Continue?");
 
   const copyValue = async (value, label) => {
     try {
@@ -146,9 +175,23 @@ const EmployeeCredentials = () => {
 
   const saveMyCredential = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...myCredentialForm,
+      title: myCredentialForm.title.trim(),
+      loginId: myCredentialForm.loginId.trim(),
+      notes: myCredentialForm.notes.trim(),
+    };
+    if (!payload.title || !payload.loginId || !payload.password) {
+      toast.error("Title, login/email and password are required");
+      return;
+    }
+    if (payload.title.length > 120 || payload.loginId.length > 254 || payload.password.length > 1024 || payload.notes.length > 2000) {
+      toast.error("One or more fields exceed the allowed length");
+      return;
+    }
     setMyCredentialSaving(true);
     try {
-      await authApi.createMyAccountCredential(myCredentialForm);
+      await authApi.createMyAccountCredential(payload);
       setMyCredentialForm({ accountType: "Email", title: "", loginId: "", password: "", notes: "" });
       setShowMyCredentialForm(false);
       await loadMyCredentials();
@@ -175,6 +218,7 @@ const EmployeeCredentials = () => {
       toast.error("No credentials to export");
       return;
     }
+    if (!confirmCredentialExport()) return;
     downloadCsv({
       filename: `my-credentials-${new Date().toISOString().slice(0, 10)}.csv`,
       columns: [
@@ -202,6 +246,7 @@ const EmployeeCredentials = () => {
       toast.error("Open the employee vault first");
       return;
     }
+    if (!confirmCredentialExport()) return;
     const employeeMap = employees.reduce((acc, employee) => {
       acc[String(employee._id)] = employee;
       return acc;
@@ -236,6 +281,7 @@ const EmployeeCredentials = () => {
       toast.error("No saved account credentials to export");
       return;
     }
+    if (!confirmCredentialExport()) return;
     const safeName = String(selectedEmployee?.employeeId || selectedEmployee?.name || "employee")
       .trim()
       .replace(/[^a-z0-9_-]+/gi, "-")
@@ -321,20 +367,16 @@ const EmployeeCredentials = () => {
         </div>
         {showMyCredentialForm && (
           <form onSubmit={saveMyCredential} className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="text-sm font-medium">
-              Account Type
-              <select value={myCredentialForm.accountType} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, accountType: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option>Email</option>
-                <option>Hosting</option>
-                <option>Social</option>
-                <option>Client Panel</option>
-                <option>Other</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium">Title<input value={myCredentialForm.title} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
-            <label className="text-sm font-medium">Login / Email<input value={myCredentialForm.loginId} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
-            <label className="text-sm font-medium">Password<input type="password" value={myCredentialForm.password} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, password: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required /></label>
-            <label className="text-sm font-medium md:col-span-2">Notes<textarea value={myCredentialForm.notes} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" /></label>
+            <CustomDropdown
+              label="Account Type"
+              value={myCredentialForm.accountType}
+              options={["Email", "Hosting", "Social", "Client Panel", "Other"]}
+              onChange={(accountType) => setMyCredentialForm((prev) => ({ ...prev, accountType }))}
+            />
+            <InputField label="Title" value={myCredentialForm.title} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, title: e.target.value }))} required maxLength={120} autoComplete="off" />
+            <InputField label="Login / Email" value={myCredentialForm.loginId} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} required maxLength={254} autoComplete="off" />
+            <InputField label="Password" type="password" value={myCredentialForm.password} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, password: e.target.value }))} required maxLength={1024} autoComplete="new-password" />
+            <label className="flex min-w-0 flex-col text-sm font-medium text-gray-700 dark:text-gray-200 md:col-span-2">Notes<textarea value={myCredentialForm.notes} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} maxLength={2000} className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" rows={3} /></label>
             <Button text="Save Credential" type="submit" loading={myCredentialSaving} className="md:col-span-2 justify-self-start" />
           </form>
         )}
@@ -379,14 +421,17 @@ const EmployeeCredentials = () => {
         </form>
       ) : canOpenEmployeeVault ? (
         <div className="space-y-4">
-          <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
+          <section className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
             <label className="text-sm font-medium">
               Select Employee
               <select
                 value={selectedEmployeeId}
                 onChange={(e) => {
                   setSelectedEmployeeId(e.target.value);
-                  loadAccountCredentials(e.target.value);
+                  accountRequestId.current += 1;
+                  setAccountLoading(false);
+                  setSelectedAccounts([]);
+                  setShowEmployeeLoginPassword(false);
                 }}
                 className="mt-1 w-full border rounded-sm px-3 py-2"
               >
@@ -400,6 +445,7 @@ const EmployeeCredentials = () => {
             </label>
             <Button text="Load Saved Credentials" onClick={() => loadAccountCredentials(selectedEmployeeId)} disabled={!selectedEmployeeId || accountLoading} loading={accountLoading} />
             <Button text="Export All Login CSV" variant="secondary" onClick={exportEmployeeLoginCsv} disabled={!credentials.length} />
+            <Button text="Lock Vault" variant="secondary" onClick={lockVault} />
           </section>
 
           {selectedEmployee && (
@@ -409,7 +455,7 @@ const EmployeeCredentials = () => {
                 <p><b>Employee ID:</b> {selectedEmployee.employeeId}</p>
                 <p><b>Name:</b> {selectedEmployee.name}</p>
                 <p><b>Email:</b> {selectedLoginCredential?.email || selectedEmployee.email}</p>
-                <p><b>Password:</b> <span className="font-mono">{selectedLoginCredential?.password || "N/A"}</span></p>
+                <div className="flex items-center gap-2"><b>Password:</b><span className="font-mono">{selectedLoginCredential?.password ? (showEmployeeLoginPassword ? selectedLoginCredential.password : "••••••••") : "N/A"}</span>{selectedLoginCredential?.password && <button type="button" onClick={() => setShowEmployeeLoginPassword((visible) => !visible)} className="rounded-sm border p-1.5 text-gray-600 hover:text-[#f84525]" aria-label={showEmployeeLoginPassword ? "Hide employee login password" : "Show employee login password"}>{showEmployeeLoginPassword ? <FiEyeOff /> : <FiEye />}</button>}</div>
               </div>
             </section>
           )}

@@ -72,7 +72,7 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName 
   return (
     <>
       <div className={inlineLabel ? "flex min-w-0 items-center gap-2" : "min-w-0"}>
-      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 block"} ${labelClassName || "text-xs font-semibold uppercase tracking-wide text-gray-500"}`}>{label}</span> : null}
+      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 block w-full text-left"} ${labelClassName || "text-xs font-semibold uppercase tracking-wide text-gray-500"}`}>{label}</span> : null}
       <button type="button" onClick={openPicker} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} className={`inline-flex min-h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 shadow-sm transition hover:border-[#f84525] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f84525]/30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-900 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
         <span className="flex min-w-0 items-center gap-2"><FiCalendar className="h-4 w-4 shrink-0 text-[#f84525]" /><span className="truncate">{triggerText}</span></span>
         <FiChevronDown className="h-4 w-4 shrink-0 text-gray-400" />

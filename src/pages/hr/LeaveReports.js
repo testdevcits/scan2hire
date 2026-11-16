@@ -323,13 +323,13 @@ const LeaveReports = () => {
 
       {balanceEmployeeId && createPortal((
         <div className={`fixed inset-0 z-[120] bg-gray-950/45 transition-opacity duration-300 ease-in-out ${balanceDrawerOpen ? "opacity-100" : "pointer-events-none opacity-0"}`} onMouseDown={closeBalanceModal}>
-          <section role="dialog" aria-modal="true" aria-labelledby="leave-balance-title" onMouseDown={(event) => event.stopPropagation()} className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-900 ${balanceDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
+          <section role="dialog" aria-modal="true" aria-labelledby="employee-leaves-title" onMouseDown={(event) => event.stopPropagation()} className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-900 ${balanceDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
             <header className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
               <div>
-                <h2 id="leave-balance-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Employee Leaves</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{balanceData?.employee?.name || leaves.find((leave) => leave.employee?._id === balanceEmployeeId)?.employee?.name || "Loading employee leaves..."} · Used and remaining leave by type.</p>
+                <h2 id="employee-leaves-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Employee Leaves</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{balanceData?.employee?.name || leaves.find((leave) => leave.employee?._id === balanceEmployeeId)?.employee?.name || "Loading employee leaves..."} · Used and available leave by type.</p>
               </div>
-              <button type="button" onClick={closeBalanceModal} disabled={adjustmentSaving} aria-label="Close leave balance" className="rounded-md px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white">×</button>
+              <button type="button" onClick={closeBalanceModal} disabled={adjustmentSaving} aria-label="Close employee leaves" className="rounded-md px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white">×</button>
             </header>
             <div className="overflow-y-auto p-5">
         {balanceLoading && <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading employee leaves...</p>}

@@ -18,8 +18,17 @@ import { BsPc } from "react-icons/bs";
 import { BsKeyboard, BsMouse2, BsEarbuds } from "react-icons/bs";
 import { employeeApi, hrApi } from "../api";
 import Button from "../components/common/Button";
+import CommonTable from "../components/common/CommonTable";
 import CommonLoader from "../components/common/CommonLoader";
+import CommonModal from "../components/common/CommonModal";
+import CalendarPicker from "../components/common/CalendarPicker";
+import CustomDropdown from "../components/common/CustomDropdown";
+import EmptyState from "../components/common/EmptyState";
+import InputField from "../components/common/InputField";
 import Pagination, { usePagination } from "../components/common/Pagination";
+import { MetricCard } from "../components/common/ReusableCards";
+import SearchInput from "../components/common/SearchInput";
+import Tabs from "../components/common/Tabs";
 import { AuthContext } from "../contexts/AuthContext";
 import { useModal } from "../contexts/ModalContext";
 import { useToast } from "../contexts/ToastContext";
@@ -39,6 +48,8 @@ const assetTabs = [
 ];
 
 const inventoryTypes = ["system", "monitor", "keyboard", "mouse", "headphone", "webcam", "buds"];
+const assetModalLabelClass = "!text-sm !font-medium !text-left !text-gray-700 dark:!text-gray-200";
+const assetModalControlClass = "!min-h-10 !text-sm";
 
 const emptyAssignment = {
   employee: "",
@@ -234,39 +245,26 @@ const SystemAllotments = ({ selfOnly = false }) => {
   const visibleTabs = canEdit ? assetTabs : [{ key: "allotments", label: "My Assigned Assets" }];
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     setAccessDenied(false);
     try {
-      const accessReq = isEmployeeRoute
-        ? employeeApi.getMyAccess()
-        : Promise.resolve({ data: { data: { systemAllotmentManage: true } } });
-      const employeesReq = isEmployeeRoute ? employeeApi.getSystemAllotmentEmployees() : hrApi.getEmployees();
-      const [accessRes, employeesRes, allotmentsRes] = await Promise.all([
-        accessReq,
-        employeesReq,
-        api.getSystemAllotments(),
-      ]);
-      const allowed = !selfOnly && (!isEmployeeRoute || Boolean(accessRes?.data?.data?.systemAllotmentManage));
-      const assetResponses = allowed
-        ? await Promise.all(inventoryTypes.map((type) => api.getSystemAssets(type)))
-        : [];
+      const overviewRes = await api.getSystemAllotmentOverview(selfOnly ? { scope: "mine" } : undefined);
+      const overview = overviewRes?.data?.data || {};
+      const allowed = !selfOnly && Boolean(overview.canEdit);
       setCanEdit(allowed);
       if (!allowed) setActiveTab("allotments");
-      setEmployees(employeesRes.data.data || []);
-      setAllotments(allotmentsRes.data.data || []);
-      setAssets(
-        inventoryTypes.reduce((acc, type, index) => {
-          acc[type] = assetResponses[index]?.data?.data || [];
-          return acc;
-        }, {})
-      );
+      setEmployees(overview.employees || []);
+      setAllotments(overview.allotments || []);
+      setAssets(inventoryTypes.reduce((acc, type) => {
+        acc[type] = overview.assets?.[type] || [];
+        return acc;
+      }, {}));
     } catch (err) {
       if (err.response?.status === 403) setAccessDenied(true);
       else toast.error(err.response?.data?.message || "Unable to load system allotments");
     } finally {
       setLoading(false);
     }
-  }, [api, isEmployeeRoute, selfOnly, toast]);
+  }, [api, selfOnly, toast]);
 
   useEffect(() => {
     loadData();
@@ -516,8 +514,17 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
   const saveAsset = async (e) => {
     e.preventDefault();
-    if (!assetForm.name && !assetForm.model && !assetForm.serialNumber) {
-      toast.error("Add name, model, or serial number first");
+    if (!assetForm.name.trim()) {
+      toast.error("Asset name is required");
+      return;
+    }
+    const cost = assetForm.cost === "" ? null : Number(assetForm.cost);
+    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
+      toast.error("Cost must be a valid non-negative amount");
+      return;
+    }
+    if (assetForm.purchaseDate && assetForm.warrantyExpiry && assetForm.warrantyExpiry < assetForm.purchaseDate) {
+      toast.error("Warranty expiry cannot be before the purchase date");
       return;
     }
     setSaving(true);
@@ -555,22 +562,79 @@ const SystemAllotments = ({ selfOnly = false }) => {
     }
   };
 
-  const fieldClass = "mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10";
-  const labelClass = "text-sm font-medium text-gray-700";
   const currentAssets = inventoryTypes.includes(activeTab) ? assets[activeTab] || [] : [];
   const personalAllotments = selfOnly ? myAllotments : filteredAllotments;
   const myAssetsPagination = usePagination(myAllotments, [activeTab]);
   const allotmentsPagination = usePagination(filteredAllotments, [activeTab, search]);
   const historyPagination = usePagination(historyItems, [activeTab, search]);
   const assetsPagination = usePagination(currentAssets, [activeTab]);
+  const allotmentColumns = [
+    {
+      accessor: "employee",
+      header: "Employee",
+      render: (_, item) => <><p className="font-semibold text-gray-900">{item.employee?.name || "Inventory"}</p><p className="text-xs text-gray-500">{item.employee?.employeeId || "-"}{item.employee?.department ? ` | ${item.employee.department}` : ""}</p></>,
+    },
+    {
+      accessor: "systemName",
+      header: "System",
+      render: (_, item) => <><p className="font-medium">{assignmentTitle(item)}</p><p className="text-xs text-gray-500">{item.systemAsset?.assetId || item.assetTag || item.serialNumber || "-"}</p><p className="text-xs capitalize text-gray-500">{item.systemType || item.systemAsset?.systemType || "-"}</p></>,
+    },
+    {
+      accessor: "peripherals",
+      header: "Peripherals",
+      render: (_, item) => [
+        item.monitorAsset && `Monitor: ${item.monitorAsset.assetId}`,
+        item.keyboardAsset && `Keyboard: ${item.keyboardAsset.assetId}`,
+        item.mouseAsset && `Mouse: ${item.mouseAsset.assetId}`,
+        item.headphoneAsset && `Headphone: ${item.headphoneAsset.assetId}`,
+        item.webcamAsset && `Webcam: ${item.webcamAsset.assetId}`,
+        item.budsAsset && `Buds: ${item.budsAsset.assetId}`,
+      ].filter(Boolean).join(" | ") || "-",
+    },
+    {
+      accessor: "assignedDate",
+      header: "Assigned",
+      render: (_, item) => <><p>{allocationPeriodText(item)}</p><p className="text-xs text-gray-500">{assignmentTypeLabels[item.assignmentType] || "Office"}</p></>,
+    },
+    {
+      accessor: "status",
+      header: "Status",
+      render: (status) => <span className={`rounded-sm border px-2 py-1 text-xs font-semibold ${statusTone[status] || statusTone.inactive}`}>{status}</span>,
+    },
+  ];
+  const allotmentActions = [
+    { key: "view", title: "View", iconOnly: true, icon: <FiEye />, className: "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50", onClick: setViewingAllotment },
+    { key: "edit", title: "Edit", iconOnly: true, icon: <FiEdit2 />, className: "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50", onClick: fillAssignment },
+    ...(canDelete ? [{ key: "delete", title: "Delete", iconOnly: true, icon: <FiTrash2 />, className: "border border-red-200 bg-white text-red-600 hover:bg-red-50", onClick: releaseAssignment }] : []),
+  ];
+  const historyColumns = [
+    { accessor: "updatedAt", header: "Date", render: displayDate },
+    { accessor: "employee", header: "Employee", render: (_, entry) => <><p className="font-semibold text-gray-900">{entry.allotment.employee?.name || "Inventory"}</p><p className="text-xs text-gray-500">{entry.allotment.employee?.employeeId || "-"}</p></> },
+    { accessor: "action", header: "Action", render: (action) => <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold capitalize"><FiClock /> {formatAction(action)}</span> },
+    { accessor: "system", header: "System", render: (_, entry) => <><p className="font-medium">{entry.snapshot?.systemName || assignmentTitle(entry.allotment)}</p><p className="break-all text-xs text-gray-500">{snapshotSummary(entry.snapshot)}</p></> },
+    { accessor: "updatedBy", header: "Updated By", render: (_, entry) => <><p className="font-medium">{entry.updatedBy?.name || "-"}</p><p className="break-all text-xs text-gray-500">{entry.updatedBy?.email || ""}</p></> },
+  ];
+  const inventoryColumns = [
+    { accessor: "assetId", header: "Asset ID", render: (value) => <span className="whitespace-nowrap font-semibold text-gray-900">{value}</span> },
+    { accessor: "name", header: "Name", render: (_, asset) => <><p className="font-medium">{assetName(asset)}</p><p className="text-xs text-gray-500">{[asset.brand, asset.model].filter(Boolean).join(" ") || "-"}</p></> },
+    { accessor: "serialNumber", header: "Serial", render: (value) => <span className="whitespace-nowrap">{value || "-"}</span> },
+    { accessor: "details", header: "Details", render: (_, asset) => activeTab === "system"
+      ? [asset.systemType, asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
+      : activeTab === "monitor" ? asset.displaySize || "-" : "-" },
+    { accessor: "status", header: "Status", render: (status) => <span className={`rounded-sm border px-2 py-1 text-xs font-semibold ${statusTone[status] || statusTone.inactive}`}>{status}</span> },
+  ];
+  const inventoryActions = [
+    { key: "copy", title: "Copy", iconOnly: true, icon: <FiCopy />, className: "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50", onClick: copyAsset },
+    { key: "edit", title: "Edit", iconOnly: true, icon: <FiEdit2 />, className: "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50", onClick: fillAsset },
+    ...(canDelete ? [{ key: "delete", title: "Delete", iconOnly: true, icon: <FiTrash2 />, className: "border border-red-200 bg-white text-red-600 hover:bg-red-50", onClick: deleteAsset }] : []),
+  ];
 
   if (loading) return <CommonLoader text="Loading system allotments..." />;
   if (accessDenied) {
     return (
-      <section className="bg-white rounded-sm shadow p-6 text-center">
-        <h1 className="text-xl font-bold text-gray-900">Access Not Allowed</h1>
-        <p className="text-sm text-gray-500 mt-2">Admin has not allowed system allotment access for your employee account.</p>
-      </section>
+          <section className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <EmptyState title="Access Not Allowed" message="Admin has not allowed system allotment access for your employee account." />
+          </section>
     );
   }
 
@@ -595,8 +659,8 @@ const SystemAllotments = ({ selfOnly = false }) => {
         </section>
 
         {personalAllotments.length === 0 ? (
-          <section className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-            No system or accessories are assigned to you yet.
+          <section className="overflow-hidden rounded-2xl border border-dashed border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <EmptyState text="No system or accessories are assigned to you yet." />
           </section>
         ) : (
           personalAllotments.map((item) => (
@@ -644,58 +708,36 @@ const SystemAllotments = ({ selfOnly = false }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-gray-100">
+        <div className="grid grid-cols-2 gap-3 border-b border-gray-100 p-3 md:grid-cols-4">
           {[
             ["Employees", stats.employees],
             ["Active Allocations", stats.active],
             ["Total Assets", stats.totalAssets],
             ["Free Assets", stats.availableAssets],
-          ].map(([label, value]) => (
-            <div key={label} className="p-4 border-r border-gray-100">
-              <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-            </div>
-          ))}
+          ].map(([label, value], index) => <MetricCard key={label} label={label} value={value} index={index + 1} className="min-h-0 shadow-none" />)}
         </div>
 
-        <div className="border-b border-gray-100 bg-gray-50 p-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-10">
-            {visibleTabs.map((tab) => {
-              const active = activeTab === tab.key;
+        <div className="border-b border-gray-100 bg-gray-50 px-3">
+          <Tabs
+            label="System allotment sections"
+            value={activeTab}
+            onChange={(tabKey) => {
+              setActiveTab(tabKey);
+              resetAsset();
+            }}
+            tabs={visibleTabs.map((tab) => {
               const meta = getTabMeta({ tab, myAllotments, filteredAllotments, assets });
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab.key);
-                    resetAsset();
-                  }}
-                  className={`group flex min-h-[42px] min-w-0 items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm font-semibold transition-colors ${
-                    active
-                      ? "border-[#f84525] bg-[#f84525] text-white shadow-sm"
-                      : "border-gray-200 bg-white text-gray-700 hover:border-[#f84525]/40 hover:bg-[#fff5f3] hover:text-[#f84525]"
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate">{tab.label}</span>
-                    <span className={`block text-[11px] font-medium ${active ? "text-white/75" : "text-gray-400"}`}>
-                      {meta.hint}
-                    </span>
+              return {
+                value: tab.key,
+                label: (
+                  <span className="inline-flex items-center gap-2">
+                    {tab.label}
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">{meta.count}</span>
                   </span>
-                  <span
-                    className={`shrink-0 rounded-sm px-2 py-0.5 text-[11px] font-bold ${
-                      active
-                        ? "bg-white/20 text-white"
-                        : "bg-gray-100 text-gray-600 group-hover:bg-white group-hover:text-[#f84525]"
-                    }`}
-                  >
-                    {meta.count}
-                  </span>
-                </button>
-              );
+                ),
+              };
             })}
-          </div>
+          />
         </div>
       </section>
 
@@ -715,63 +757,53 @@ const SystemAllotments = ({ selfOnly = false }) => {
 
           <div className="p-5 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            <label className={`${labelClass} lg:col-span-1`}>
-              Employee
-              <select
-                value={assignmentForm.employee}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, employee: e.target.value }))}
-                className={fieldClass}
-                disabled={!canEdit}
-              >
-                <option value="">Select employee</option>
-                {selectableEmployees.map((employee) => (
-                  <option key={employee._id} value={employee._id}>
-                    {employee.employeeId || "-"} - {employee.name}{String(employee._id) === String(myEmployeeId) ? " (Self)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={labelClass}>
-              Assignment Type
-              <select
-                value={assignmentForm.assignmentType}
-                onChange={(e) =>
-                  setAssignmentForm((prev) => ({
-                    ...prev,
-                    assignmentType: e.target.value,
-                    returnDate: needsEndDate(e.target.value) ? prev.returnDate : "",
-                  }))
-                }
-                className={fieldClass}
-                disabled={!canEdit}
-              >
-                <option value="office">Office</option>
-                <option value="work_from_home">Work From Home</option>
-                <option value="temporary">Temporary</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label className={labelClass}>
-              {needsEndDate(assignmentForm.assignmentType) ? "From Date" : "Allocation Date"}
-              <input
-                type="date"
-                value={assignmentForm.assignedDate}
-                onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignedDate: e.target.value }))}
-                className={fieldClass}
+            <CustomDropdown
+              label="Employee"
+              value={assignmentForm.employee}
+              onChange={(value) => setAssignmentForm((prev) => ({ ...prev, employee: value }))}
+              placeholder="Select employee"
+              disabled={!canEdit}
+              portalMenu
+              options={selectableEmployees.map((employee) => ({
+                value: employee._id,
+                label: `${employee.employeeId || "-"} - ${employee.name}${String(employee._id) === String(myEmployeeId) ? " (Self)" : ""}`,
+              }))}
+            />
+            <CustomDropdown
+              label="Assignment Type"
+              value={assignmentForm.assignmentType}
+              onChange={(value) => setAssignmentForm((prev) => ({
+                ...prev,
+                assignmentType: value,
+                returnDate: needsEndDate(value) ? prev.returnDate : "",
+              }))}
+              showPlaceholder={false}
+              disabled={!canEdit}
+              portalMenu
+              options={[
+                { value: "office", label: "Office" },
+                { value: "work_from_home", label: "Work From Home" },
+                { value: "temporary", label: "Temporary" },
+                { value: "other", label: "Other" },
+              ]}
+            />
+            <CalendarPicker
+              label={needsEndDate(assignmentForm.assignmentType) ? "From Date" : "Allocation Date"}
+              labelClassName="text-sm font-medium text-left text-gray-900 dark:text-gray-100"
+              className="!min-h-[38px] !rounded-sm !border-gray-300 !shadow-none dark:!border-gray-700"
+              value={assignmentForm.assignedDate}
+              onChange={(value) => setAssignmentForm((prev) => ({ ...prev, assignedDate: value }))}
+              disabled={!canEdit}
+            />
+            {needsEndDate(assignmentForm.assignmentType) && (
+              <CalendarPicker
+                label="To Date"
+                labelClassName="text-sm font-medium text-left text-gray-900 dark:text-gray-100"
+                className="!min-h-[38px] !rounded-sm !border-gray-300 !shadow-none dark:!border-gray-700"
+                value={assignmentForm.returnDate}
+                onChange={(value) => setAssignmentForm((prev) => ({ ...prev, returnDate: value }))}
                 disabled={!canEdit}
               />
-            </label>
-            {needsEndDate(assignmentForm.assignmentType) && (
-              <label className={labelClass}>
-                To Date
-                <input
-                  type="date"
-                  value={assignmentForm.returnDate}
-                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, returnDate: e.target.value }))}
-                  className={fieldClass}
-                  disabled={!canEdit}
-                />
-              </label>
             )}
             </div>
 
@@ -785,22 +817,16 @@ const SystemAllotments = ({ selfOnly = false }) => {
               ["webcam", "webcamAsset", "Webcam"],
               ["buds", "budsAsset", "Buds"],
             ].map(([type, field, label]) => (
-              <label key={field} className={labelClass}>
-                {label}
-                <select
-                  value={assignmentForm[field]}
-                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, [field]: e.target.value }))}
-                  className={fieldClass}
-                  disabled={!canEdit}
-                >
-                  <option value="">{type === "system" ? "Select system" : `No ${label.toLowerCase()}`}</option>
-                  {selectableAssets(type, assignmentForm[field]).map((asset) => (
-                    <option key={asset._id} value={asset._id}>
-                      {assetOptionLabel(asset)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <CustomDropdown
+                key={field}
+                label={label}
+                value={assignmentForm[field]}
+                onChange={(value) => setAssignmentForm((prev) => ({ ...prev, [field]: value }))}
+                placeholder={type === "system" ? "Select system" : `No ${label.toLowerCase()}`}
+                disabled={!canEdit}
+                portalMenu
+                options={selectableAssets(type, assignmentForm[field]).map((asset) => ({ value: asset._id, label: assetOptionLabel(asset) }))}
+              />
             ))}
             </div>
 
@@ -861,11 +887,11 @@ const SystemAllotments = ({ selfOnly = false }) => {
               </p>
             </div>
             {canEdit && (
-              <input
+              <SearchInput
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={setSearch}
                 placeholder="Search employee or asset ID"
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm md:w-72 focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+                className="md:w-72"
               />
             )}
           </div>
@@ -901,76 +927,13 @@ const SystemAllotments = ({ selfOnly = false }) => {
             </div>
           ) : (
           <>
-          <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  <th className="text-left px-4 py-3">Employee</th>
-                  <th className="text-left px-4 py-3">System</th>
-                  <th className="text-left px-4 py-3">Peripherals</th>
-                  <th className="text-left px-4 py-3">Assigned</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="text-left px-4 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAllotments.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No allotments found.</td>
-                  </tr>
-                ) : (
-                  allotmentsPagination.pageItems.map((item) => (
-                    <tr key={item._id} className="border-t">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-900">{item.employee?.name || "Inventory"}</p>
-                        <p className="text-xs text-gray-500">{item.employee?.employeeId || "-"} {item.employee?.department ? `| ${item.employee.department}` : ""}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{assignmentTitle(item)}</p>
-                        <p className="text-xs text-gray-500">{item.systemAsset?.assetId || item.assetTag || item.serialNumber || "-"}</p>
-                        <p className="text-xs text-gray-500 capitalize">{item.systemType || item.systemAsset?.systemType || "-"}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        {[
-                          item.monitorAsset && `Monitor: ${item.monitorAsset.assetId}`,
-                          item.keyboardAsset && `Keyboard: ${item.keyboardAsset.assetId}`,
-                          item.mouseAsset && `Mouse: ${item.mouseAsset.assetId}`,
-                          item.headphoneAsset && `Headphone: ${item.headphoneAsset.assetId}`,
-                          item.webcamAsset && `Webcam: ${item.webcamAsset.assetId}`,
-                          item.budsAsset && `Buds: ${item.budsAsset.assetId}`,
-                        ].filter(Boolean).join(" | ") || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p>{allocationPeriodText(item)}</p>
-                        <p className="text-xs text-gray-500">{assignmentTypeLabels[item.assignmentType] || "Office"}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[item.status] || statusTone.inactive}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => setViewingAllotment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="View">
-                            <FiEye />
-                          </button>
-                          <button type="button" onClick={() => fillAssignment(item)} className="p-2 rounded-md border hover:bg-gray-50" title="Edit">
-                            <FiEdit2 />
-                          </button>
-                          {canDelete && (
-                            <button type="button" onClick={() => releaseAssignment(item)} className="p-2 rounded-md border text-red-600 hover:bg-red-50" title="Delete">
-                              <FiTrash2 />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Pagination {...allotmentsPagination} />
+          <CommonTable
+            columns={allotmentColumns}
+            data={allotmentsPagination.pageItems}
+            actions={allotmentActions}
+            pagination={allotmentsPagination}
+            emptyText="No allotments found."
+          />
           </>
           )}
         </section>
@@ -983,57 +946,19 @@ const SystemAllotments = ({ selfOnly = false }) => {
               <h2 className="font-semibold text-gray-900">Allotment History</h2>
               <p className="text-xs text-gray-500">Created, updated, and deleted allocation changes.</p>
             </div>
-            <input
+            <SearchInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
               placeholder="Search employee or asset ID"
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm md:w-72 focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+              className="md:w-72"
             />
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-[920px] w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  <th className="text-left px-4 py-3">Date</th>
-                  <th className="text-left px-4 py-3">Employee</th>
-                  <th className="text-left px-4 py-3">Action</th>
-                  <th className="text-left px-4 py-3">System</th>
-                  <th className="text-left px-4 py-3">Updated By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyPagination.pageItems.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="px-4 py-8 text-center text-gray-500">No history found.</td>
-                  </tr>
-                ) : (
-                  historyPagination.pageItems.map((entry) => (
-                    <tr key={entry.key} className="border-t">
-                      <td className="px-4 py-3 whitespace-nowrap">{displayDate(entry.updatedAt)}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-900">{entry.allotment.employee?.name || "Inventory"}</p>
-                        <p className="text-xs text-gray-500">{entry.allotment.employee?.employeeId || "-"}</p>
-                      </td>
-                      <td className="px-4 py-3 capitalize">
-                        <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold">
-                          <FiClock /> {formatAction(entry.action)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{entry.snapshot?.systemName || assignmentTitle(entry.allotment)}</p>
-                        <p className="text-xs text-gray-500 break-all">{snapshotSummary(entry.snapshot)}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{entry.updatedBy?.name || "-"}</p>
-                        <p className="text-xs text-gray-500 break-all">{entry.updatedBy?.email || ""}</p>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Pagination {...historyPagination} />
+          <CommonTable
+            columns={historyColumns}
+            data={historyPagination.pageItems}
+            pagination={historyPagination}
+            emptyText="No history found."
+          />
         </section>
       )}
 
@@ -1044,104 +969,38 @@ const SystemAllotments = ({ selfOnly = false }) => {
                 <h2 className="font-semibold text-gray-900">{titleCase(activeTab)} List</h2>
               <p className="text-xs text-gray-500">Allocated items are hidden from assignment dropdowns until released.</p>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setEditingAssetId("");
                   setAssetForm(emptyAsset);
                   setAssetModalOpen(true);
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#f84525] px-4 py-2 text-sm font-semibold text-white"
+                text={`Add ${titleCase(activeTab)}`}
               >
-                <FiPlus /> Add {titleCase(activeTab)}
-              </button>
+                <span className="inline-flex items-center gap-2"><FiPlus /> Add {titleCase(activeTab)}</span>
+              </Button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-[920px] w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="text-left px-4 py-3 w-32">Asset ID</th>
-                    <th className="text-left px-4 py-3 min-w-56">Name</th>
-                    <th className="text-left px-4 py-3 w-40">Serial</th>
-                    <th className="text-left px-4 py-3 min-w-56">Details</th>
-                    <th className="text-left px-4 py-3 w-32">Status</th>
-                    <th className="text-left px-4 py-3 w-40">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentAssets.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-500">No {activeTab} assets found.</td>
-                    </tr>
-                  ) : (
-                    assetsPagination.pageItems.map((asset) => (
-                      <tr key={asset._id} className="border-t">
-                        <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{asset.assetId}</td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{assetName(asset)}</p>
-                          <p className="text-xs text-gray-500">{[asset.brand, asset.model].filter(Boolean).join(" ") || "-"}</p>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">{asset.serialNumber || "-"}</td>
-                        <td className="px-4 py-3">
-                          {activeTab === "system"
-                            ? [asset.systemType, asset.processor, asset.ram, asset.storage, asset.operatingSystem].filter(Boolean).join(" | ") || "-"
-                            : activeTab === "monitor"
-                            ? asset.displaySize || "-"
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-sm border text-xs font-semibold ${statusTone[asset.status] || statusTone.inactive}`}>
-                            {asset.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {canEdit && (
-                            <div className="flex gap-2 whitespace-nowrap">
-                              <button type="button" onClick={() => copyAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Copy">
-                                <FiCopy />
-                              </button>
-                              <button type="button" onClick={() => fillAsset(asset)} className="p-2 rounded-sm border hover:bg-gray-50" title="Edit">
-                                <FiEdit2 />
-                              </button>
-                              {canDelete && (
-                                <button type="button" onClick={() => deleteAsset(asset)} className="p-2 rounded-sm border text-red-600 hover:bg-red-50" title="Delete">
-                                  <FiTrash2 />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Pagination {...assetsPagination} />
+            <CommonTable
+              columns={inventoryColumns}
+              data={assetsPagination.pageItems}
+              actions={inventoryActions}
+              pagination={assetsPagination}
+              emptyText={`No ${activeTab} assets found.`}
+            />
         </section>
       )}
 
       {assetModalOpen && inventoryTypes.includes(activeTab) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={saveAsset} className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">
-                  {editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}
-                </h2>
-                <p className="text-xs text-gray-500">Each saved item receives an automatic asset ID.</p>
-              </div>
-              <button
-                type="button"
-                onClick={resetAsset}
-                className="rounded-md border border-gray-200 p-2 hover:bg-gray-50"
-                title="Close"
-              >
-                <FiX />
-              </button>
-            </div>
-
-            <div className="max-h-[72vh] overflow-auto p-5">
+        <CommonModal
+          as="form"
+          onSubmit={saveAsset}
+          onClose={resetAsset}
+          className="max-w-3xl"
+          title={editingAssetId ? `Edit ${titleCase(activeTab)}` : `Add ${titleCase(activeTab)}`}
+          subtitle="Each saved item receives an automatic asset ID."
+          footer={<><Button text="Cancel" variant="secondary" onClick={resetAsset} /><Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} /></>}
+        >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {[
                   ["name", "Name"],
@@ -1149,96 +1008,62 @@ const SystemAllotments = ({ selfOnly = false }) => {
                   ["model", "Model"],
                   ["serialNumber", "Serial Number"],
                 ].map(([field, label]) => (
-                  <label key={field} className={labelClass}>
-                    {label}
-                    <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                  </label>
+                  <InputField key={field} label={label} labelClassName={assetModalLabelClass} inputClassName={assetModalControlClass} required={field === "name"} value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} disabled={!canEdit} />
                 ))}
 
                 {activeTab === "system" && (
                   <>
-                    <label className={labelClass}>
-                      System Type
-                      <select value={assetForm.systemType} onChange={(e) => setAssetForm((prev) => ({ ...prev, systemType: e.target.value }))} className={fieldClass} disabled={!canEdit}>
-                        <option value="desktop">Desktop</option>
-                        <option value="laptop">Laptop</option>
-                        <option value="server">Server</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </label>
+                    <CustomDropdown
+                      label="System Type"
+                      labelClassName={assetModalLabelClass}
+                      buttonClassName={assetModalControlClass}
+                      value={assetForm.systemType}
+                      onChange={(value) => setAssetForm((prev) => ({ ...prev, systemType: value }))}
+                      showPlaceholder={false}
+                      disabled={!canEdit}
+                      portalMenu
+                      options={["desktop", "laptop", "server", "other"]}
+                    />
                     {[
                       ["processor", "Processor"],
                       ["ram", "RAM"],
                       ["storage", "Storage"],
                       ["operatingSystem", "Operating System"],
                     ].map(([field, label]) => (
-                      <label key={field} className={labelClass}>
-                        {label}
-                        <input value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                      </label>
+                      <InputField key={field} label={label} labelClassName={assetModalLabelClass} inputClassName={assetModalControlClass} value={assetForm[field]} onChange={(e) => setAssetForm((prev) => ({ ...prev, [field]: e.target.value }))} disabled={!canEdit} />
                     ))}
                   </>
                 )}
 
                 {activeTab === "monitor" && (
-                  <label className={labelClass}>
-                    Display Size
-                    <input value={assetForm.displaySize} onChange={(e) => setAssetForm((prev) => ({ ...prev, displaySize: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                  </label>
+                  <InputField label="Display Size" labelClassName={assetModalLabelClass} inputClassName={assetModalControlClass} value={assetForm.displaySize} onChange={(e) => setAssetForm((prev) => ({ ...prev, displaySize: e.target.value }))} disabled={!canEdit} />
                 )}
 
-                <label className={labelClass}>
-                  Status
-                  <select value={assetForm.status} onChange={(e) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className={fieldClass} disabled={!canEdit}>
-                    <option value="available">Available</option>
-                    <option value="allocated">Allocated</option>
-                    <option value="repair">Repair</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </label>
-                <label className={labelClass}>
-                  Purchase Date
-                  <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-                <label className={labelClass}>
-                  Warranty Expiry
-                  <input type="date" value={assetForm.warrantyExpiry} onChange={(e) => setAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
-                <label className={labelClass}>
-                  Cost
-                  <input value={assetForm.cost} onChange={(e) => setAssetForm((prev) => ({ ...prev, cost: e.target.value }))} className={fieldClass} disabled={!canEdit} />
-                </label>
+                <CustomDropdown
+                  label="Status"
+                  labelClassName={assetModalLabelClass}
+                  buttonClassName={assetModalControlClass}
+                  value={assetForm.status}
+                  onChange={(value) => setAssetForm((prev) => ({ ...prev, status: value }))}
+                  showPlaceholder={false}
+                  disabled={!canEdit}
+                  portalMenu
+                  options={["available", "allocated", "repair", "inactive"]}
+                />
+                <CalendarPicker label="Purchase Date" labelClassName={assetModalLabelClass} className="!min-h-10 !rounded-sm !border-gray-300 !text-sm !shadow-none dark:!border-gray-700" value={assetForm.purchaseDate} onChange={(value) => setAssetForm((prev) => ({ ...prev, purchaseDate: value }))} disabled={!canEdit} />
+                <CalendarPicker label="Warranty Expiry" labelClassName={assetModalLabelClass} className="!min-h-10 !rounded-sm !border-gray-300 !text-sm !shadow-none dark:!border-gray-700" value={assetForm.warrantyExpiry} onChange={(value) => setAssetForm((prev) => ({ ...prev, warrantyExpiry: value }))} disabled={!canEdit} />
+                <InputField label="Cost" labelClassName={assetModalLabelClass} inputClassName={assetModalControlClass} type="number" min="0" step="0.01" inputMode="decimal" value={assetForm.cost} onChange={(e) => setAssetForm((prev) => ({ ...prev, cost: e.target.value }))} disabled={!canEdit} />
               </div>
-            </div>
-
-            <div className="flex flex-wrap justify-end gap-2 border-t px-5 py-4">
-              <Button text="Cancel" variant="secondary" onClick={resetAsset} />
-              <Button type="submit" text={editingAssetId ? "Save" : "Add"} loading={saving} disabled={!canEdit} />
-            </div>
-          </form>
-        </div>
+        </CommonModal>
       )}
 
       {viewingAllotment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <section className="w-full max-w-4xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{viewingAllotment.employee?.name || "Inventory"}</h2>
-                <p className="text-sm text-gray-500">
-                  {viewingAllotment.employee?.employeeId || "-"} | {assignmentTypeLabels[viewingAllotment.assignmentType] || "Office"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingAllotment(null)}
-                className="rounded-md border border-gray-200 p-2 hover:bg-gray-50"
-                title="Close"
-              >
-                <FiX />
-              </button>
-            </div>
-            <div className="max-h-[75vh] overflow-auto p-5">
+        <CommonModal
+          onClose={() => setViewingAllotment(null)}
+          className="max-w-4xl"
+          title={viewingAllotment.employee?.name || "Inventory"}
+          subtitle={`${viewingAllotment.employee?.employeeId || "-"} | ${assignmentTypeLabels[viewingAllotment.assignmentType] || "Office"}`}
+        >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
                   <p className="text-xs font-semibold uppercase text-gray-500">Period</p>
@@ -1276,9 +1101,7 @@ const SystemAllotments = ({ selfOnly = false }) => {
                   </div>
                 )}
               </div>
-            </div>
-          </section>
-        </div>
+        </CommonModal>
       )}
     </div>
   );

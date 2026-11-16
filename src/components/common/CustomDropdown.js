@@ -62,14 +62,21 @@ const CustomDropdown = ({
     const updatePosition = () => {
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const spaceBelow = window.innerHeight - rect.bottom - 8;
-      const spaceAbove = rect.top - 8;
-      const openAbove = placement === "top" || (spaceBelow < 180 && spaceAbove > spaceBelow);
-      const maxHeight = Math.max(100, Math.min(240, openAbove ? spaceAbove : spaceBelow));
+      const viewportPadding = 8;
+      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - viewportPadding);
+      const spaceAbove = Math.max(0, rect.top - viewportPadding);
+      const desiredHeight = Math.min(300, (filteredOptions.length + (showPlaceholder ? 1 : 0)) * 36 + (searchable ? 54 : 8));
+      const openAbove = placement === "top"
+        ? spaceAbove >= Math.min(desiredHeight, 160) || spaceAbove > spaceBelow
+        : spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+      const availableHeight = openAbove ? spaceAbove : spaceBelow;
+      const maxHeight = Math.max(80, Math.min(300, availableHeight));
+      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding));
       setPortalStyle({
         position: "fixed",
-        left: rect.left,
-        width: rect.width,
+        left,
+        width,
         maxHeight,
         ...(openAbove ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
       });
@@ -81,7 +88,7 @@ const CustomDropdown = ({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, placement, portalMenu]);
+  }, [open, placement, portalMenu, filteredOptions.length, searchable, showPlaceholder]);
 
   useEffect(() => {
     if (open && searchable) {
@@ -98,7 +105,7 @@ const CustomDropdown = ({
   return (
     <label ref={wrapperRef} className={`relative text-sm font-medium ${compact ? "inline-flex items-center gap-2" : "block"} ${className}`}>
       {label ? (
-        <span className={`mb-1 block ${labelClassName}`}>
+        <span className={`mb-1 block text-left ${labelClassName}`}>
           {label} {required && <span className="text-red-500">*</span>}
         </span>
       ) : null}
@@ -143,7 +150,11 @@ const CustomDropdown = ({
               )}
             </div>
           )}
-          <div className="max-h-60 overflow-y-auto py-1" role="listbox">
+          <div
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: portalStyle ? Math.max(64, portalStyle.maxHeight - (searchable ? 54 : 0)) : 240 }}
+            role="listbox"
+          >
             {showPlaceholder && <button
               type="button"
               onClick={() => selectOption("")}

@@ -892,7 +892,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <Card key={label} className="p-4">
                   <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Used {item.used} / {item.total} &middot; Remaining{" "}
+                    Used {item.used} / {item.total} &middot; Available{" "}
                     <span className="text-[#f84525] font-semibold">{item.remaining}</span>
                   </p>
                 </Card>
@@ -936,7 +936,13 @@ const EmployeeDashboard = ({ section = "all" }) => {
                       <option value="urgent_leave">Urgent Leave</option>
                       <option value="optional_leave">Optional Leave</option>
                       <option value="half_day">Half Day</option>
+                      <option value="full_day">Full Day</option>
                     </select>
+                    {leaveBalance?.[leaveForm.type] && (
+                      <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                        Available for this leave type: {leaveBalance[leaveForm.type].remaining} day(s).
+                      </span>
+                    )}
                   </label>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Mail Subject / Title

@@ -7,6 +7,7 @@ const AdminLayout = () => {
     { label: "Manage HR", path: "/admin/hrs", icon: <FiBriefcase /> },
     { label: "Departments", path: "/admin/departments", icon: <FiGrid /> },
     { label: "Employees", path: "/admin/employees", icon: <FiUsers /> },
+    { label: "Documents & Signatures", path: "/admin/employee-documents", icon: <FiShield /> },
     { label: "Candidates", path: "/admin/candidates", icon: <FiUserCheck /> },
     { label: "Today Check-ins", path: "/admin/today-checkins", icon: <FiClock /> },
     { label: "Attendance Reports", path: "/admin/reports", icon: <FiBarChart2 /> },

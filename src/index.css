@@ -93,3 +93,9 @@ body {
 .sidebar-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Keep dark signature ink readable regardless of the application theme. */
+canvas.signature-pad {
+  background-color: #ffffff !important;
+  color-scheme: light;
+}

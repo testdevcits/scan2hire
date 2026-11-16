@@ -1,3 +1,4 @@
+import DocumentSigningList from "./components/documents/DocumentSigningList";
 import "./App.css";
 import {
   BrowserRouter as Router,
@@ -75,6 +76,7 @@ function App() {
           <Route path="hrs" element={<ManageHR />} />
           <Route path="departments" element={<Departments />} />
           <Route path="employees" element={<ManageEmployees />} />
+          <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
           <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="candidates" element={<Candidates />} />
@@ -100,6 +102,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<HRDashboard />} />
           <Route path="employees" element={<ManageEmployees />} />
+          <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />

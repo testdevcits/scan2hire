@@ -73,7 +73,7 @@ const EmployeeLeaveCalendar = () => {
       const leavesRes = await employeeApi.getLeaves();
       setLeaveBalance(leavesRes.data.data?.balance || null);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to load leave balance");
+      toast.error(err.response?.data?.message || "Unable to load available leave");
     }
   }, [toast]);
 
@@ -201,7 +201,7 @@ const EmployeeLeaveCalendar = () => {
             <Card key={label} className="p-4">
               <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Used {item.used} / {item.total} &middot; Remaining{" "}
+                Used {item.used} / {item.total} &middot; Available{" "}
                 <span className="text-[#f84525] font-semibold">{item.remaining}</span>
               </p>
             </Card>

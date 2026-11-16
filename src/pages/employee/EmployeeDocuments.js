@@ -1,3 +1,4 @@
+import DocumentSigningList from "../../components/documents/DocumentSigningList";
 import { useCallback, useEffect, useState } from "react";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
@@ -62,6 +63,7 @@ const UploadedDocumentPreview = ({ title, url, onOpen }) => {
 
 const EmployeeDocuments = () => {
   const toast = useToast();
+  const [section, setSection] = useState("company");
   const [profile, setProfile] = useState(null);
   const [docs, setDocs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -127,12 +129,22 @@ const EmployeeDocuments = () => {
     }
   };
 
-  if (loading) return <CommonLoader text="Loading documents..." />;
+  if (loading && section === "personal") return <CommonLoader text="Loading documents..." />;
 
   return (
     <div className="space-y-5">
+      <section className="rounded-sm bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Documents</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Sign company documents and manage your personal files.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button text="Company Documents" variant={section === "company" ? "primary" : "secondary"} onClick={() => setSection("company")} className="text-sm" />
+          <Button text="Personal Documents" variant={section === "personal" ? "primary" : "secondary"} onClick={() => setSection("personal")} className="text-sm" />
+        </div>
+      </section>
+      {section === "company" ? <DocumentSigningList /> : <>
+
       <section className="bg-white dark:bg-gray-900 rounded-sm shadow p-5">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Documents</h1>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Personal Documents</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           First-time upload is open. Existing documents can be updated only after HR approval.
         </p>
@@ -227,6 +239,7 @@ const EmployeeDocuments = () => {
         )}
       </section>
 
+      </>}
       {preview && (
         <FilePreviewModal
           title={preview.title}

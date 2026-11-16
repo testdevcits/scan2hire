@@ -64,6 +64,7 @@ const HRLayout = () => {
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
+    ...(isHr ? [{ label: "Documents & Signatures", path: "/hr/employee-documents", icon: <FiShield /> }] : []),
     { label: "Credentials", path: "/hr/credentials", icon: <FiLock /> },
     ...(isHr ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
     { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },
