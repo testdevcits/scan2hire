@@ -785,19 +785,6 @@ const EmployeeDetail = () => {
       {activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="border-b border-gray-100 p-4"><h2 className="font-semibold">Documents &amp; Signatures</h2><p className="mt-1 text-xs text-gray-500">Manage this employee’s appointment letter, HR policy and signature verification.</p></div>
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
-        <div className="border-t border-gray-100 p-4"><h2 className="font-semibold">Employee Document Update History</h2>
-        {documentHistory.length ? (
-          <CommonTable
-            columns={[
-              { accessor: "updatedAt", header: "Updated", render: (value) => value ? new Date(value).toLocaleString() : "N/A" },
-              { accessor: "documents", header: "Documents", render: (value) => value?.join(", ") || "Documents" },
-              { accessor: "verifiedByEmail", header: "Verified By", render: (value) => value || "HR verified" },
-            ]}
-            data={historyPagination.pageItems}
-            pagination={historyPagination}
-          />
-        ) : <EmptyState text="No document update history." />}
-        </div>
       </section>}
 
       {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
