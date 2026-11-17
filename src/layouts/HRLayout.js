@@ -67,7 +67,6 @@ const HRLayout = () => {
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
-    ...(moduleAllowed('documents') ? [{ label: "Documents & Signatures", path: "/hr/employee-documents", icon: <FiShield /> }] : []),
     ...(moduleAllowed('credentials') ? [{ label: "Credentials", path: "/hr/credentials", icon: <FiLock /> }] : []),
     ...(moduleAllowed('rolesAccess') ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
     { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },

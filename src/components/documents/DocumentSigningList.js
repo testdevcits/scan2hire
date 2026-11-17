@@ -22,7 +22,7 @@ const fileData = file => new Promise((resolve, reject) => {
   const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file);
 });
 
-export default function DocumentSigningList({ managed = false }) {
+export default function DocumentSigningList({ managed = false, employeeFilterId = '' }) {
   const { user } = useContext(AuthContext);
   const toast = useToast();
   const isHr = user?.role === 'hr';
@@ -158,10 +158,10 @@ export default function DocumentSigningList({ managed = false }) {
   return <section className="space-y-5 dark:text-white">
     {managed && <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm bg-white p-5 shadow-sm dark:bg-gray-900">
       <div><h1 className="text-xl font-bold">{managed ? 'Documents & Signatures' : 'Documents to Sign'}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{managed ? 'Send appointment letters and HR policies. Track employee signatures here.' : 'Open your document, read it and sign. Completed copies stay available here.'}</p></div>
-      {managed && isHr && <Button text="+ Add Employee Documents" onClick={() => { setEditTarget(null); setEmployeeId(''); setFile(null); setFiles({}); setUploadOpen(true); }} disabled={busy} />}
+      {managed && isHr && <Button text="+ Add Employee Documents" onClick={() => { setEditTarget(null); setEmployeeId(employeeFilterId || ''); setFile(null); setFiles({}); setUploadOpen(true); }} disabled={busy} />}
     </div>}
     {!managed && <EmployeeSigningDocuments documents={documents} loading={loading} error={error} busy={busy} onRefresh={load} onOpen={open} onDownload={downloadSigned} />}
-    {managed && <CommonTable tableClassName="table-fixed min-w-[640px]" mobileLayout="stack" columns={columns} data={visible} loading={loading} loadingText="Loading documents…" error={error} errorAction={<Button text="Try again" onClick={load} variant="secondary" />} emptyText={filter === 'pending' ? 'No pending signatures. You are all caught up.' : 'No documents found.'}
+    {managed && <CommonTable tableClassName="table-fixed min-w-[640px]" mobileLayout="stack" columns={columns} data={employeeFilterId ? visible.filter(group => String(group._id) === String(employeeFilterId)) : visible} loading={loading} loadingText="Loading documents…" error={error} errorAction={<Button text="Try again" onClick={load} variant="secondary" />} emptyText={filter === 'pending' ? 'No pending signatures. You are all caught up.' : 'No documents found.'}
       toolbar={<div className="space-y-2 border-b border-gray-100 p-3 dark:border-gray-800">
         <div className="flex flex-wrap gap-2">{[['all', 'All'], ['draft', 'Set Placement'], ['pending', 'Pending'], ['awaiting_verification', 'Verify'], ['needs_correction', 'Needs Correction'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([key, label]) => <Button key={key} text={`${label} (${key === 'all' ? groups.length : groups.filter(group => group.status === key).length})`} variant={filter === key ? 'primary' : 'secondary'} onClick={() => setFilter(key)} className="text-sm" />)}</div>
         <div className="flex flex-wrap items-end gap-3"><div className="min-w-0 flex-1 sm:max-w-md"><InputField label="Search documents" name="documentSearch" placeholder={managed ? 'Employee name, ID or document…' : 'Document name…'} value={search} onChange={e => setSearch(e.target.value)} /></div><Button text="Refresh" variant="secondary" disabled={loading || busy} onClick={load} /></div>

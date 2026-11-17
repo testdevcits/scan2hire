@@ -7,7 +7,7 @@ import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
-const moduleOptions = [["dashboard", "Dashboard"], ["employees", "Employees"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["documents", "Documents & Signatures"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["systemAllotments", "System Allotments"]];
+const moduleOptions = [["dashboard", "Dashboard", "View HR dashboard and summary"], ["employees", "Employees", "View and manage employee records"], ["candidates", "Candidates", "Manage candidate pipeline"], ["checkins", "Today Check-ins", "View daily employee check-ins"], ["attendanceReports", "Attendance Reports", "View attendance reports"], ["leaveReports", "Leave Reports", "Review leave and holiday reports"], ["documents", "Documents & Signatures", "Send and verify employee documents"], ["credentials", "Credentials", "Access employee credential records"], ["rolesAccess", "Roles & Access", "Manage team access"], ["systemAllotments", "System Allotments", "Manage system assignments"]];
 
 const ManageHR = () => {
   const toast = useToast();
@@ -174,7 +174,7 @@ const ManageHR = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Manage {roleLabel}</h1>
-            <p className="text-sm text-gray-500 mt-1">HR is assigned from existing employees only.</p>
+            <p className="text-sm text-gray-500 mt-1">Create HR accounts and control which panel modules each HR user can access.</p>
           </div>
           <Button
             text={showForm ? "Close" : `Assign Employee as ${roleLabel}`}
@@ -261,8 +261,8 @@ const ManageHR = () => {
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b">
-          <h2 className="font-semibold text-gray-900">Current HR Access</h2>
-          <p className="text-xs text-gray-500 mt-1">{hrs.length} employee{hrs.length === 1 ? "" : "s"} with HR access</p>
+          <h2 className="font-semibold text-gray-900">HR Role Access</h2>
+          <p className="text-xs text-gray-500 mt-1">Choose “Manage HR Role Access” to decide which modules each HR user can see.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full text-sm">
@@ -304,7 +304,7 @@ const ManageHR = () => {
                         <button type="button" onClick={() => editHr(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-blue-600">
                           Edit Login
                         </button>
-                        <button type="button" onClick={() => openAccess(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-purple-600">Module Access</button>
+                        <button type="button" onClick={() => openAccess(hr)} className="px-3 py-1.5 rounded-sm text-xs font-semibold text-white bg-purple-600">Manage HR Role Access</button>
                         <button type="button" onClick={() => toggleHr(hr)} className={`px-3 py-1.5 rounded-sm text-xs text-white ${hr.isActive ? "bg-gray-900" : "bg-green-600"}`}>
                           {hr.isActive ? "Deactivate" : "Activate"}
                         </button>
@@ -320,8 +320,9 @@ const ManageHR = () => {
           </table>
         </div>
       </section>
-      {accessTarget && <CommonModal title="HR module access" subtitle={`Select modules visible to ${accessTarget.name}.`} className="max-w-xl" onClose={() => { if (!savingAccess) setAccessTarget(null); }} footer={<><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={() => setAccessTarget(null)} /><Button text="Save Access" loading={savingAccess} onClick={saveAccess} /></>}>
-        <div className="grid gap-2 sm:grid-cols-2">{moduleOptions.map(([key, label]) => <label key={key} className="flex items-center gap-3 rounded-sm border p-3 text-sm"><input type="checkbox" checked={Boolean(moduleDraft[key])} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: event.target.checked }))} className="accent-[#f84525]" />{label}</label>)}</div>
+      {accessTarget && <CommonModal title="Manage HR Role Access" subtitle={`Select the modules that ${accessTarget.name} is allowed to view and use.`} className="max-w-2xl" onClose={() => { if (!savingAccess) setAccessTarget(null); }} footer={<><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={() => setAccessTarget(null)} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></>}>
+        <div className="mb-4 rounded-sm border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><p className="font-semibold">HR role permissions</p><p className="mt-1 text-xs">Checked modules will appear in this HR user’s panel. Unchecked modules will be hidden.</p></div>
+        <div className="grid gap-3 sm:grid-cols-2">{moduleOptions.map(([key, label, description]) => <label key={key} className="flex cursor-pointer items-start gap-3 rounded-sm border border-gray-200 p-3 transition hover:border-[#f84525] dark:border-gray-700"><input type="checkbox" checked={Boolean(moduleDraft[key])} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: event.target.checked }))} className="mt-1 accent-[#f84525]" /><span><span className="block text-sm font-semibold text-gray-900 dark:text-white">{label}</span><span className="mt-1 block text-xs text-gray-500">{description}</span></span></label>)}</div>
       </CommonModal>}
     </div>
   );

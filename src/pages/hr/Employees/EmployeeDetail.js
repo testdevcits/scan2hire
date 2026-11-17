@@ -35,6 +35,7 @@ import EmptyState from "../../../components/common/EmptyState";
 import FilePreviewModal from "../../../components/common/FilePreviewModal";
 import { usePagination } from "../../../components/common/Pagination";
 import FileUploadField from "../../../components/common/FileUploadField";
+import DocumentSigningList from "../../../components/documents/DocumentSigningList";
 import InputField from "../../../components/common/InputField";
 import SectionHeader from "../../../components/common/SectionHeader";
 import Tabs from "../../../components/common/Tabs";
@@ -520,7 +521,7 @@ const EmployeeDetail = () => {
   const employeeTabs = [
     { value: "details", label: "Details" },
     { value: "attendance", label: "Attendance" },
-    { value: "documents", label: "Documents" },
+    { value: "documents", label: "Documents & Signatures" },
     ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
     ...(user?.role === "superadmin" ? [{ value: "credentials", label: "Credentials" }] : []),
   ];
@@ -820,9 +821,9 @@ const EmployeeDetail = () => {
       )}
 
       {activeTab === "documents" && <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold">Document Update History</h2>
-        </div>
+        <div className="border-b border-gray-100 p-4"><h2 className="font-semibold">Documents &amp; Signatures</h2><p className="mt-1 text-xs text-gray-500">Manage this employee’s appointment letter, HR policy and signature verification.</p></div>
+        <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
+        <div className="border-t border-gray-100 p-4"><h2 className="font-semibold">Employee Document Update History</h2>
         {documentHistory.length ? (
           <CommonTable
             columns={[
@@ -834,6 +835,7 @@ const EmployeeDetail = () => {
             pagination={historyPagination}
           />
         ) : <EmptyState text="No document update history." />}
+        </div>
       </section>}
 
       {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
