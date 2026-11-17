@@ -140,7 +140,10 @@ const ManageHR = () => {
 
   const openAccess = (hr) => {
     setAccessTarget(hr);
-    setModuleDraft(Object.fromEntries(moduleOptions.map(([key]) => [key, hr.moduleAccess?.[key] !== false])));
+    setModuleDraft(Object.fromEntries(moduleOptions.map(([key]) => {
+      const value = hr.moduleAccess?.[key];
+      return [key, typeof value === 'object' ? { view: value.view !== false, edit: value.edit === true } : { view: value !== false, edit: value !== false }];
+    })));
   };
   const saveAccess = async () => {
     setSavingAccess(true);
@@ -322,7 +325,7 @@ const ManageHR = () => {
       </section>
       {accessTarget && <CommonModal title="Manage HR Role Access" subtitle={`Select the modules that ${accessTarget.name} is allowed to view and use.`} className="max-w-2xl" onClose={() => { if (!savingAccess) setAccessTarget(null); }} footer={<><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={() => setAccessTarget(null)} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></>}>
         <div className="mb-4 rounded-sm border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><p className="font-semibold">HR role permissions</p><p className="mt-1 text-xs">Checked modules will appear in this HR user’s panel. Unchecked modules will be hidden.</p></div>
-        <div className="grid gap-3 sm:grid-cols-2">{moduleOptions.map(([key, label, description]) => <label key={key} className="flex cursor-pointer items-start gap-3 rounded-sm border border-gray-200 p-3 transition hover:border-[#f84525] dark:border-gray-700"><input type="checkbox" checked={Boolean(moduleDraft[key])} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: event.target.checked }))} className="mt-1 accent-[#f84525]" /><span><span className="block text-sm font-semibold text-gray-900 dark:text-white">{label}</span><span className="mt-1 block text-xs text-gray-500">{description}</span></span></label>)}</div>
+        <div className="grid gap-3 sm:grid-cols-2">{moduleOptions.map(([key, label, description]) => <div key={key} className="rounded-sm border border-gray-200 p-3 dark:border-gray-700"><span className="block text-sm font-semibold text-gray-900 dark:text-white">{label}</span><span className="mt-1 block text-xs text-gray-500">{description}</span><div className="mt-3 flex gap-5 text-xs font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(moduleDraft[key]?.view)} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: { ...current[key], view: event.target.checked } }))} className="accent-[#f84525]" /> View</label><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(moduleDraft[key]?.edit)} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: { ...current[key], edit: event.target.checked, view: event.target.checked || current[key]?.view } }))} className="accent-[#f84525]" /> Edit</label></div></div>)}</div>
       </CommonModal>}
     </div>
   );

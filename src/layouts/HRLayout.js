@@ -36,7 +36,7 @@ const HRLayout = () => {
     };
   }, [isTeamLead, user]);
 
-  const moduleAllowed = (key) => isHr && (access === null || access?.modules?.[key] !== false);
+  const moduleAllowed = (key) => isHr && (access === null || (typeof access?.modules?.[key] === 'object' ? access.modules[key].view !== false : access?.modules?.[key] !== false));
   const canViewSystemAllotments = isHr ? moduleAllowed('systemAllotments') : Boolean(access?.systemAllotment);
 
   const panelTitle = isProjectCoordinator
