@@ -32,7 +32,6 @@ import CommonTable from "../../../components/common/CommonTable";
 import CustomDropdown from "../../../components/common/CustomDropdown";
 import DetailItem from "../../../components/common/DetailItem";
 import EmptyState from "../../../components/common/EmptyState";
-import FilePreviewModal from "../../../components/common/FilePreviewModal";
 import { usePagination } from "../../../components/common/Pagination";
 import FileUploadField from "../../../components/common/FileUploadField";
 import DocumentSigningList from "../../../components/documents/DocumentSigningList";
@@ -54,13 +53,6 @@ const formatAddress = (address = {}) =>
     .join(", ") || "N/A";
 
 const detailFallback = (value) => value || "N/A";
-const getDocumentPreviewType = (document) =>
-  document?.format === "pdf" ||
-  document?.resource_type === "raw" ||
-  /\.pdf(?:$|[?#])/i.test(String(document?.url || "")) ||
-  /\/raw\/upload\//i.test(String(document?.url || ""))
-    ? "pdf"
-    : "image";
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
@@ -88,7 +80,6 @@ const EmployeeDetail = () => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportDate, setReportDate] = useState("");
   const [loading, setLoading] = useState(true);
-  const [preview, setPreview] = useState(null);
   const [editForm, setEditForm] = useState({
     employeeId: "",
     name: "",
@@ -115,9 +106,7 @@ const EmployeeDetail = () => {
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [approvingDocument, setApprovingDocument] = useState("");
   const [documentFiles, setDocumentFiles] = useState({});
-  const [documentPreviewUrls, setDocumentPreviewUrls] = useState({});
   const [savingDocuments, setSavingDocuments] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newEmployeePassword, setNewEmployeePassword] = useState("");
@@ -310,24 +299,6 @@ const EmployeeDetail = () => {
     }
   };
 
-  const getLatestDocumentRequest = (docKey) =>
-    (employee?.documentUpdateRequests || [])
-      .filter((item) => item.documentKey === docKey)
-      .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0))[0];
-
-  const approveDocumentUpdate = async (docKey) => {
-    setApprovingDocument(docKey);
-    try {
-      const res = await hrApi.approveDocumentUpdateRequest(employeeId, { documents: [docKey] });
-      setEmployee(res.data.data || employee);
-      toast.success(res.data.message || "Document update request approved");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to approve document request");
-    } finally {
-      setApprovingDocument("");
-    }
-  };
-
   const fileToDataUri = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -448,8 +419,6 @@ const EmployeeDetail = () => {
     if (!reportDate) return attendance;
     return attendance.filter((item) => item.dateKey === reportDate);
   }, [attendance, reportDate]);
-  const documentHistory = useMemo(() => employee?.documentHistory?.slice().reverse() || [], [employee?.documentHistory]);
-  const historyPagination = usePagination(documentHistory);
   const attendancePagination = usePagination(filteredAttendance, [reportDate, month]);
 
   const downloadEmployeeReport = () => {
@@ -779,7 +748,7 @@ const EmployeeDetail = () => {
 
       {activeTab === "documents" && <section id="documents-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
-        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{documentItems.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"} hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} onChange={(event) => { const file = event.target.files?.[0] || null; setDocumentFiles((current) => ({ ...current, [key]: file })); if (file) fileToDataUri(file).then((dataUri) => setDocumentPreviewUrls((current) => ({ ...current, [key]: dataUri }))); }} disabled={savingDocuments} />)}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{documentItems.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"} hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} onChange={(event) => { const file = event.target.files?.[0] || null; setDocumentFiles((current) => ({ ...current, [key]: file })); }} disabled={savingDocuments} />)}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
 
       {activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -822,13 +791,6 @@ const EmployeeDetail = () => {
         <p className="mt-3 text-xs text-gray-500">The employee will need to use this new password on their next login.</p>
       </CommonModal>}
 
-      {preview && (
-        <FilePreviewModal
-          title={preview.title.replace(/([A-Z])/g, " $1")}
-          url={preview.url}
-          onClose={() => setPreview(null)}
-        />
-      )}
     </div>
   );
 };
