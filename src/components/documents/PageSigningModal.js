@@ -85,7 +85,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
   const pointBox = () => {
     if (!currentSize || !placement) return null;
     const totalHeight = currentSize.height + (placement.mode === 'strip' ? 96 : 0);
-    return { left: `${(placement.mode === 'strip' ? Math.max(12, currentSize.width - 164) : placement.x) / currentSize.width * 100}%`, top: `${(placement.mode === 'strip' ? currentSize.height + 16 : placement.y) / totalHeight * 100}%`, width: `${140 / currentSize.width * 100}%`, height: `${50 / totalHeight * 100}%` };
+    return { left: `${(placement.mode === 'strip' ? Math.max(12, currentSize.width - 244) : placement.x) / currentSize.width * 100}%`, top: `${(placement.mode === 'strip' ? currentSize.height + 20 : placement.y) / totalHeight * 100}%`, width: `${220 / currentSize.width * 100}%`, height: `${80 / totalHeight * 100}%` };
   };
   const label = document.type === 'hr_policy' ? 'HR Policy' : 'Appointment Letter';
   return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : 'Read and sign each page. HR/Admin approval is required for Done.'} className="max-w-5xl" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
@@ -110,14 +110,14 @@ export default function PageSigningModal({ document, managed, canDelete = false,
             const rect = pageArea.current.getBoundingClientRect();
             const x = (event.clientX - rect.left) / rect.width * currentSize.width - 70;
             const y = (event.clientY - rect.top) / rect.height * currentSize.height - 25;
-            changePlacement({ x: Math.max(0, Math.min(currentSize.width - 140, x)), y: Math.max(0, Math.min(currentSize.height - 72, y)) });
+            changePlacement({ x: Math.max(0, Math.min(currentSize.width - 220, x)), y: Math.max(0, Math.min(currentSize.height - 80, y)) });
           }}>
             {setup ? <><PdfPageCanvas bytes={original} page={page} onRendered={rendered} />{placement?.mode === 'strip' && <div style={{ aspectRatio: `${currentSize.width} / 96`, background: '#fff' }} />}</> : pageBytes ? <PdfPageCanvas bytes={pageBytes} onRendered={rendered} /> : <CommonLoader compact text="Loading page…" />}
             {ready && setup && <div onClick={event => event.stopPropagation()} onPointerDown={event => { if (placement.mode !== 'overlay' || busy) return; event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); draggingBox.current = true; }} onPointerMove={event => {
               if (!draggingBox.current) return;
               const rect = pageArea.current.getBoundingClientRect();
-              changePlacement({ x: Math.max(0, Math.min(currentSize.width - 140, (event.clientX - rect.left) / rect.width * currentSize.width - 70)), y: Math.max(0, Math.min(currentSize.height - 72, (event.clientY - rect.top) / rect.height * currentSize.height - 25)) });
-            }} onPointerUp={() => { draggingBox.current = false; }} onPointerCancel={() => { draggingBox.current = false; }} className="absolute flex touch-none cursor-move items-center justify-center border-2 border-[#f84525] bg-orange-100/40 text-center text-[9px] font-semibold text-orange-900" style={pointBox()}>Signature 140 × 50 pt</div>}
+              changePlacement({ x: Math.max(0, Math.min(currentSize.width - 220, (event.clientX - rect.left) / rect.width * currentSize.width - 110)), y: Math.max(0, Math.min(currentSize.height - 80, (event.clientY - rect.top) / rect.height * currentSize.height - 40)) });
+            }} onPointerUp={() => { draggingBox.current = false; }} onPointerCancel={() => { draggingBox.current = false; }} className="absolute flex touch-none cursor-move items-center justify-center border-2 border-[#f84525] bg-orange-100/40 text-center text-[9px] font-semibold text-orange-900" style={pointBox()}>Signature 220 × 80 pt</div>}
             {ready && signing && !pageSigned && signature && <div className="pointer-events-none absolute" style={{ ...pointBox(), background: "#ffffff" }}><img src={signature} alt="Final fixed-size signature preview" className="h-full w-full object-contain" /></div>}
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
             <h3 className="text-sm font-semibold">Signature placement · Page {page}</h3>
             <CustomDropdown label="Placement" showPlaceholder={false} value={placement?.mode || 'strip'} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} />
             <p className="text-xs text-gray-500">{placement?.mode === 'strip' ? 'Adds a white strip below this page. Original text stays uncovered.' : 'Click a blank area on the page to position the box. You can drag the box to adjust it.'}</p>
-            {placement?.mode === 'overlay' && <div className="flex gap-2">{['x', 'y'].map(axis => <label key={axis} className="min-w-0 flex-1 text-xs">{axis.toUpperCase()} (pt)<input type="number" min="0" step="1" disabled={busy} value={Math.round(placement[axis])} onChange={event => changePlacement({ [axis]: Math.max(0, Math.min((axis === 'x' ? currentSize.width - 140 : currentSize.height - 72), Number(event.target.value) || 0)) })} className="mt-1 w-full rounded-sm border bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>)}</div>}
+            {placement?.mode === 'overlay' && <div className="flex gap-2">{['x', 'y'].map(axis => <label key={axis} className="min-w-0 flex-1 text-xs">{axis.toUpperCase()} (pt)<input type="number" min="0" step="1" disabled={busy} value={Math.round(placement[axis])} onChange={event => changePlacement({ [axis]: Math.max(0, Math.min((axis === 'x' ? currentSize.width - 220 : currentSize.height - 80), Number(event.target.value) || 0)) })} className="mt-1 w-full rounded-sm border bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>)}</div>}
             <p className="text-xs text-gray-500">Box size is fixed on every page. Review all {count} pages to enable Send.</p>
           </> : signing ? <>
             {pageSigned ? <><p className="text-sm font-semibold text-green-600">Page {page} signed ✓</p><p className="text-xs text-gray-500">Your signature is saved. Continue to the next unsigned page.</p>{signedPages.length === count && <p className="text-sm">All pages are signed. Submit below for verification.</p>}</> : <>

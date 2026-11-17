@@ -27,6 +27,6 @@ export default function SignaturePad({ onChange, disabled }) {
       event.currentTarget.setPointerCapture(event.pointerId); drawing.current = true;
       const ctx = canvas.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(...point(event)); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#111827';
     }} onPointerMove={event => { if (drawing.current) { const ctx = canvas.current.getContext('2d'); ctx.lineTo(...point(event)); ctx.stroke(); } }} onPointerUp={finish} onPointerCancel={finish} />
-    <p className="text-xs text-gray-500">Draw at any size. The final signature fits a fixed 140 × 50 pt box without stretching.</p>
+    <p className="text-xs text-gray-500">Draw at any size. The final signature fits a fixed 220 × 80 pt box without stretching.</p>
   </div>;
 }
