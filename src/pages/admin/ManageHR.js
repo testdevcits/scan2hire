@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
+import CommonModal from "../../components/common/CommonModal";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
+const moduleOptions = [["dashboard", "Dashboard"], ["employees", "Employees"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["documents", "Documents & Signatures"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["systemAllotments", "System Allotments"]];
 
 const ManageHR = () => {
   const toast = useToast();
@@ -17,6 +19,9 @@ const ManageHR = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [accessTarget, setAccessTarget] = useState(null);
+  const [moduleDraft, setModuleDraft] = useState({});
+  const [savingAccess, setSavingAccess] = useState(false);
   const roleLabel = "HR";
 
   const hrEmployeeIds = useMemo(
@@ -131,6 +136,17 @@ const ManageHR = () => {
     } catch (err) {
       toast.error(err.response?.data?.message || `Unable to ${action} ${roleLabel}`);
     }
+  };
+
+  const openAccess = (hr) => {
+    setAccessTarget(hr);
+    setModuleDraft(Object.fromEntries(moduleOptions.map(([key]) => [key, hr.moduleAccess?.[key] !== false])));
+  };
+  const saveAccess = async () => {
+    setSavingAccess(true);
+    try { await authApi.updateHrModuleAccess(accessTarget._id, moduleDraft); toast.success('HR module access updated'); setAccessTarget(null); await loadHrs(); }
+    catch (err) { toast.error(err.response?.data?.message || 'Unable to update module access'); }
+    finally { setSavingAccess(false); }
   };
 
   const removeHrAccess = async (hr) => {
@@ -288,6 +304,7 @@ const ManageHR = () => {
                         <button type="button" onClick={() => editHr(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-blue-600">
                           Edit Login
                         </button>
+                        <button type="button" onClick={() => openAccess(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-purple-600">Module Access</button>
                         <button type="button" onClick={() => toggleHr(hr)} className={`px-3 py-1.5 rounded-sm text-xs text-white ${hr.isActive ? "bg-gray-900" : "bg-green-600"}`}>
                           {hr.isActive ? "Deactivate" : "Activate"}
                         </button>
@@ -303,6 +320,9 @@ const ManageHR = () => {
           </table>
         </div>
       </section>
+      {accessTarget && <CommonModal title="HR module access" subtitle={`Select modules visible to ${accessTarget.name}.`} className="max-w-xl" onClose={() => { if (!savingAccess) setAccessTarget(null); }} footer={<><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={() => setAccessTarget(null)} /><Button text="Save Access" loading={savingAccess} onClick={saveAccess} /></>}>
+        <div className="grid gap-2 sm:grid-cols-2">{moduleOptions.map(([key, label]) => <label key={key} className="flex items-center gap-3 rounded-sm border p-3 text-sm"><input type="checkbox" checked={Boolean(moduleDraft[key])} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: event.target.checked }))} className="accent-[#f84525]" />{label}</label>)}</div>
+      </CommonModal>}
     </div>
   );
 };

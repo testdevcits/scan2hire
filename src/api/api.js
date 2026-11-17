@@ -17,6 +17,7 @@ export const authApi = {
   createMyAccountCredential: (payload) => API.post("/users/me/account-credentials", payload),
   deleteMyAccountCredential: (credentialId) => API.delete(`/users/me/account-credentials/${credentialId}`),
   getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
+  updateHrModuleAccess: (userId, modules) => API.patch(`/users/hrs/${userId}/module-access`, { modules }),
   createHr: (payload) => API.post("/users/hrs", payload),
   assignEmployeeAsHr: (payload) => API.post("/users/hrs/assign-employee", payload),
   removeHrAccess: (userId) => API.patch(`/users/hrs/${userId}/remove-access`),

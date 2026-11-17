@@ -3,6 +3,7 @@ import { FiBarChart2, FiCalendar, FiClock, FiLock, FiMonitor, FiSettings, FiShie
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 import { employeeApi } from "../api";
+import API from "../api/axios";
 
 const HRLayout = () => {
   const { user } = useContext(AuthContext);
@@ -15,15 +16,16 @@ const HRLayout = () => {
 
   useEffect(() => {
     let active = true;
-    if (!isTeamLead) {
+    if (!user) {
       setAccess(null);
       return undefined;
     }
-
-    employeeApi
-      .getMyAccess()
+    const request = isTeamLead ? employeeApi.getMyAccess() : API.get('/users/me');
+    request
       .then((res) => {
-        if (active) setAccess(res.data.data || {});
+        if (!active) return;
+        const data = res.data.data || {};
+        setAccess(isTeamLead ? data : data.moduleAccess === null ? null : { modules: data.moduleAccess });
       })
       .catch(() => {
         if (active) setAccess({});
@@ -32,9 +34,10 @@ const HRLayout = () => {
     return () => {
       active = false;
     };
-  }, [isTeamLead]);
+  }, [isTeamLead, user]);
 
-  const canViewSystemAllotments = isHr || Boolean(access?.systemAllotment);
+  const moduleAllowed = (key) => isHr && (access === null || access?.modules?.[key] !== false);
+  const canViewSystemAllotments = isHr ? moduleAllowed('systemAllotments') : Boolean(access?.systemAllotment);
 
   const panelTitle = isProjectCoordinator
     ? "Project Coordinator Panel"
@@ -43,30 +46,30 @@ const HRLayout = () => {
     : "HR Panel";
 
   const navItems = [
-    ...(!isProjectCoordinator
+    ...(!isProjectCoordinator && moduleAllowed('dashboard')
       ? [{ label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> }]
       : []),
     ...(isTeamLead ? [{ label: "Attendance", path: "/hr/attendance", icon: <FiClock /> }] : []),
     ...(isTeamLead ? [{ label: "Conative Calendar", path: "/hr/leave-calendar", icon: <FiCalendar /> }] : []),
     // Task module is temporarily hidden.
     // { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
-    ...(!isProjectCoordinator
+    ...(!isProjectCoordinator && moduleAllowed('employees')
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
       : []),
-    ...(!isProjectCoordinator
+    ...(!isProjectCoordinator && moduleAllowed('candidates')
       ? [
           { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
-          { label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> },
-          { label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> },
-          { label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> },
+          ...(moduleAllowed('checkins') ? [{ label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> }] : []),
+          ...(moduleAllowed('attendanceReports') ? [{ label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> }] : []),
+          ...(moduleAllowed('leaveReports') ? [{ label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> }] : []),
         ]
       : []),
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
-    ...(isHr ? [{ label: "Documents & Signatures", path: "/hr/employee-documents", icon: <FiShield /> }] : []),
-    { label: "Credentials", path: "/hr/credentials", icon: <FiLock /> },
-    ...(isHr ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
+    ...(moduleAllowed('documents') ? [{ label: "Documents & Signatures", path: "/hr/employee-documents", icon: <FiShield /> }] : []),
+    ...(moduleAllowed('credentials') ? [{ label: "Credentials", path: "/hr/credentials", icon: <FiLock /> }] : []),
+    ...(moduleAllowed('rolesAccess') ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
     { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },
   ];
 
