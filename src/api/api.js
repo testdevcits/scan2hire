@@ -62,6 +62,7 @@ export const hrApi = {
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
+  resetEmployeePassword: (employeeId, newPassword) => API.patch(`/hr/employees/${employeeId}/password`, { newPassword }),
   updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),

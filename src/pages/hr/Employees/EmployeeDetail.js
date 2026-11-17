@@ -27,6 +27,7 @@ import AddressFields from "../../../components/common/AddressFields";
 import Avatar from "../../../components/common/Avatar";
 import CalendarPicker from "../../../components/common/CalendarPicker";
 import CommonLoader from "../../../components/common/CommonLoader";
+import CommonModal from "../../../components/common/CommonModal";
 import CommonTable from "../../../components/common/CommonTable";
 import CustomDropdown from "../../../components/common/CustomDropdown";
 import DetailItem from "../../../components/common/DetailItem";
@@ -117,6 +118,9 @@ const EmployeeDetail = () => {
   const [documentFiles, setDocumentFiles] = useState({});
   const [documentPreviewUrls, setDocumentPreviewUrls] = useState({});
   const [savingDocuments, setSavingDocuments] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newEmployeePassword, setNewEmployeePassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
     return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
@@ -260,6 +264,19 @@ const EmployeeDetail = () => {
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete");
     }
+  };
+
+  const resetEmployeePassword = async (event) => {
+    event.preventDefault();
+    if (newEmployeePassword.length < 8) return toast.error("Password must be at least 8 characters");
+    setSavingPassword(true);
+    try {
+      await hrApi.resetEmployeePassword(employeeId, newEmployeePassword);
+      toast.success("Employee password changed successfully");
+      setNewEmployeePassword("");
+      setPasswordModalOpen(false);
+    } catch (err) { toast.error(err.response?.data?.message || "Unable to change password"); }
+    finally { setSavingPassword(false); }
   };
 
   const updateEmployee = async (e) => {
@@ -549,6 +566,7 @@ const EmployeeDetail = () => {
                 <FiTrash2 /> Delete
               </Button>
             )}
+            {canManageDocuments && <Button variant="secondary" onClick={() => setPasswordModalOpen(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg"><FiShield /> Change Password</Button>}
           </div>
 
           <div className="order-3 grid min-w-0 grid-cols-1 gap-2 lg:col-start-2 lg:row-start-1 lg:max-w-[570px] lg:grid-cols-2 lg:self-center">
@@ -847,6 +865,11 @@ const EmployeeDetail = () => {
           />
         )}
       </section>}
+
+      {passwordModalOpen && <CommonModal title="Change employee password" subtitle={`Set a new login password for ${employee.name}.`} className="max-w-md" as="form" onSubmit={resetEmployeePassword} onClose={() => { if (!savingPassword) setPasswordModalOpen(false); }} footer={<><Button text="Cancel" variant="secondary" type="button" disabled={savingPassword} onClick={() => setPasswordModalOpen(false)} /><Button text="Save Password" type="submit" loading={savingPassword} disabled={newEmployeePassword.length < 8} /></>}>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">New password<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newEmployeePassword} onChange={(event) => setNewEmployeePassword(event.target.value)} className="mt-2 w-full rounded-sm border border-gray-300 p-3 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Minimum 8 characters" required /></label>
+        <p className="mt-3 text-xs text-gray-500">The employee will need to use this new password on their next login.</p>
+      </CommonModal>}
 
       {preview && (
         <FilePreviewModal
