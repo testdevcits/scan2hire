@@ -14,6 +14,7 @@ const initialForm = {
   name: "",
   email: "",
   mobile: "",
+  hrFileNo: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: false, bondPeriodDuration: "", bankAccountNumber: "", bankIfscCode: "", resignationDate: "", leavingDate: "",
   password: "",
   department: "",
   designation: "",
@@ -22,6 +23,9 @@ const initialForm = {
   employeeType: "Permanent",
   address: { street: "", city: "", state: "", country: "", pincode: "" },
   photo: null,
+  joiningChecklist: { idCard: false, credentials: false, tshirtBag: false, officeKeyPhoneSystem: false },
+  leavingChecklist: { idCardNotepadPen: false, credentials: false, tshirtBag: false, officeKeyPhoneSystem: false },
+  noDuesChecklist: { teamLeadProjectManager: false, itHead: false, hrHead: false },
 };
 
 const EmployeeCreate = () => {
@@ -55,6 +59,7 @@ const EmployeeCreate = () => {
     if (name === "pincode" && !/^\d{0,6}$/.test(value)) return;
     setForm((current) => ({ ...current, address: { ...current.address, [name]: value } }));
   };
+  const handleChecklist = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
 
   const handlePhoto = async (file) => {
     if (!file) return;
@@ -108,6 +113,7 @@ const EmployeeCreate = () => {
           ["designation", "Designation", "text"],
           ["dateOfJoining", "Joining Date", "date"],
           ["reportingManager", "Reporting Manager", "text"],
+          ["hrFileNo", "HR File No.", "text"], ["emergencyNumber", "Emergency Number", "tel"], ["bloodGroup", "Blood Group", "text"], ["trainingPeriod", "Training Period", "text"], ["salary", "Salary", "text"], ["bondPeriodDuration", "Bond Period Duration", "text"], ["bankAccountNumber", "Bank Account Number", "text"], ["bankIfscCode", "Bank IFSC Code", "text"], ["resignationDate", "Resignation Date", "date"], ["leavingDate", "Leaving Date", "date"],
         ].map(([name, label, type]) => (
           <InputField
             key={name}
@@ -123,6 +129,11 @@ const EmployeeCreate = () => {
         <SelectField label="Department" name="department" value={form.department} onChange={handleChange} options={departmentOptions} />
         <SelectField label="Employee Type" name="employeeType" value={form.employeeType} onChange={handleChange} options={["Permanent", "Contract", "Intern"]} />
         <FileUploadField label="Employee Photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG, WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
+
+        <div className="md:col-span-3 grid gap-4 border-t pt-4 md:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.salaryOnHold} onChange={(e) => setForm((c) => ({ ...c, salaryOnHold: e.target.checked }))} /> Salary on hold</label>
+          {[['joiningChecklist', 'Joining Checklist', [['idCard','ID Card / Notepad / Pen'], ['credentials','Credentials'], ['tshirtBag','T-Shirt / Bag'], ['officeKeyPhoneSystem','Office Key / Phone / System']]], ['leavingChecklist', 'Leaving Checklist / Handover', [['idCardNotepadPen','ID Card / Notepad / Pen'], ['credentials','Credentials'], ['tshirtBag','T-Shirt / Bag'], ['officeKeyPhoneSystem','Office Key / Phone / System']]], ['noDuesChecklist', 'No Dues Checklist', [['teamLeadProjectManager','Team Lead / Project Manager'], ['itHead','IT Head'], ['hrHead','HR Head']]]].map(([group, title, items]) => <fieldset key={group} className="rounded-sm border p-3"><legend className="px-1 text-sm font-semibold">{title}</legend>{items.map(([key, label]) => <label key={key} className="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={form[group][key]} onChange={(e) => handleChecklist(group, key, e.target.checked)} />{label}</label>)}</fieldset>)}
+        </div>
 
         <AddressFields value={form.address} onChange={handleAddressChange} className="md:col-span-3" />
         <div className="flex justify-end border-t pt-4 md:col-span-3">
