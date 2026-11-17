@@ -56,14 +56,10 @@ const HRLayout = () => {
     ...(!isProjectCoordinator && moduleAllowed('employees')
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
       : []),
-    ...(!isProjectCoordinator && moduleAllowed('candidates')
-      ? [
-          { label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> },
-          ...(moduleAllowed('checkins') ? [{ label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> }] : []),
-          ...(moduleAllowed('attendanceReports') ? [{ label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> }] : []),
-          ...(moduleAllowed('leaveReports') ? [{ label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> }] : []),
-        ]
-      : []),
+    ...(!isProjectCoordinator && moduleAllowed('candidates') ? [{ label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> }] : []),
+    ...(!isProjectCoordinator && moduleAllowed('checkins') ? [{ label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> }] : []),
+    ...(!isProjectCoordinator && moduleAllowed('attendanceReports') ? [{ label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> }] : []),
+    ...(!isProjectCoordinator && moduleAllowed('leaveReports') ? [{ label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> }] : []),
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),
