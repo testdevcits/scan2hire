@@ -62,7 +62,7 @@ const getDocumentPreviewType = (document) =>
     ? "pdf"
     : "image";
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
-  const availableTabs = ["details", "attendance", "documents"];
+  const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
   if (isSuperAdmin) availableTabs.push("credentials");
   if (availableTabs.includes(requestedTab)) return requestedTab;
@@ -521,7 +521,8 @@ const EmployeeDetail = () => {
   const employeeTabs = [
     { value: "details", label: "Details" },
     { value: "attendance", label: "Attendance" },
-    { value: "documents", label: "Documents & Signatures" },
+    { value: "documents", label: "Documents" },
+    { value: "documentSignatures", label: "Documents & Signatures" },
     ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
     ...(user?.role === "superadmin" ? [{ value: "credentials", label: "Credentials" }] : []),
   ];
@@ -627,50 +628,6 @@ const EmployeeDetail = () => {
         </div>
 
       </section>}
-
-      {activeTab === "documents" && <>
-        <section id="documents-panel" role="tabpanel" aria-labelledby="documents-tab" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
-          {canManageDocuments && (
-            <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {documentItems.map(([key, label]) => {
-                  const latestRequest = key === "photo" ? null : getLatestDocumentRequest(key);
-                  return <FileUploadField
-                    key={key}
-                    label={label}
-                    name={key}
-                    accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"}
-                    hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"}
-                    fileName={documentFiles[key]?.name}
-                    selectedPreviewUrl={documentFiles[key] ? documentPreviewUrls[key] : employee.documents?.[key]?.url}
-                    previewType={documentFiles[key]?.type === "application/pdf" ? "pdf" : documentFiles[key] ? "image" : getDocumentPreviewType(employee.documents?.[key])}
-                    previewTitle={documentFiles[key] ? (documentFiles[key]?.type === "application/pdf" ? "Selected PDF" : `Selected ${label.toLowerCase()}`) : `Current ${label.toLowerCase()}`}
-                    currentFileLabel={employee.documents?.[key]?.url ? `${label} already uploaded` : undefined}
-                    onPreviewCurrent={(documentFiles[key] && documentPreviewUrls[key]) || employee.documents?.[key]?.url
-                      ? () => setPreview({ title: label, url: documentFiles[key] ? documentPreviewUrls[key] : employee.documents[key].url })
-                      : undefined}
-                    currentStatus={latestRequest?.status}
-                    currentActionLabel={latestRequest?.status === "pending" && user?.role === "hr" ? "Approve" : undefined}
-                    onCurrentAction={latestRequest?.status === "pending" && user?.role === "hr" ? () => approveDocumentUpdate(key) : undefined}
-                    currentActionLoading={approvingDocument === key}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] || null;
-                      setDocumentFiles((current) => ({ ...current, [key]: file }));
-                      if (file) fileToDataUri(file).then((dataUri) => setDocumentPreviewUrls((current) => ({ ...current, [key]: dataUri }))).catch(() => setDocumentPreviewUrls((current) => ({ ...current, [key]: "" })));
-                      else setDocumentPreviewUrls((current) => ({ ...current, [key]: "" }));
-                    }}
-                    disabled={savingDocuments}
-                  />;
-                })}
-              </div>
-              <div className="mt-4 flex justify-end">
-                <Button type="submit" loading={savingDocuments} text="Save Documents" className="rounded-lg" />
-              </div>
-            </form>
-          )}
-        </section>
-      </>}
 
       {canManage && activeTab === "edit" && (
       <form id="edit-panel" role="tabpanel" aria-labelledby="edit-tab" ref={editFormRef} onSubmit={updateEmployee} className="scroll-mt-5 overflow-visible rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
@@ -820,7 +777,12 @@ const EmployeeDetail = () => {
         </section>
       )}
 
-      {activeTab === "documents" && <section className="bg-white rounded-sm shadow overflow-hidden">
+      {activeTab === "documents" && <section id="documents-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
+        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{documentItems.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"} hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} onChange={(event) => { const file = event.target.files?.[0] || null; setDocumentFiles((current) => ({ ...current, [key]: file })); if (file) fileToDataUri(file).then((dataUri) => setDocumentPreviewUrls((current) => ({ ...current, [key]: dataUri }))); }} disabled={savingDocuments} />)}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+      </section>}
+
+      {activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="border-b border-gray-100 p-4"><h2 className="font-semibold">Documents &amp; Signatures</h2><p className="mt-1 text-xs text-gray-500">Manage this employee’s appointment letter, HR policy and signature verification.</p></div>
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
         <div className="border-t border-gray-100 p-4"><h2 className="font-semibold">Employee Document Update History</h2>
