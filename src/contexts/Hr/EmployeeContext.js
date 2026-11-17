@@ -11,6 +11,7 @@ export const EmployeeProvider = ({ children }) => {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1 });
   const currentParams = useRef({});
   const latestRequestId = useRef(0);
+  const activeRequest = useRef(null);
 
   // -------------------------
   // Fetch all employees
@@ -20,10 +21,13 @@ export const EmployeeProvider = ({ children }) => {
     latestRequestId.current = requestId;
     currentParams.current = params;
     try {
+      if (activeRequest.current) activeRequest.current.abort();
+      const controller = new AbortController();
+      activeRequest.current = controller;
       setLoading(true);
       setError(null);
 
-      const res = await hrApi.getEmployees(params);
+      const res = await hrApi.getEmployees(params, { signal: controller.signal });
       if (requestId !== latestRequestId.current) return;
 
       const rows = res.data.data || [];
@@ -35,6 +39,7 @@ export const EmployeeProvider = ({ children }) => {
         totalPages: 1,
       });
     } catch (err) {
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED" || err.name === "AbortError") return;
       if (requestId !== latestRequestId.current) return;
       console.error("Fetch Employees Error:", err);
       setError(err.response?.data?.message || "Something went wrong");

@@ -35,6 +35,7 @@ import EmptyState from "../../../components/common/EmptyState";
 import { usePagination } from "../../../components/common/Pagination";
 import FileUploadField from "../../../components/common/FileUploadField";
 import DocumentSigningList from "../../../components/documents/DocumentSigningList";
+import EmployeeChecklist from "../../../components/common/EmployeeChecklist";
 import InputField from "../../../components/common/InputField";
 import SectionHeader from "../../../components/common/SectionHeader";
 import Tabs from "../../../components/common/Tabs";
@@ -99,6 +100,7 @@ const EmployeeDetail = () => {
       country: "",
       pincode: "",
     },
+    joiningChecklist: {}, leavingChecklist: {}, noDuesChecklist: {},
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [editErrors, setEditErrors] = useState({});
@@ -122,6 +124,7 @@ const EmployeeDetail = () => {
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
     setActiveTabState(tab);
   };
+  const handleChecklistChange = (group, key, value) => setEditForm((current) => ({ ...current, [group]: { ...(current[group] || {}), [key]: value } }));
 
   const loadEmployee = async ({ includeReport = true, initial = false } = {}) => {
     if (initial) setLoading(true);
@@ -165,6 +168,9 @@ const EmployeeDetail = () => {
           country: employeeData.address?.country || "",
           pincode: employeeData.address?.pincode || "",
         },
+        joiningChecklist: employeeData.joiningChecklist || {},
+        leavingChecklist: employeeData.leavingChecklist || {},
+        noDuesChecklist: employeeData.noDuesChecklist || {},
       });
       if (reportRes) {
         setAttendance(reportRes.data.data?.records || []);
@@ -708,6 +714,10 @@ const EmployeeDetail = () => {
         <div className="mt-5 border-t border-gray-100 pt-4">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900"><FiMapPin className="text-[#f84525]" />Address</h3>
           <AddressFields value={editForm.address} onChange={handleAddressChange} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" />
+        </div>
+        <div className="mt-5 border-t border-gray-100 pt-4">
+          <h3 className="mb-3 text-base font-semibold text-gray-900">Employee Checklists</h3>
+          <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
         </div>
       </form>
       )}

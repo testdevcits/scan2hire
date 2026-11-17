@@ -59,7 +59,7 @@ export const hrApi = {
   activateCandidate: (candidateId) =>
     API.patch(`/hr/candidates/${candidateId}/activate`),
   deleteCandidate: (candidateId) => API.delete(`/hr/candidates/${candidateId}`),
-  getEmployees: (params) => API.get("/hr/employees", { params }),
+  getEmployees: (params, config = {}) => API.get("/hr/employees", { ...config, params }),
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
