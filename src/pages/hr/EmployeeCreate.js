@@ -129,14 +129,15 @@ const EmployeeCreate = () => {
 
         <SelectField label="Department" name="department" value={form.department} onChange={handleChange} options={departmentOptions} />
         <SelectField label="Employee Type" name="employeeType" value={form.employeeType} onChange={handleChange} options={["Permanent", "Contract", "Intern"]} />
-        <FileUploadField label="Employee Photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG, WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
-
         <div className="md:col-span-3 border-t pt-4">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.salaryOnHold} onChange={(e) => setForm((c) => ({ ...c, salaryOnHold: e.target.checked }))} /> Salary on hold</label>
           <EmployeeChecklist value={form} onChange={handleChecklist} />
         </div>
 
         <AddressFields value={form.address} onChange={handleAddressChange} className="md:col-span-3" />
+        <div className="md:col-span-3 border-t pt-4">
+          <FileUploadField label="Employee Photo" name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG, WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
+        </div>
         <div className="flex justify-end border-t pt-4 md:col-span-3">
           <Button type="submit" text="Add Employee" loading={saving} className="min-w-40" />
         </div>
