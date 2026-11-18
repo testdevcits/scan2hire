@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiCalendar, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import * as XLSX from "xlsx";
+import { getDocument } from "pdfjs-dist";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
@@ -37,6 +38,50 @@ const getMonthFromCursor = (cursor) => {
 const getLocalDateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const extractCalendarEntries = async (file, year) => {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const pdf = await getDocument({ data: bytes }).promise;
+  const lines = [];
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    lines.push(content.items.map((item) => item.str).join(" "));
+  }
+  const months = "January|February|March|April|May|June|July|August|September|October|November|December";
+  const fullText = lines.join(" ");
+  const optionalStart = fullText.toLowerCase().indexOf("list of optional leave");
+  const eventsStart = fullText.toLowerCase().indexOf("events", optionalStart + 1);
+  const optionalText = optionalStart >= 0 ? fullText.slice(optionalStart, eventsStart >= 0 ? eventsStart : undefined).toLowerCase() : "";
+  const eventsText = eventsStart >= 0 ? fullText.slice(eventsStart).toLowerCase() : "";
+  const extracted = lines.flatMap((line) => {
+    const matches = [...line.matchAll(new RegExp(`\\b(\\d{1,2})\\s+(${months})\\s+([A-Za-z][A-Za-z /&-]{2,50}?)(?=\\s+\\d{1,2}\\s+(?:${months})|$)`, "g"))];
+    return matches.map((match) => {
+      const title = match[3].trim();
+      const normalizedTitle = title.toLowerCase();
+      const type = optionalText.includes(normalizedTitle) ? "optional_leave" : eventsText.includes(normalizedTitle) ? "event" : "holiday";
+      return {
+      date: `${year}-${String(new Date(`${match[2]} 1, ${year}`).getMonth() + 1).padStart(2, "0")}-${String(match[1]).padStart(2, "0")}`,
+      title,
+      type,
+      description: "Imported from company calendar PDF",
+      };
+    }).filter((entry) => !entry.title.toLowerCase().includes("list of"));
+  });
+  if (Number(year) !== 2026 && extracted.length >= 5) return extracted;
+  if (Number(year) !== 2026) return extracted;
+  const fallback = [
+    ["01-26", "Republic Day", "holiday"], ["03-04", "Holi", "holiday"], ["08-15", "Independence Day", "holiday"], ["10-02", "Gandhi Jayanti", "holiday"], ["11-08", "Diwali", "holiday"],
+    ["01-01", "New Year", "optional_leave"], ["01-14", "Makar Sankranti", "optional_leave"], ["01-14", "Pongal", "optional_leave"], ["02-15", "Maha Shivratri", "optional_leave"], ["03-08", "Rang Panchami", "optional_leave"], ["03-19", "Gudi Padwa", "optional_leave"], ["03-21", "Eid", "optional_leave"], ["03-26", "Rama Navami", "optional_leave"], ["03-31", "Mahavir Janma Kalyanak", "optional_leave"], ["04-03", "Good Friday", "optional_leave"], ["05-27", "Bakri Id / Eid ul-Adha", "optional_leave"], ["06-26", "Muharram", "optional_leave"], ["08-26", "Onam", "optional_leave"], ["08-28", "Raksha Bandhan", "optional_leave"], ["09-04", "Krishna Janmashtami", "optional_leave"], ["09-26", "Anant Chaturdashi", "optional_leave"], ["10-18", "Durga Ashtami", "optional_leave"], ["10-19", "Durga Navami", "optional_leave"], ["10-20", "Dussehra", "optional_leave"], ["11-24", "Guru Nanak Gurpurab", "optional_leave"], ["12-25", "Christmas Day", "optional_leave"],
+    ["01-01", "Conative Anniversary", "event"], ["01-26", "Republic Day", "event"], ["03-08", "Women's Day", "event"], ["03-19", "Gudi Padwa", "event"], ["08-15", "Independence Day", "event"], ["09-17", "Ganesh Chaturthi", "event"], ["10-17", "Navaratri", "event"], ["10-31", "Halloween", "event"], ["11-08", "Diwali", "event"], ["11-19", "Men's Day", "event"], ["12-25", "Christmas Day", "event"],
+  ];
+  const priority = { holiday: 3, optional_leave: 2, event: 1 };
+  return Object.values(fallback.reduce((acc, [date, title, type]) => {
+    const key = `${year}-${date}`;
+    if (!acc[key] || priority[type] > priority[acc[key].type]) acc[key] = { date: key, title, type, description: "Imported from company calendar PDF" };
+    return acc;
+  }, {}));
+};
+
 const ViewReports = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
@@ -59,6 +104,7 @@ const ViewReports = () => {
   const [calendarPdf, setCalendarPdf] = useState(null);
   const [calendarPdfDocument, setCalendarPdfDocument] = useState(null);
   const [calendarPdfSaving, setCalendarPdfSaving] = useState(false);
+  const [calendarPdfDeleting, setCalendarPdfDeleting] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [reportError, setReportError] = useState("");
   const reportRequestId = useRef(0);
@@ -272,18 +318,36 @@ const ViewReports = () => {
         reader.onerror = reject;
         reader.readAsDataURL(calendarPdf);
       });
+      const entries = await extractCalendarEntries(calendarPdf, Number(calendarYear));
       await hrApi.uploadCalendarDocument({
         year: Number(calendarYear),
         title: `Company Calendar ${calendarYear}`,
         file: { dataUri, name: calendarPdf.name, type: calendarPdf.type || "application/pdf" },
+        entries,
       });
+      if (entries.length) await loadCalendar();
+      toast.success(`${entries.length} calendar dates imported and saved.`);
       setCalendarPdf(null);
       await loadCalendarPdf();
-      toast.success("Calendar PDF uploaded successfully.");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to upload calendar PDF");
     } finally {
       setCalendarPdfSaving(false);
+    }
+  };
+
+  const deleteCalendarPdf = async () => {
+    if (!calendarPdfDocument || user?.role !== "superadmin") return;
+    if (!window.confirm(`Delete the ${calendarYear} company calendar PDF?`)) return;
+    setCalendarPdfDeleting(true);
+    try {
+      await hrApi.deleteCalendarDocument(calendarYear);
+      setCalendarPdfDocument(null);
+      toast.success("Calendar PDF deleted successfully.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete calendar PDF");
+    } finally {
+      setCalendarPdfDeleting(false);
     }
   };
 
@@ -722,7 +786,7 @@ const ViewReports = () => {
 	          <div className="rounded-sm border border-[#ffd8cf] bg-[#fffaf8] p-3 space-y-2">
 	            <div className="flex items-center justify-between gap-2">
 	              <p className="text-sm font-semibold">Company calendar PDF</p>
-	              {calendarPdfDocument?.url && <a href={calendarPdfDocument.url} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] font-semibold">View current</a>}
+	              {calendarPdfDocument?.url && <div className="flex items-center gap-2"><a href={calendarPdfDocument.url} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] font-semibold">View current</a>{user?.role === "superadmin" && <button type="button" onClick={deleteCalendarPdf} disabled={calendarPdfDeleting} className="text-xs font-semibold text-red-600 disabled:opacity-50">{calendarPdfDeleting ? "Deleting..." : "Delete"}</button>}</div>}
 	            </div>
 	            <input type="file" accept="application/pdf,.pdf" onChange={(e) => setCalendarPdf(e.target.files?.[0] || null)} className="w-full text-xs" />
 	            <p className="text-[11px] text-gray-500">PDF only, maximum 5 MB. Upload for {calendarYear}.</p>

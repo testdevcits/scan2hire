@@ -92,6 +92,7 @@ export const hrApi = {
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   getCalendarDocument: (year) => API.get("/hr/calendar-document", { params: { year } }),
   uploadCalendarDocument: (payload) => API.post("/hr/calendar-document", payload),
+  deleteCalendarDocument: (year) => API.delete(`/hr/calendar-document/${year}`),
   upsertCalendar: (payload) => API.post("/hr/calendar", payload),
   deleteCalendar: (dateKey) => API.delete(`/hr/calendar/${dateKey}`),
   openEmployeeCredentials: (vaultPassword) =>
