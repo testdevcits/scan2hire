@@ -148,7 +148,7 @@ const EmployeeDetail = () => {
     dateOfJoining: "",
     reportingManager: "",
     teamLead: "",
-    employeeType: "Permanent",
+    employeeType: "Probation",
     attendanceMode: "office",
     address: {
       street: "",
@@ -233,7 +233,7 @@ const EmployeeDetail = () => {
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         reportingManager: employeeData.reportingManager || "",
         teamLead: employeeData.teamLead?._id || employeeData.teamLead || "",
-        employeeType: employeeData.employeeType || "Permanent",
+        employeeType: employeeData.employeeType || "Probation",
         attendanceMode: employeeData.attendanceMode || "office",
         address: {
           street: employeeData.address?.street || "",

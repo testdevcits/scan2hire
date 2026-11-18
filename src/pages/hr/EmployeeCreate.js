@@ -24,7 +24,7 @@ const initialForm = {
   dob: "",
   dateOfJoining: "",
   reportingManager: "",
-  employeeType: "Permanent",
+  employeeType: "Probation",
   address: { street: "", city: "", state: "", country: "India", pincode: "" },
   permanentAddress: { street: "", city: "", state: "", country: "India", pincode: "" },
   alternateAddress: { street: "", city: "", state: "", country: "India", pincode: "" },

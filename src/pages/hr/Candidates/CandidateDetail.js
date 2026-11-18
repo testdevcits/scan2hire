@@ -257,7 +257,7 @@ const CandidateDetail = () => {
       initialValues: {
         designation: candidate?.jobRole || "",
         department: departments[0]?.name || "",
-        employeeType: "Permanent",
+        employeeType: "Probation",
       },
     });
 
