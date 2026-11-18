@@ -12,13 +12,15 @@ import TableToolbar from "../../components/common/TableToolbar";
 import ViewSwitcher from "../../components/common/ViewSwitcher";
 import { AuthContext } from "../../contexts/AuthContext";
 import { authApi } from "../../api";
+import API from "../../api/axios";
 
 const ManageEmployees = () => {
   const { employees, loading, error, pagination: serverPagination, fetchEmployees } =
     useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const employeeAccess = user?.moduleAccess?.employees;
+  const [hrModuleAccess, setHrModuleAccess] = useState(user?.moduleAccess || null);
+  const employeeAccess = hrModuleAccess?.employees || user?.moduleAccess?.employees;
   const hasEmployeeAction = (action) => user?.role === "superadmin" || (user?.role === "hr" && (typeof employeeAccess === "object" ? employeeAccess[action] === true : employeeAccess === true));
   const canAddEmployee = hasEmployeeAction("add");
   const canEditEmployee = hasEmployeeAction("edit");
@@ -31,6 +33,15 @@ const ManageEmployees = () => {
   const [hasLoadedEmployees, setHasLoadedEmployees] = useState(false);
   const isServerPaginated = user?.role !== "superadmin";
   const searchPending = searchInput.trim() !== debouncedSearch;
+
+  useEffect(() => {
+    if (user?.role !== "hr") return undefined;
+    let active = true;
+    API.get("/users/me").then((res) => {
+      if (active) setHrModuleAccess(res.data.data?.moduleAccess || {});
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [user?.role]);
 
   useEffect(() => {
     if (!isServerPaginated) {
