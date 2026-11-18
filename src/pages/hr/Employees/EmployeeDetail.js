@@ -171,6 +171,7 @@ const EmployeeDetail = () => {
   const [existingDocumentFiles, setExistingDocumentFiles] = useState({});
   const [documentErrors, setDocumentErrors] = useState({});
   const [savingDocuments, setSavingDocuments] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [documentPreview, setDocumentPreview] = useState(null);
   const [newEmployeePassword, setNewEmployeePassword] = useState("");
@@ -346,11 +347,14 @@ const EmployeeDetail = () => {
     if (!ok) return;
 
     try {
+      setDeletingEmployee(true);
       await hrApi.deleteEmployee(employeeId);
       toast.success("Employee deleted");
       navigate(user?.role === "superadmin" ? "/admin/employees" : "/hr/employees");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete");
+    } finally {
+      setDeletingEmployee(false);
     }
   };
 
@@ -497,7 +501,7 @@ const EmployeeDetail = () => {
       const error = validateEditField(field, editForm[field]);
       if (error) errors[field] = error;
     });
-    if (editForm.employeeType && !["Permanent", "Contract", "Intern"].includes(editForm.employeeType)) errors.employeeType = "Choose a valid employee type";
+    if (editForm.employeeType && !["Permanent", "Probation", "Intern"].includes(editForm.employeeType)) errors.employeeType = "Choose a valid employee type";
     if (editForm.attendanceMode && !["office", "work_from_home"].includes(editForm.attendanceMode)) errors.attendanceMode = "Choose a valid attendance mode";
     if (editForm.teamLead && !teamLeadOptions.some((item) => String(item._id) === String(editForm.teamLead))) errors.teamLead = "Choose a valid reporting manager";
     Object.entries(editForm.address).forEach(([field, value]) => {
@@ -739,6 +743,7 @@ const EmployeeDetail = () => {
             maxLength={name.toLowerCase().includes("mobile") ? 10 : name === "employeeId" ? 40 : name === "name" ? 100 : 100}
             inputMode={name.toLowerCase().includes("mobile") ? "numeric" : undefined}
             pattern={name.toLowerCase().includes("mobile") ? "[0-9]{10}" : undefined}
+            disabled={name === "employeeId" || savingProfile}
           />
         ))}
         <CustomDropdown
@@ -790,9 +795,9 @@ const EmployeeDetail = () => {
           value={editForm.employeeType}
           onChange={(value) => {
             setEditForm((current) => ({ ...current, employeeType: value }));
-            setEditErrors((current) => ({ ...current, employeeType: ["Permanent", "Contract", "Intern"].includes(value) ? "" : "Choose a valid employee type" }));
+            setEditErrors((current) => ({ ...current, employeeType: ["Permanent", "Probation", "Intern"].includes(value) ? "" : "Choose a valid employee type" }));
           }}
-          options={["Permanent", "Contract", "Intern"]}
+          options={["Permanent", "Probation", "Intern"]}
           error={editErrors.employeeType}
         />
         <CalendarPicker
@@ -899,7 +904,7 @@ const EmployeeDetail = () => {
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={downloadEmployeeReport} className="inline-flex items-center gap-2"><FiDownload /> {reportDate ? "Download Day Report" : "Download Monthly PDF"}</Button>
             {employee.isActive ? <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center gap-2"><FiUserX /> Deactivate</Button> : <Button variant="success" onClick={activateEmployee} className="inline-flex items-center gap-2"><FiUserCheck /> Activate</Button>}
-            {user?.role === "superadmin" && <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> Delete Employee</Button>}
+            {user?.role === "superadmin" && <Button variant="danger" loading={deletingEmployee} disabled={deletingEmployee} onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> {deletingEmployee ? "Deleting..." : "Delete Employee"}</Button>}
           </div>
         </section>
       )}

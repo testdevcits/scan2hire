@@ -244,7 +244,7 @@ const CandidateDetail = () => {
           name: "employeeType",
           label: "Employee Type",
           type: "select",
-          options: ["Permanent", "Contract", "Intern"],
+          options: ["Permanent", "Probation", "Intern"],
           required: true,
         },
         {
