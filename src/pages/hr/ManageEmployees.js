@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiEdit2, FiEye } from "react-icons/fi";
+import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
 import CommonLoader from "../../components/common/CommonLoader";
 import Avatar from "../../components/common/Avatar";
@@ -13,17 +13,23 @@ import ViewSwitcher from "../../components/common/ViewSwitcher";
 import { AuthContext } from "../../contexts/AuthContext";
 import { authApi } from "../../api";
 import API from "../../api/axios";
+import { useModal } from "../../contexts/ModalContext";
+import { useToast } from "../../contexts/ToastContext";
 
 const ManageEmployees = () => {
   const { employees, loading, error, pagination: serverPagination, fetchEmployees } =
     useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { confirm } = useModal();
+  const toast = useToast();
   const [hrModuleAccess, setHrModuleAccess] = useState(user?.moduleAccess || null);
   const employeeAccess = hrModuleAccess?.employees || user?.moduleAccess?.employees;
   const hasEmployeeAction = (action) => user?.role === "superadmin" || (user?.role === "hr" && (typeof employeeAccess === "object" ? employeeAccess[action] === true : employeeAccess === true));
   const canAddEmployee = hasEmployeeAction("add");
   const canEditEmployee = hasEmployeeAction("edit");
+  const canDeleteEmployee = hasEmployeeAction("delete");
+  const [deletingId, setDeletingId] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [hrUsers, setHrUsers] = useState([]);
   const [searchInput, setSearchInput] = useState("");
@@ -110,6 +116,18 @@ const ManageEmployees = () => {
     const employeeRecordId = employee.isHrAccount ? employee.linkedEmployeeId : employee._id;
     if (employeeRecordId) navigate(`${employeesPath}/${employeeRecordId}?edit=1`);
   };
+  const deleteEmployee = async (employee) => {
+    const confirmed = await confirm({ title: "Delete Employee", message: `Delete ${employee.name || "this employee"}? This action cannot be undone.`, confirmText: "Delete", tone: "danger" });
+    if (!confirmed) return;
+    setDeletingId(employee._id);
+    try {
+      await authApi.deleteEmployee(employee._id);
+      toast.success("Employee deleted successfully");
+      await fetchEmployees();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete employee");
+    } finally { setDeletingId(""); }
+  };
   const employeesPath = user?.role === "superadmin" ? "/admin/employees" : "/hr/employees";
 
   const paginationProps = isServerPaginated
@@ -149,6 +167,11 @@ const ManageEmployees = () => {
           {canEditEmployee && (
             <button type="button" title="Edit employee" aria-label={`Edit ${employee.name || "employee"}`} onClick={() => editEmployee(employee)} className="rounded-sm border border-gray-200 p-2 text-gray-600 transition hover:border-[#f84525] hover:text-[#f84525] dark:border-gray-700 dark:text-gray-300">
               <FiEdit2 aria-hidden="true" />
+            </button>
+          )}
+          {canDeleteEmployee && !employee.isHrAccount && (
+            <button type="button" title="Delete employee" aria-label={`Delete ${employee.name || "employee"}`} disabled={deletingId === employee._id} onClick={() => deleteEmployee(employee)} className="rounded-sm border border-red-200 p-2 text-red-600 transition hover:border-red-500 hover:text-red-700 disabled:opacity-50">
+              <FiTrash2 aria-hidden="true" />
             </button>
           )}
         </div>
