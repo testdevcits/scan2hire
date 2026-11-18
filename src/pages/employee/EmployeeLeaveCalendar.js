@@ -61,6 +61,8 @@ const EmployeeLeaveCalendar = () => {
   const [monthCursor, setMonthCursor] = useState(() => getMonthCursor());
   const [flipDirection, setFlipDirection] = useState(null);
   const [isFlipping, setIsFlipping] = useState(false);
+  const [yearOverview, setYearOverview] = useState({});
+  const [calendarDocument, setCalendarDocument] = useState(null);
 
   const activeMonth = useMemo(() => getMonthFromCursor(monthCursor), [monthCursor]);
   const activeMonthKey = useMemo(
@@ -88,6 +90,17 @@ const EmployeeLeaveCalendar = () => {
 
   useEffect(() => { loadLeaveBalance(); }, [loadLeaveBalance]);
   useEffect(() => { loadCalendar(); }, [loadCalendar]);
+  useEffect(() => {
+    employeeApi.getCalendarDocument(activeMonth.year)
+      .then((res) => setCalendarDocument(res.data.data || null))
+      .catch(() => setCalendarDocument(null));
+  }, [activeMonth.year]);
+  useEffect(() => {
+    const year = activeMonth.year;
+    Promise.all(Array.from({ length: 12 }, (_, index) => employeeApi.getCalendar(`${year}-${String(index + 1).padStart(2, "0")}`)))
+      .then((responses) => setYearOverview(Object.fromEntries(responses.map((response, index) => [`${year}-${String(index + 1).padStart(2, "0")}`, response.data.data || []]))))
+      .catch(() => setYearOverview({}));
+  }, [activeMonth.year]);
 
   const calendarMap = useMemo(
     () => calendar.reduce((acc, item) => ({ ...acc, [item.dateKey]: item }), {}),
@@ -182,10 +195,13 @@ const EmployeeLeaveCalendar = () => {
       `}</style>
 
       <Card className="p-5">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Calendar</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Company yearly calendar with holidays, working Saturdays, optional leaves, notices, and HR-added leave items.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Calendar</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Company yearly calendar with holidays, working Saturdays, optional leaves, notices, and HR-added leave items.</p>
+          </div>
+          {calendarDocument?.url && <a href={calendarDocument.url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-lg border border-[#ffd8cf] px-3 py-2 text-sm font-semibold text-[#f84525] hover:bg-[#fff5f3]">View company PDF</a>}
+        </div>
       </Card>
 
       {leaveBalance && (
@@ -208,6 +224,11 @@ const EmployeeLeaveCalendar = () => {
           ))}
         </div>
       )}
+
+      <Card className="p-4">
+        <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900 dark:text-gray-100">Year Overview {activeMonth.year}</h2><p className="text-xs text-gray-500 dark:text-gray-400">Company holidays and optional leaves at a glance.</p></div><div className="flex gap-2 text-[10px]"><span className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700">Holiday</span><span className="rounded border border-green-200 bg-green-50 px-2 py-1 text-green-700">Working Sat</span><span className="rounded border border-yellow-200 bg-yellow-50 px-2 py-1 text-yellow-700">Optional</span></div></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 12 }, (_, index) => { const key = `${activeMonth.year}-${String(index + 1).padStart(2, "0")}`; const items = yearOverview[key] || []; const itemMap = Object.fromEntries(items.map((item) => [item.dateKey, item])); const first = new Date(activeMonth.year, index, 1); const days = new Date(activeMonth.year, index + 1, 0).getDate(); return <button type="button" key={key} onClick={() => setMonthCursor(activeMonth.year * 12 + index)} className="rounded border border-[#f7e6e0] bg-white p-2 text-left hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-900"><p className="mb-1 text-center text-xs font-bold text-[#f84525]">{first.toLocaleString(undefined, { month: "long" })}</p><div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">{["S", "M", "T", "W", "T", "F", "S"].map((day, dayIndex) => <span key={`${key}-h-${dayIndex}`} className="font-semibold text-gray-400">{day}</span>)}{Array.from({ length: first.getDay() }, (_, blank) => <span key={`${key}-b-${blank}`} />)}{Array.from({ length: days }, (_, dayIndex) => { const dateKey = `${key}-${String(dayIndex + 1).padStart(2, "0")}`; const type = itemMap[dateKey]?.type; return <span key={dateKey} className={`rounded-sm py-0.5 ${type === "holiday" ? "bg-red-100 text-red-700" : type === "working_saturday" ? "bg-green-100 text-green-700" : type === "optional_leave" ? "bg-yellow-100 text-yellow-700" : "text-gray-700 dark:text-gray-300"}`}>{dayIndex + 1}</span>; })}</div></button>; })}</div>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
         {/* ===== Wall-calendar styled card ===== */}

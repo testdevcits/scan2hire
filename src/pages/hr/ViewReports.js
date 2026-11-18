@@ -56,6 +56,9 @@ const ViewReports = () => {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarDeleting, setCalendarDeleting] = useState(false);
+  const [calendarPdf, setCalendarPdf] = useState(null);
+  const [calendarPdfDocument, setCalendarPdfDocument] = useState(null);
+  const [calendarPdfSaving, setCalendarPdfSaving] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [reportError, setReportError] = useState("");
   const reportRequestId = useRef(0);
@@ -237,6 +240,52 @@ const ViewReports = () => {
   useEffect(() => {
     if (calendarModalOpen) loadCalendar();
   }, [calendarModalOpen, loadCalendar]);
+
+  const loadCalendarPdf = useCallback(async () => {
+    try {
+      const res = await hrApi.getCalendarDocument(calendarYear);
+      setCalendarPdfDocument(res.data.data || null);
+    } catch (err) {
+      setCalendarPdfDocument(null);
+    }
+  }, [calendarYear]);
+
+  useEffect(() => {
+    if (calendarModalOpen) loadCalendarPdf();
+  }, [calendarModalOpen, loadCalendarPdf]);
+
+  const uploadCalendarPdf = async () => {
+    if (!calendarPdf) return;
+    if (calendarPdf.type !== "application/pdf" && !calendarPdf.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Only PDF calendar files are allowed.");
+      return;
+    }
+    if (calendarPdf.size > 5 * 1024 * 1024) {
+      toast.error("Calendar PDF must be 5 MB or smaller.");
+      return;
+    }
+    setCalendarPdfSaving(true);
+    try {
+      const dataUri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(calendarPdf);
+      });
+      await hrApi.uploadCalendarDocument({
+        year: Number(calendarYear),
+        title: `Company Calendar ${calendarYear}`,
+        file: { dataUri, name: calendarPdf.name, type: calendarPdf.type || "application/pdf" },
+      });
+      setCalendarPdf(null);
+      await loadCalendarPdf();
+      toast.success("Calendar PDF uploaded successfully.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to upload calendar PDF");
+    } finally {
+      setCalendarPdfSaving(false);
+    }
+  };
 
   const saveCalendar = async (e) => {
     e.preventDefault();
@@ -670,6 +719,15 @@ const ViewReports = () => {
         <form onSubmit={saveCalendar} className="bg-white rounded-sm border p-4 space-y-3 self-start">
           <h2 className="font-semibold">HR Leave Calendar</h2>
           <p className="text-xs text-gray-500">Click any date in the year grid, add title/type, then save.</p>
+	          <div className="rounded-sm border border-[#ffd8cf] bg-[#fffaf8] p-3 space-y-2">
+	            <div className="flex items-center justify-between gap-2">
+	              <p className="text-sm font-semibold">Company calendar PDF</p>
+	              {calendarPdfDocument?.url && <a href={calendarPdfDocument.url} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] font-semibold">View current</a>}
+	            </div>
+	            <input type="file" accept="application/pdf,.pdf" onChange={(e) => setCalendarPdf(e.target.files?.[0] || null)} className="w-full text-xs" />
+	            <p className="text-[11px] text-gray-500">PDF only, maximum 5 MB. Upload for {calendarYear}.</p>
+	            <Button text={calendarPdfSaving ? "Uploading..." : "Upload Calendar PDF"} loading={calendarPdfSaving} type="button" onClick={uploadCalendarPdf} className="w-full" disabled={!calendarPdf} />
+	          </div>
 	          <input
 	            type="number"
 	            min="2000"
