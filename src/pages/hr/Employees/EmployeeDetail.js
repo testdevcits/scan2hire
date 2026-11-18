@@ -107,7 +107,7 @@ const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
 });
 const employeeAccessModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ["credentials", "Credentials"], ["settings", "Settings"]];
 const hrAccessModules = [["dashboard", "Dashboard"], ["employees", "Employees"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["documents", "Documents & Signatures"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["systemAllotments", "System Allotments"]];
-const documentLabelMap = { photo: "Photo", aadhaarCard: "Aadhaar Card", panCard: "PAN Card", passbook: "Bank Proof / Passbook", bloodGroupProof: "Blood Group Proof", addressProof: "Address Proof", degree: "Degree", resume: "Resume" };
+const documentLabelMap = { photo: "Photo", aadhaarCard: "Aadhaar Card", panCard: "PAN Card", passbook: "Bank Proof / Passbook", bloodGroupProof: "Blood Group Proof", addressProof: "Address Proof", addressProofPermanent: "Permanent Address Proof", addressProofAlternate: "Alternate Address Proof", degree: "Degree", resume: "Resume" };
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
@@ -605,7 +605,8 @@ const EmployeeDetail = () => {
     ["panCard", "PAN Card"],
     ["passbook", "Bank Proof / Passbook"],
     ["bloodGroupProof", "Blood Group Proof"],
-    ["addressProof", "Address Proof"],
+    ["addressProofPermanent", "Permanent Address Proof"],
+    ["addressProofAlternate", "Alternate Address Proof"],
     ["degree", "Degree"],
     ["resume", "Resume"],
   ];
