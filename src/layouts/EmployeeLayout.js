@@ -29,6 +29,7 @@ const EmployeeLayout = () => {
     ...(!access.moduleAccess || access.moduleAccess.interviews?.view !== false ? [{ label: "Interviews", path: "/employee/interviews", icon: <FiBriefcase /> }] : []),
     // { label: "Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
     ...(!access.moduleAccess || access.moduleAccess.leaves?.view !== false ? [{ label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> }] : []),
+    ...(!access.moduleAccess || access.moduleAccess.leaveCalendar?.view !== false ? [{ label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> }] : []),
     ...(!access.moduleAccess || access.moduleAccess.systemAllotment?.view !== false ? [{ label: "My System", path: "/employee/my-system", icon: <FiMonitor /> }] : []),
     ...(access.systemAllotmentManage && (!access.moduleAccess || access.moduleAccess.systemAllotment?.view !== false)
       ? [{ label: "System Allotments", path: "/employee/system-allotments", icon: <FiMonitor /> }]

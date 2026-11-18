@@ -111,6 +111,7 @@ const ViewReports = () => {
   const [calendarPdfDocument, setCalendarPdfDocument] = useState(null);
   const [calendarPdfSaving, setCalendarPdfSaving] = useState(false);
   const [calendarPdfDeleting, setCalendarPdfDeleting] = useState(false);
+  const [calendarDeleteConfirm, setCalendarDeleteConfirm] = useState(false);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [reportError, setReportError] = useState("");
   const reportRequestId = useRef(0);
@@ -349,13 +350,13 @@ const ViewReports = () => {
   };
 
   const deleteCalendarPdf = async () => {
-    if (!calendarPdfDocument || user?.role !== "superadmin") return;
-    if (!window.confirm(`Delete the ${calendarYear} company calendar PDF?`)) return;
+    if (user?.role !== "superadmin") return;
     setCalendarPdfDeleting(true);
     try {
       await hrApi.deleteCalendarDocument(calendarYear);
       setCalendarPdfDocument(null);
-      toast.success("Calendar PDF deleted successfully.");
+      setCalendarDeleteConfirm(false);
+      toast.success("Calendar PDF and all calendar entries deleted successfully.");
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to delete calendar PDF");
     } finally {
@@ -781,6 +782,19 @@ const ViewReports = () => {
         />
       </SectionCard>
 
+      {calendarDeleteConfirm && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-semibold text-gray-900">Clear calendar data?</h2>
+            <p className="mt-2 text-sm text-gray-600">This will delete the {calendarYear} PDF and all calendar entries for this year.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setCalendarDeleteConfirm(false)} className="rounded border px-4 py-2 text-sm">Cancel</button>
+              <button type="button" onClick={deleteCalendarPdf} disabled={calendarPdfDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{calendarPdfDeleting ? "Clearing..." : "Confirm delete"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {calendarModalOpen && (
       <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-3 sm:p-4">
         <section className="bg-white rounded-sm shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -798,7 +812,7 @@ const ViewReports = () => {
 	          <div className="rounded-sm border border-[#ffd8cf] bg-[#fffaf8] p-3 space-y-2">
 	            <div className="flex items-center justify-between gap-2">
 	              <p className="text-sm font-semibold">Company calendar PDF</p>
-	              {calendarPdfDocument?.url && <div className="flex items-center gap-2"><a href={calendarPdfDocument.url} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] font-semibold">View current</a>{user?.role === "superadmin" && <button type="button" onClick={deleteCalendarPdf} disabled={calendarPdfDeleting} className="text-xs font-semibold text-red-600 disabled:opacity-50">{calendarPdfDeleting ? "Deleting..." : "Delete"}</button>}</div>}
+              <div className="flex items-center gap-2">{calendarPdfDocument?.url && <a href={calendarPdfDocument.url} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] font-semibold">View current</a>}{user?.role === "superadmin" && <button type="button" onClick={() => setCalendarDeleteConfirm(true)} disabled={calendarPdfDeleting} className="text-xs font-semibold text-red-600 disabled:opacity-50">{calendarPdfDeleting ? "Clearing..." : "Clear calendar data"}</button>}</div>
 	            </div>
 	            <input type="file" accept="application/pdf,.pdf" onChange={(e) => setCalendarPdf(e.target.files?.[0] || null)} className="w-full text-xs" />
 	            <p className="text-[11px] text-gray-500">PDF only, maximum 5 MB. Upload for {calendarYear}.</p>
