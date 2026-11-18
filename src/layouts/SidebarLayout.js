@@ -7,7 +7,7 @@ import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import logo from "../assets/logo.png";
 
-const SidebarLayout = ({ title, navItems, variant = "default" }) => {
+const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false }) => {
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
   const toast = useToast();
@@ -167,7 +167,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5 sidebar-scroll">
-          {navItems.map((item) => (
+          {navLoading ? Array.from({ length: 8 }, (_, index) => <div key={index} className="h-10 shrink-0 animate-pulse rounded-[12px] bg-gray-200/70 dark:bg-gray-800/70" />) : navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}

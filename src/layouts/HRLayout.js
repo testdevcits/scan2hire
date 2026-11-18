@@ -13,11 +13,13 @@ const HRLayout = () => {
   const isProjectCoordinator = hasRole("project_coordinator");
   const isHr = user?.role === "hr";
   const [access, setAccess] = useState(null);
+  const [accessLoading, setAccessLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     if (!user) {
       setAccess(null);
+      setAccessLoading(false);
       return undefined;
     }
     const request = isTeamLead ? employeeApi.getMyAccess() : API.get('/users/me');
@@ -26,9 +28,11 @@ const HRLayout = () => {
         if (!active) return;
         const data = res.data.data || {};
         setAccess(isTeamLead ? { modules: data.moduleAccess || null, ...data } : data.moduleAccess === null ? null : { modules: data.moduleAccess });
+        setAccessLoading(false);
       })
       .catch(() => {
         if (active) setAccess({});
+        if (active) setAccessLoading(false);
       });
 
     return () => {
@@ -68,7 +72,7 @@ const HRLayout = () => {
     { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },
   ];
 
-  return <SidebarLayout title={panelTitle} navItems={navItems} />;
+  return <SidebarLayout title={panelTitle} navItems={navItems} navLoading={accessLoading} />;
 };
 
 export default HRLayout;
