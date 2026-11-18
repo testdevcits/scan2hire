@@ -899,7 +899,7 @@ const EmployeeDetail = () => {
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={downloadEmployeeReport} className="inline-flex items-center gap-2"><FiDownload /> {reportDate ? "Download Day Report" : "Download Monthly PDF"}</Button>
             {employee.isActive ? <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center gap-2"><FiUserX /> Deactivate</Button> : <Button variant="success" onClick={activateEmployee} className="inline-flex items-center gap-2"><FiUserCheck /> Activate</Button>}
-            <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> Delete Employee</Button>
+            {user?.role === "superadmin" && <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> Delete Employee</Button>}
           </div>
         </section>
       )}
