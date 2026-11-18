@@ -105,7 +105,7 @@ const EmployeeDetail = () => {
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [editErrors, setEditErrors] = useState({});
-  const [accountCredentials, setAccountCredentials] = useState([]);
+  const [accountCredentials] = useState([]);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
