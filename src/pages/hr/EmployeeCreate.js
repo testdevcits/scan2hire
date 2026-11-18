@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { authApi } from "../../api";
 import AddressFields from "../../components/common/AddressFields";
 import Button from "../../components/common/Button";
+import CalendarPicker from "../../components/common/CalendarPicker";
 import FileUploadField from "../../components/common/FileUploadField";
 import InputField from "../../components/common/InputField";
 import SelectField from "../../components/common/SelectField";
@@ -19,6 +20,7 @@ const initialForm = {
   password: "",
   department: "",
   designation: "",
+  dob: "",
   dateOfJoining: "",
   reportingManager: "",
   employeeType: "Permanent",
@@ -140,7 +142,7 @@ const EmployeeCreate = () => {
           />
         ))}
 
-        {step === 1 ? <><SelectField label="Department" name="department" value={form.department} onChange={handleChange} options={departmentOptions} /><SelectField label="Employee Type" name="employeeType" value={form.employeeType} onChange={handleChange} options={["Permanent", "Contract", "Intern"]} /></> : null}
+        {step === 1 ? <><CalendarPicker label="Date of Birth" mode="date" value={form.dob} onChange={(value) => setForm((current) => ({ ...current, dob: value }))} /><SelectField label="Department" name="department" value={form.department} onChange={handleChange} options={departmentOptions} /><SelectField label="Employee Type" name="employeeType" value={form.employeeType} onChange={handleChange} options={["Permanent", "Contract", "Intern"]} /></> : null}
         {step === 3 ? <div className="md:col-span-3 border-t pt-4">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.salaryOnHold} onChange={(e) => setForm((c) => ({ ...c, salaryOnHold: e.target.checked }))} /> Salary on hold</label>
           <EmployeeChecklist value={form} onChange={handleChecklist} />

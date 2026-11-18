@@ -39,6 +39,7 @@ import EmployeeChecklist from "../../../components/common/EmployeeChecklist";
 import InputField from "../../../components/common/InputField";
 import SectionHeader from "../../../components/common/SectionHeader";
 import Tabs from "../../../components/common/Tabs";
+import ModulePermissionMatrix from "../../../components/common/ModulePermissionMatrix";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useModal } from "../../../contexts/ModalContext";
 import { useToast } from "../../../contexts/ToastContext";
@@ -54,10 +55,57 @@ const formatAddress = (address = {}) =>
     .join(", ") || "N/A";
 
 const detailFallback = (value) => value || "N/A";
+const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const context = canvas.getContext("2d");
+    const scale = Math.max(targetWidth / image.width, targetHeight / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    context.drawImage(image, (targetWidth - width) / 2, (targetHeight - height) / 2, width, height);
+    URL.revokeObjectURL(image.src);
+    const encode = (quality) => canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error("Unable to process photo"));
+      if (blob.size > 250 * 1024 && quality > 0.35) return encode(quality - 0.1);
+      const normalized = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+      resolve(normalized);
+    }, "image/jpeg", quality);
+    encode(0.9);
+  };
+  image.onerror = () => reject(new Error("Invalid image"));
+  image.src = URL.createObjectURL(file);
+});
+const normalizePassportPhoto = (file) => normalizePhoto(file, 413, 531);
+const normalizePanPhoto = (file) => normalizePhoto(file, 197, 276);
+const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => {
+    const scale = Math.min(1, 1200 / image.width, 1600 / image.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(image.src);
+    const encode = (quality) => canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error("Unable to process document"));
+      if (blob.size > 500 * 1024 && quality > 0.35) return encode(quality - 0.1);
+      resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+    }, "image/jpeg", quality);
+    encode(0.88);
+  };
+  image.onerror = () => reject(new Error("Invalid image"));
+  image.src = URL.createObjectURL(file);
+});
+const employeeAccessModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ["credentials", "Credentials"], ["settings", "Settings"]];
+const hrAccessModules = [["dashboard", "Dashboard"], ["employees", "Employees"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["documents", "Documents & Signatures"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["systemAllotments", "System Allotments"]];
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
-  if (isSuperAdmin) availableTabs.push("credentials");
+  if (isSuperAdmin) availableTabs.push("credentials", "access", "security");
+  if (canManage) availableTabs.push("actions");
   if (availableTabs.includes(requestedTab)) return requestedTab;
   if (editRequested && canManage) return "edit";
   return "details";
@@ -89,6 +137,7 @@ const EmployeeDetail = () => {
     bloodGroup: "",
     department: "",
     designation: "",
+    dob: "",
     dateOfJoining: "",
     reportingManager: "",
     teamLead: "",
@@ -110,10 +159,14 @@ const EmployeeDetail = () => {
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [documentFiles, setDocumentFiles] = useState({});
+  const [documentErrors, setDocumentErrors] = useState({});
   const [savingDocuments, setSavingDocuments] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newEmployeePassword, setNewEmployeePassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [accessDraft, setAccessDraft] = useState({});
+  const [roleDraft, setRoleDraft] = useState("employee");
+  const [savingAccess, setSavingAccess] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
     return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
@@ -144,6 +197,9 @@ const EmployeeDetail = () => {
       const departmentsRes = canManage ? responses[responseIndex++] : null;
       const employeeData = employeeRes.data.data;
       setEmployee(employeeData);
+      const defaultAccess = Object.fromEntries(employeeAccessModules.map(([key]) => [key, employeeData.user?.moduleAccess?.[key] || { view: true, edit: true }]));
+      setAccessDraft(defaultAccess);
+      setRoleDraft(employeeData.user?.role === "teamlead" || employeeData.workRole === "teamlead" ? "teamlead" : "employee");
       if (canManage) {
         setEmployeeOptions(employeesRes?.data?.data || []);
         setDepartments(departmentsRes?.data?.data || []);
@@ -156,6 +212,7 @@ const EmployeeDetail = () => {
         bloodGroup: employeeData.bloodGroup || "",
         department: employeeData.department || "",
         designation: employeeData.designation || "",
+        dob: employeeData.dob ? employeeData.dob.slice(0, 10) : "",
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         reportingManager: employeeData.reportingManager || "",
         teamLead: employeeData.teamLead?._id || employeeData.teamLead || "",
@@ -302,6 +359,30 @@ const EmployeeDetail = () => {
     } finally {
       setSavingProfile(false);
     }
+  };
+
+  const saveEmployeeAccess = async () => {
+    const userId = employee?.user?._id || employee?.user;
+    if (!userId) { toast.error("Employee login account not found"); return; }
+    const currentRole = employee?.user?.role === "hr" ? "hr" : employee?.user?.role === "teamlead" || employee?.workRole === "teamlead" ? "teamlead" : "employee";
+    if (currentRole !== roleDraft) {
+      const roleName = roleDraft === "hr" ? "HR" : roleDraft === "teamlead" ? "Team Lead" : "Employee";
+      const confirmed = await confirm({
+        title: `Assign ${roleName} role`,
+        message: `${employee.name} will be changed from ${currentRole === "teamlead" ? "Team Lead" : currentRole.toUpperCase()} to ${roleName}. The permission checklist will be refreshed for this role. Continue?`,
+        confirmText: "Continue",
+      });
+      if (!confirmed) return;
+    }
+    setSavingAccess(true);
+    try {
+      await authApi.updateEmployeeRole(userId, roleDraft);
+      if (roleDraft === "hr") await authApi.updateHrModuleAccess(userId, accessDraft);
+      else await authApi.updateEmployeeModuleAccess(userId, accessDraft);
+      toast.success("Role and access updated");
+      await loadEmployee();
+    } catch (err) { toast.error(err.response?.data?.message || "Unable to update role and access"); }
+    finally { setSavingAccess(false); }
   };
 
   const fileToDataUri = (file) =>
@@ -486,6 +567,7 @@ const EmployeeDetail = () => {
     ["panCard", "PAN Card"],
     ["passbook", "Bank Proof / Passbook"],
     ["bloodGroupProof", "Blood Group Proof"],
+    ["drivingLicense", "Driving Licence"],
     ["degree", "Degree"],
     ["resume", "Resume"],
   ];
@@ -495,11 +577,12 @@ const EmployeeDetail = () => {
     : "border-red-200 bg-red-50 text-red-700";
   const employeeTabs = [
     { value: "details", label: "Details" },
+    ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
+    ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }, { value: "security", label: "Security" }] : []),
     { value: "attendance", label: "Attendance" },
     { value: "documents", label: "Documents" },
     { value: "documentSignatures", label: "Documents & Signatures" },
-    ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
-    ...(user?.role === "superadmin" ? [{ value: "credentials", label: "Credentials" }] : []),
+    ...(canManage ? [{ value: "actions", label: "Actions" }] : []),
   ];
 
   return (
@@ -511,6 +594,9 @@ const EmployeeDetail = () => {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="break-words text-2xl font-bold text-gray-900">{employee.name}</h1>
+                <span className="inline-flex items-center rounded-sm border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-semibold capitalize text-orange-700">
+                  {employee.user?.role === "teamlead" || employee.workRole === "teamlead" ? "Team Lead" : employee.user?.role === "hr" ? "HR" : "Employee"}
+                </span>
                 <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-xs font-semibold ${activeBadgeClass}`}>
                   {employee.isActive ? <FiCheckCircle /> : <FiUserX />}
                   {employee.isActive ? "Active" : "Inactive"}
@@ -526,32 +612,6 @@ const EmployeeDetail = () => {
             <Button variant="secondary" onClick={() => navigate(-1)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
               <FiArrowLeft /> Back
             </Button>
-            <Button onClick={downloadEmployeeReport} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
-              <FiDownload /> {reportDate ? "Day Report" : "Monthly PDF"}
-            </Button>
-            {canManage && (employee.isActive ? (
-              <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
-                <FiUserX /> Deactivate
-              </Button>
-            ) : (
-              <Button variant="success" onClick={activateEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
-                <FiUserCheck /> Activate
-              </Button>
-            ))}
-            {canManage && (
-              <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
-                <FiTrash2 /> Delete
-              </Button>
-            )}
-            {canManageDocuments && <Button variant="secondary" onClick={() => setPasswordModalOpen(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg"><FiShield /> Change Password</Button>}
-          </div>
-
-          <div className="order-3 grid min-w-0 grid-cols-1 gap-2 lg:col-start-2 lg:row-start-1 lg:max-w-[570px] lg:grid-cols-2 lg:self-center">
-              <CalendarPicker inlineLabel  mode="month" value={month} onChange={setMonth} />
-              <CalendarPicker inlineLabel  mode="date" value={reportDate} onChange={(value) => {
-                setReportDate(value);
-                if (value) setMonth(value.slice(0, 7));
-              }} />
           </div>
 
           <div className="order-4 flex flex-wrap items-center gap-2 text-xs text-gray-600 lg:col-start-3 lg:row-start-2 lg:justify-self-end">
@@ -561,15 +621,6 @@ const EmployeeDetail = () => {
           </div>
         </div>
 
-        {summary && (
-          <div className="grid grid-cols-2 gap-3 p-4 text-sm sm:grid-cols-3 lg:grid-cols-5 lg:p-5">
-            <DetailItem icon={<FiCalendar />} label="Report Days" value={summary.days} />
-            <DetailItem icon={<FiCheckCircle />} label="Present" value={summary.present} />
-            <DetailItem icon={<FiCalendar />} label="Half Day" value={summary.halfDay} />
-            <DetailItem icon={<FiBriefcase />} label="Work Time" value={minutesToHours(summary.workMinutes)} />
-            <DetailItem icon={<FiCalendar />} label="Break Time" value={minutesToHours(summary.breakMinutes)} />
-          </div>
-        )}
       </div>
 
       <div ref={tabsRef} className="rounded-sm border border-gray-200 bg-white px-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -584,6 +635,7 @@ const EmployeeDetail = () => {
             <DetailItem icon={<FiPhone />} label="Mobile" value={detailFallback(employee.mobile)} />
             <DetailItem icon={<FiBriefcase />} label="Department" value={detailFallback(employee.department)} />
             <DetailItem icon={<FiUser />} label="Designation" value={detailFallback(employee.designation)} />
+            <DetailItem icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
             <DetailItem icon={<FiCalendar />} label="Joining Date" value={formatDate(employee.dateOfJoining)} />
             <DetailItem icon={<FiUserCheck />} label="Reporting Manager" value={detailFallback(employee.reportingManager)} />
             <DetailItem
@@ -648,6 +700,12 @@ const EmployeeDetail = () => {
           options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]}
           placeholder="Select blood group"
         />
+        <CalendarPicker
+          label="Date of Birth"
+          mode="date"
+          value={editForm.dob}
+          onChange={(value) => setEditForm((current) => ({ ...current, dob: value }))}
+        />
         <CustomDropdown
           label="Department"
           value={editForm.department}
@@ -698,7 +756,6 @@ const EmployeeDetail = () => {
             setEditErrors((current) => ({ ...current, dateOfJoining: validateEditField("dateOfJoining", value) }));
           }}
           error={editErrors.dateOfJoining}
-          className="mt-1"
         />
         <CustomDropdown
           label="Attendance Mode"
@@ -727,6 +784,17 @@ const EmployeeDetail = () => {
           <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
         </div>
       </form>
+      )}
+
+      {user?.role === "superadmin" && activeTab === "access" && (
+        <section id="access-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="text-lg font-semibold">Role &amp; Access</h2><p className="text-sm text-gray-500">Assign this user as Employee or Team Lead and manage individual module access.</p></div>
+            <CustomDropdown label="Role" value={roleDraft} showPlaceholder={false} options={[{ value: "employee", label: "Employee" }, { value: "teamlead", label: "Team Lead" }, { value: "hr", label: "HR" }]} onChange={(value) => { setRoleDraft(value); setAccessDraft(Object.fromEntries((value === "hr" ? hrAccessModules : employeeAccessModules).map(([key]) => [key, { view: true, edit: true }]))); }} className="w-full sm:w-64" portalMenu placement="bottom" />
+          </div>
+          <ModulePermissionMatrix modules={roleDraft === "hr" ? hrAccessModules : employeeAccessModules} value={accessDraft} onChange={(key, value) => setAccessDraft((current) => ({ ...current, [key]: value }))} />
+          <div className="mt-4 flex justify-end"><Button text="Save Role & Access" loading={savingAccess} onClick={saveEmployeeAccess} /></div>
+        </section>
       )}
 
       {user?.role === "superadmin" && activeTab === "credentials" && (
@@ -763,9 +831,34 @@ const EmployeeDetail = () => {
         </section>
       )}
 
+      {user?.role === "superadmin" && activeTab === "security" && (
+        <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
+          <SectionHeader title="Security" subtitle="Manage this employee login securely." />
+          <div className="mt-5 flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-4">
+            <div><p className="font-semibold text-gray-900">Login password</p><p className="text-sm text-gray-500">Set a new password for this employee account.</p></div>
+            <Button variant="secondary" onClick={() => setPasswordModalOpen(true)} className="inline-flex items-center gap-2 whitespace-nowrap"><FiShield /> Change Password</Button>
+          </div>
+        </section>
+      )}
+
+      {canManage && activeTab === "actions" && (
+        <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
+          <SectionHeader title="Employee Actions" subtitle="Generate reports and manage this employee account." />
+          <div className="mt-5 grid grid-cols-1 gap-4 rounded border border-gray-200 bg-gray-50 p-4 md:grid-cols-2">
+            <CalendarPicker label="Report month" mode="month" value={month} onChange={setMonth} />
+            <CalendarPicker label="Specific date (optional)" mode="date" value={reportDate} onChange={(value) => { setReportDate(value); if (value) setMonth(value.slice(0, 7)); }} />
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button onClick={downloadEmployeeReport} className="inline-flex items-center gap-2"><FiDownload /> {reportDate ? "Download Day Report" : "Download Monthly PDF"}</Button>
+            {employee.isActive ? <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center gap-2"><FiUserX /> Deactivate</Button> : <Button variant="success" onClick={activateEmployee} className="inline-flex items-center gap-2"><FiUserCheck /> Activate</Button>}
+            <Button variant="danger" onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> Delete Employee</Button>
+          </div>
+        </section>
+      )}
+
       {activeTab === "documents" && <section id="documents-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
-        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{documentItems.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"} hint={key === "photo" ? "Upload JPG, PNG, WEBP" : "Upload PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} onChange={(event) => { const file = event.target.files?.[0] || null; setDocumentFiles((current) => ({ ...current, [key]: file })); }} disabled={savingDocuments} />)}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4">{documentItems.map(([key, label]) => { const isSupporting = key === "drivingLicense"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "drivingLicense", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} selectedFile={documentFiles[key]} error={documentErrors[key]} uploaded={Boolean(documentFiles[key])} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch { setDocumentErrors((current) => ({ ...current, [key]: "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
 
       {activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">

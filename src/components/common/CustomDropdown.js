@@ -114,7 +114,7 @@ const CustomDropdown = ({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={`${compact ? "min-h-9 min-w-[72px] px-2.5 py-1.5" : "min-h-10 w-full px-3 py-2"} ${buttonClassName} flex items-center justify-between gap-2 rounded-sm border bg-white text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
+        className={`${compact ? "min-h-9 min-w-[72px] px-2.5 py-1.5" : "h-10 w-full px-3 py-2"} ${buttonClassName} flex items-center justify-between gap-2 rounded-sm border bg-white text-left text-sm text-gray-900 transition-colors focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
           error ? "border-red-500" : "border-gray-300"
         }`}
         aria-haspopup="listbox"

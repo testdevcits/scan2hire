@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { FiEye, FiFileText, FiUploadCloud } from "react-icons/fi";
 
 const FileUploadField = ({
@@ -22,8 +23,20 @@ const FileUploadField = ({
   onCurrentAction,
   currentActionLabel,
   currentActionLoading = false,
+  uploaded = false,
+  selectedFile = null,
 }) => {
   const acceptsImage = /image|jpg|jpeg|png|webp/i.test(String(accept || ""));
+  const inputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
+  useEffect(() => {
+    if (!selectedFile) { setLocalPreviewUrl(""); return undefined; }
+    const url = URL.createObjectURL(selectedFile);
+    setLocalPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+  const activePreviewUrl = selectedPreviewUrl || localPreviewUrl;
 
   const handlePaste = (event) => {
     if (!acceptsImage) return;
@@ -40,47 +53,50 @@ const FileUploadField = ({
       },
     });
   };
+  const emitFile = (file) => file && onChange?.({ target: { name, files: [file] } });
 
-  const isPdfPreview = previewType === "pdf" || String(selectedPreviewUrl || "").startsWith("data:application/pdf") || /\.pdf(?:$|[?#])/i.test(String(selectedPreviewUrl || ""));
+  const isPdfPreview = previewType === "pdf" || String(activePreviewUrl || "").startsWith("data:application/pdf") || /\.pdf(?:$|[?#])/i.test(String(activePreviewUrl || ""));
   const canShowImagePreview = Boolean(
-    selectedPreviewUrl && !isPdfPreview && (
+    activePreviewUrl && !isPdfPreview && (
       previewType === "image" ||
-      String(selectedPreviewUrl).startsWith("data:image/") ||
-      /\.(jpg|jpeg|png|webp|gif|bmp)(?:$|[?#])/i.test(String(selectedPreviewUrl))
+      String(activePreviewUrl).startsWith("data:image/") ||
+      /\.(jpg|jpeg|png|webp|gif|bmp)(?:$|[?#])/i.test(String(activePreviewUrl))
     )
   );
-  const canShowPdfPreview = Boolean(selectedPreviewUrl && isPdfPreview);
+  const canShowPdfPreview = Boolean(activePreviewUrl && isPdfPreview);
 
   return (
     <div className="flex flex-col text-sm font-medium text-gray-700 dark:text-gray-200">
-      <label htmlFor={`${name}-file-upload`} className="cursor-pointer">
-        {label}
-        {required ? <span className="text-red-500"> *</span> : null}
-      </label>
       <div
         tabIndex={0}
         onPaste={handlePaste}
-        className="mt-1 cursor-pointer rounded-sm border border-dashed border-[#f7a08f] bg-[#fffaf8] px-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#f84525] dark:border-gray-600 dark:bg-gray-800"
+        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => { event.preventDefault(); setDragging(false); emitFile(event.dataTransfer.files?.[0]); }}
+        className={`mt-1 cursor-pointer rounded-sm border border-dashed px-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${dragging ? "border-[#f84525] bg-orange-50" : uploaded ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20" : "border-[#f7a08f] bg-[#fffaf8] dark:border-gray-600 dark:bg-gray-800"}`}
       >
-        <div className="mb-2 flex items-center gap-2 text-[#f84525] dark:text-[#ff8066]">
-          <FiUploadCloud />
-          <span className="text-sm">{hint}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <label className="flex min-w-[180px] shrink-0 items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+            <FiUploadCloud className="text-[#f84525]" />
+            <span>{label}{required ? <span className="text-red-500"> *</span> : null}</span>
+          </label>
+          <input
+            ref={inputRef}
+            id={`${name}-file-upload`}
+            type="file"
+            name={name}
+            accept={accept}
+            multiple={multiple}
+            onChange={onChange}
+            required={required}
+            disabled={disabled}
+            className="hidden"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm text-gray-600 dark:text-gray-300">{fileName || "No file chosen"}</span>
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="shrink-0 rounded-sm bg-[#f84525] px-3 py-2 text-sm font-medium text-white hover:bg-[#e93819] disabled:opacity-60">Choose file</button>
         </div>
-        <input
-          id={`${name}-file-upload`}
-          type="file"
-          name={name}
-          accept={accept}
-          multiple={multiple}
-          onChange={onChange}
-          required={required}
-          disabled={disabled}
-          className="w-full min-w-0 cursor-pointer text-xs text-gray-700 sm:text-sm dark:text-gray-200 file:mr-3 file:cursor-pointer file:rounded-sm file:border-0 file:bg-[#f84525] file:px-3 file:py-2 file:text-white hover:file:bg-[#e93819] disabled:cursor-not-allowed disabled:opacity-60"
-        />
-        {acceptsImage ? (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">You can paste a copied image here.</p>
-        ) : null}
-        {currentFileLabel && !selectedPreviewUrl ? (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+        {currentFileLabel && !activePreviewUrl ? (
           <p className="mt-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300">
             {currentFileLabel}
           </p>
@@ -110,10 +126,11 @@ const FileUploadField = ({
             ) : null}
           </div>
         ) : null}
+        {selectedFile && localPreviewUrl && !selectedPreviewUrl ? <div className="mt-2 flex items-center gap-2 text-xs text-green-700"><FiEye /> Preview ready</div> : null}
         {canShowImagePreview ? (
           <div className="mt-3 flex items-center gap-3 rounded-sm border border-[#f7a08f] bg-white p-2 dark:border-gray-600 dark:bg-gray-900">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-[#ffd8cf] bg-[#fff5f3] dark:border-gray-700 dark:bg-gray-800">
-              <img src={selectedPreviewUrl} alt={label} className="w-full h-full object-cover" />
+              <img src={activePreviewUrl} alt={label} className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{previewTitle}</p>

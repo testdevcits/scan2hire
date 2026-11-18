@@ -19,6 +19,7 @@ export const authApi = {
   getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
   updateHrModuleAccess: (userId, modules) => API.patch(`/users/hrs/${userId}/module-access`, { modules }),
   updateEmployeeModuleAccess: (userId, modules) => API.patch(`/users/employees/${userId}/module-access`, { modules }),
+  updateEmployeeRole: (userId, role) => API.patch(`/users/employees/${userId}/role`, { role }),
   updateDefaultEmployeeModuleAccess: (modules, role = 'employee') => API.patch('/users/employees/default-module-access', { modules, role }),
   getDefaultEmployeeModuleAccess: (role = 'employee') => API.get('/users/employees/default-module-access', { params: { role } }),
   getAuditLogs: (params) => API.get('/users/audit-logs', { params }),
