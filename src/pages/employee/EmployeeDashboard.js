@@ -9,6 +9,7 @@ import {
   FiUsers,
   FiBriefcase,
   FiKey,
+  FiGift,
 } from "react-icons/fi";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
@@ -225,6 +226,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
   });
   const [interviewTab, setInterviewTab] = useState("current");
   const [clockNow, setClockNow] = useState(new Date());
+  const [birthdaySplash, setBirthdaySplash] = useState(false);
+  const isBirthday = useMemo(() => { if (!profile?.dob) return false; const dob = new Date(profile.dob); const now = new Date(); return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate(); }, [profile?.dob]);
+  useEffect(() => { if (!isBirthday) return undefined; setBirthdaySplash(true); const timer = setTimeout(() => setBirthdaySplash(false), 5000); return () => clearTimeout(timer); }, [isBirthday]);
   const isTeamLead = useMemo(() => isTeamLeadUser(profile), [profile]);
 
   const todayAttendance = useMemo(
@@ -489,6 +493,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
   if (pageLoading) return <CommonLoader text="Loading employee dashboard..." />;
 
   return (
+    <>
+    {birthdaySplash && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"><div className="rounded-2xl bg-white p-8 text-center shadow-2xl"><FiGift className="mx-auto mb-3 h-14 w-14 animate-bounce text-[#f84525]" /><h2 className="text-xl font-bold text-[#f84525]">Happy Birthday!</h2><p className="mt-1 text-sm text-gray-600">Wishing you a wonderful day!</p><div className="mt-4 h-1 w-48 overflow-hidden rounded bg-orange-100"><div className="h-full w-full animate-pulse bg-[#f84525]" /></div></div></div>}
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {missingDocuments.length > 0 && (
         <div className="flex-shrink-0 flex items-start gap-3 bg-[#fff5f3] dark:bg-[#2a1712] border border-[#ffd8cf] dark:border-[#5c2c1f] rounded-2xl px-4 py-3">
@@ -1240,6 +1246,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

@@ -57,25 +57,20 @@ const HRDashboard = () => {
   }, [currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();
-  const tomorrow = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
-    return date;
-  }, []);
-  const tomorrowMonth = tomorrow.getMonth();
-  const tomorrowDate = tomorrow.getDate();
-
   const birthdayReminders = useMemo(
     () =>
       employees
         .filter((employee) => {
           if (!employee.isActive || !employee.dob) return false;
           const dob = new Date(employee.dob);
-          return dob.getMonth() === tomorrowMonth && dob.getDate() === tomorrowDate;
+          return dob.getMonth() === new Date().getMonth();
         })
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
-    [employees, tomorrowDate, tomorrowMonth]
+    [employees]
   );
+  const todayBirthdays = useMemo(() => employees.filter((employee) => { if (!employee.isActive || !employee.dob) return false; const dob = new Date(employee.dob); const now = new Date(); return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate(); }), [employees]);
+  const [birthdaySplash, setBirthdaySplash] = useState(false);
+  useEffect(() => { if (!todayBirthdays.length) return undefined; setBirthdaySplash(true); const timer = setTimeout(() => setBirthdaySplash(false), 5000); return () => clearTimeout(timer); }, [todayBirthdays.length]);
 
   const statCards = useMemo(
     () => [
@@ -163,6 +158,7 @@ const HRDashboard = () => {
 
   return (
     <div className="min-h-full space-y-4  p-3 dark:bg-gray-950 sm:p-4">
+      {birthdaySplash && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"><div className="rounded-2xl bg-white p-8 text-center shadow-2xl"><div className="mx-auto mb-3 h-14 w-14 animate-bounce rounded-full bg-orange-100 p-3 text-3xl">🎂</div><h2 className="text-xl font-bold text-[#f84525]">Happy Birthday!</h2><p className="mt-1 text-sm text-gray-600">Wishing {todayBirthdays.map((item) => item.name).join(", ")} a wonderful day.</p><div className="mt-4 h-1 w-48 overflow-hidden rounded bg-orange-100"><div className="h-full w-full animate-pulse bg-[#f84525]" /></div></div></div>}
       <PageHeader
         title={isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}
         description={isTeamLead
@@ -190,7 +186,7 @@ const HRDashboard = () => {
               </div>
               <div>
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">Birthday Reminder</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Kal birthday hai. HR aaj wish/plan kar sakta hai.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Birthdays in the current month.</p>
               </div>
             </div>
             <Button text="Employees" variant="secondary" onClick={() => navigate("/hr/employees")} />
