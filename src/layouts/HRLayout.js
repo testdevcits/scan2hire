@@ -50,7 +50,7 @@ const HRLayout = () => {
       ? [{ label: "Dashboard", path: "/hr/dashboard", end: true, icon: <FiBarChart2 /> }]
       : []),
     ...(isTeamLead ? [{ label: "Attendance", path: "/hr/attendance", icon: <FiClock /> }] : []),
-    ...(isTeamLead ? [{ label: "Conative Calendar", path: "/hr/leave-calendar", icon: <FiCalendar /> }] : []),
+    ...(moduleAllowed('leaveCalendar') ? [{ label: "Conative Calendar", path: "/hr/leave-calendar", icon: <FiCalendar /> }] : []),
     // Task module is temporarily hidden.
     // { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
     ...(!isProjectCoordinator && moduleAllowed(isTeamLead ? 'yourTeam' : 'employees')

@@ -8,7 +8,7 @@ import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
-const moduleOptions = [["dashboard", "Dashboard", "View HR dashboard and summary"], ["employees", "Employees", "View and manage employee records"], ["candidates", "Candidates", "Manage candidate pipeline"], ["checkins", "Today Check-ins", "View daily employee check-ins"], ["attendanceReports", "Attendance Reports", "View attendance reports"], ["leaveReports", "Leave Reports", "Review leave and holiday reports"], ["documents", "Documents & Signatures", "Send and verify employee documents"], ["credentials", "Credentials", "Access employee credential records"], ["rolesAccess", "Roles & Access", "Manage team access"], ["systemAllotments", "System Allotments", "Manage system assignments"]];
+const moduleOptions = [["dashboard", "Dashboard", "View HR dashboard and summary"], ["employees", "Employees", "View and manage employee records"], ["leaveCalendar", "Leave Calendar", "View and manage company calendar"], ["candidates", "Candidates", "Manage candidate pipeline"], ["checkins", "Today Check-ins", "View daily employee check-ins"], ["attendanceReports", "Attendance Reports", "View attendance reports"], ["leaveReports", "Leave Reports", "Review leave and holiday reports"], ["documents", "Documents & Signatures", "Send and verify employee documents"], ["credentials", "Credentials", "Access employee credential records"], ["rolesAccess", "Roles & Access", "Manage team access"], ["systemAllotments", "System Allotments", "Manage system assignments"]];
 
 const ManageHR = () => {
   const toast = useToast();
