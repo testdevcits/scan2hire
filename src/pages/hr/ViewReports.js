@@ -91,6 +91,7 @@ const extractCalendarEntries = async (file, year) => {
 const ViewReports = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
+  const canEditCalendar = user?.role === "superadmin" || user?.moduleAccess?.leaveCalendar?.edit === true;
   const { mode } = useContext(ThemeContext);
   const [month, setMonth] = useState(() => getLocalDateKey().slice(0, 7));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
@@ -308,6 +309,7 @@ const ViewReports = () => {
   }, [calendarModalOpen, loadCalendarPdf]);
 
   const uploadCalendarPdf = async () => {
+    if (!canEditCalendar) { toast.error("You do not have calendar edit access."); return; }
     if (!calendarPdf) return;
     if (calendarPdf.type !== "application/pdf" && !calendarPdf.name.toLowerCase().endsWith(".pdf")) {
       toast.error("Only PDF calendar files are allowed.");
@@ -366,6 +368,7 @@ const ViewReports = () => {
 
   const saveCalendar = async (e) => {
     e.preventDefault();
+    if (!canEditCalendar) { toast.error("You do not have calendar edit access."); return; }
     if (user?.role !== "superadmin" && holidayForm.date < todayKey) {
       toast.error("Only super admin can update previous calendar dates.");
       return;
@@ -816,7 +819,7 @@ const ViewReports = () => {
 	            </div>
 	            <input type="file" accept="application/pdf,.pdf" onChange={(e) => setCalendarPdf(e.target.files?.[0] || null)} className="w-full text-xs" />
 	            <p className="text-[11px] text-gray-500">PDF only, maximum 5 MB. Upload for {calendarYear}.</p>
-	            <Button text={calendarPdfSaving ? "Uploading..." : "Upload Calendar PDF"} loading={calendarPdfSaving} type="button" onClick={uploadCalendarPdf} className="w-full" disabled={!calendarPdf} />
+            <Button text={calendarPdfSaving ? "Uploading..." : "Upload Calendar PDF"} loading={calendarPdfSaving} type="button" onClick={uploadCalendarPdf} className="w-full" disabled={!calendarPdf || !canEditCalendar} />
 	          </div>
 	          <input
 	            type="number"
@@ -868,7 +871,7 @@ const ViewReports = () => {
             placeholder="Description"
             className="w-full border rounded-sm px-3 py-2"
           />
-          <Button text={calendarSaving ? "Saving..." : "Save Calendar Day"} loading={calendarSaving} type="submit" className="w-full" />
+          <Button text={calendarSaving ? "Saving..." : "Save Calendar Day"} loading={calendarSaving} type="submit" className="w-full" disabled={!canEditCalendar} />
           {holidayForm.date && calendarMap[holidayForm.date] && (
             <Button
               text={calendarDeleting ? "Deleting..." : "Delete Calendar Event"}
