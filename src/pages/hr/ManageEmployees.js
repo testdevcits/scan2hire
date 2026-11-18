@@ -18,8 +18,10 @@ const ManageEmployees = () => {
     useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const canAddEmployee = user?.role === "hr" || user?.role === "superadmin";
-  const canEditEmployee = user?.role === "hr" || user?.role === "superadmin";
+  const employeeAccess = user?.moduleAccess?.employees;
+  const hasEmployeeAction = (action) => user?.role === "superadmin" || (user?.role === "hr" && (typeof employeeAccess === "object" ? employeeAccess[action] === true : employeeAccess === true));
+  const canAddEmployee = hasEmployeeAction("add");
+  const canEditEmployee = hasEmployeeAction("edit");
   const [viewMode, setViewMode] = useState("list");
   const [hrUsers, setHrUsers] = useState([]);
   const [searchInput, setSearchInput] = useState("");

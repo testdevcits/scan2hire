@@ -40,7 +40,7 @@ const HRLayout = () => {
     };
   }, [isTeamLead, user]);
 
-  const moduleAllowed = (key) => (isHr || isTeamLead) && (access === null || access?.modules === null || (typeof access?.modules?.[key] === 'object' ? access.modules[key].view !== false : access?.modules?.[key] !== false));
+  const moduleAllowed = (key) => (isHr || isTeamLead) && (key === "dashboard" || access === null || access?.modules === null || (typeof access?.modules?.[key] === 'object' ? access.modules[key].view !== false : access?.modules?.[key] !== false));
   const canViewSystemAllotments = isHr || isTeamLead ? moduleAllowed(isTeamLead ? 'systemAllotment' : 'systemAllotments') : Boolean(access?.systemAllotment);
 
   const panelTitle = isProjectCoordinator
