@@ -17,7 +17,9 @@ const EmployeeCredentials = () => {
   const [pageUnlocked, setPageUnlocked] = useState(false);
   const [loginPassword, setLoginPassword] = useState("");
   const [unlockingPage, setUnlockingPage] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [vaultPassword, setVaultPassword] = useState("");
+  const [showVaultPassword, setShowVaultPassword] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [credentials, setCredentials] = useState([]);
@@ -325,14 +327,14 @@ const EmployeeCredentials = () => {
         <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
           <label className="block text-sm font-medium">
             Login Password
-            <input
-              type="password"
+            <div className="relative mt-1"><input
+              type={showLoginPassword ? "text" : "password"}
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
-              className="mt-1 w-full border rounded-sm px-3 py-2"
+              className="w-full border rounded-sm px-3 py-2 pr-10"
               required
               autoFocus
-            />
+            /><button type="button" aria-label={showLoginPassword ? "Hide password" : "Show password"} onClick={() => setShowLoginPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showLoginPassword ? <FiEyeOff /> : <FiEye />}</button></div>
           </label>
           <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
         </form>
@@ -409,13 +411,13 @@ const EmployeeCredentials = () => {
         <form onSubmit={unlockVault} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">
           <label className="block text-sm font-medium">
             Vault Password
-            <input
-              type="password"
+            <div className="relative mt-1"><input
+              type={showVaultPassword ? "text" : "password"}
               value={vaultPassword}
               onChange={(e) => setVaultPassword(e.target.value)}
-              className="mt-1 w-full border rounded-sm px-3 py-2"
+              className="w-full border rounded-sm px-3 py-2 pr-10"
               required
-            />
+            /><button type="button" aria-label={showVaultPassword ? "Hide vault password" : "Show vault password"} onClick={() => setShowVaultPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showVaultPassword ? <FiEyeOff /> : <FiEye />}</button></div>
           </label>
           <Button text={loading ? "Opening..." : "Open Credentials"} loading={loading} type="submit" />
         </form>
