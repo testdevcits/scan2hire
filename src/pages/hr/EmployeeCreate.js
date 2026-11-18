@@ -24,7 +24,9 @@ const initialForm = {
   dateOfJoining: "",
   reportingManager: "",
   employeeType: "Permanent",
-  address: { street: "", city: "", state: "", country: "", pincode: "" },
+  address: { street: "", city: "", state: "", country: "India", pincode: "" },
+  permanentAddress: { street: "", city: "", state: "", country: "India", pincode: "" },
+  alternateAddress: { street: "", city: "", state: "", country: "India", pincode: "" },
   photo: null,
   documents: {},
   joiningChecklist: { idCard: false, credentials: false, tshirtBag: false, officeKeyPhoneSystem: false },
@@ -59,10 +61,10 @@ const EmployeeCreate = () => {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const handleAddressChange = (event) => {
+  const handleNamedAddressChange = (addressKey) => (event) => {
     const { name, value } = event.target;
     if (name === "pincode" && !/^\d{0,6}$/.test(value)) return;
-    setForm((current) => ({ ...current, address: { ...current.address, [name]: value } }));
+    setForm((current) => ({ ...current, [addressKey]: { ...current[addressKey], [name]: value } }));
   };
   const handleChecklist = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
 
@@ -148,7 +150,7 @@ const EmployeeCreate = () => {
           <EmployeeChecklist value={form} onChange={handleChecklist} />
         </div> : null}
 
-        {step === 3 ? <AddressFields value={form.address} onChange={handleAddressChange} className="md:col-span-3" /> : null}
+        {step === 3 ? <div className="md:col-span-3 space-y-5"><div><h3 className="mb-2 font-semibold">Permanent Address</h3><AddressFields value={form.permanentAddress} onChange={handleNamedAddressChange("permanentAddress")} /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={form.alternateAddress} onChange={handleNamedAddressChange("alternateAddress")} /></div></div> : null}
         {step === 3 ? <div className="md:col-span-3 border-t pt-4">
           <FileUploadField label="Employee Photo" name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG, WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[["aadhaarCard","Aadhaar Card"],["panCard","PAN Card"],["passbook","Bank Proof / Passbook"],["bloodGroupProof","Blood Group Proof"],["bondDocument","Bond Document"],["addressProof","Address Proof"],["experienceCertificate","Experience Certificate"]].map(([key,label]) => <FileUploadField key={key} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}</div>

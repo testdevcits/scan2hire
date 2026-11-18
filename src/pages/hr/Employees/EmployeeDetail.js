@@ -80,6 +80,12 @@ const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve
 });
 const normalizePassportPhoto = (file) => normalizePhoto(file, 413, 531);
 const normalizePanPhoto = (file) => normalizePhoto(file, 197, 276);
+const readImageSize = (file) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => { URL.revokeObjectURL(image.src); resolve({ width: image.width, height: image.height }); };
+  image.onerror = () => { URL.revokeObjectURL(image.src); reject(new Error("Invalid image")); };
+  image.src = URL.createObjectURL(file);
+});
 const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => {
@@ -101,10 +107,12 @@ const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
 });
 const employeeAccessModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ["credentials", "Credentials"], ["settings", "Settings"]];
 const hrAccessModules = [["dashboard", "Dashboard"], ["employees", "Employees"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["documents", "Documents & Signatures"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["systemAllotments", "System Allotments"]];
+const documentLabelMap = { photo: "Photo", aadhaarCard: "Aadhaar Card", panCard: "PAN Card", passbook: "Bank Proof / Passbook", bloodGroupProof: "Blood Group Proof", addressProof: "Address Proof", degree: "Degree", resume: "Resume" };
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
-  if (isSuperAdmin) availableTabs.push("credentials", "access", "security");
+  if (isSuperAdmin) availableTabs.push("credentials", "access");
+  if (canManage) availableTabs.push("security");
   if (canManage) availableTabs.push("actions");
   if (availableTabs.includes(requestedTab)) return requestedTab;
   if (editRequested && canManage) return "edit";
@@ -122,7 +130,6 @@ const EmployeeDetail = () => {
   const { user } = useContext(AuthContext);
   // Backend profile edits and employee lifecycle actions are HR-only.
   const canManage = user?.role === "hr" || user?.role === "superadmin";
-  const canManageDocuments = user?.role === "hr" || user?.role === "superadmin";
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -150,6 +157,8 @@ const EmployeeDetail = () => {
       country: "",
       pincode: "",
     },
+    permanentAddress: { street: "", city: "", state: "", country: "India", pincode: "" },
+    alternateAddress: { street: "", city: "", state: "", country: "India", pincode: "" },
     joiningChecklist: {}, leavingChecklist: {}, noDuesChecklist: {},
   });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -159,14 +168,17 @@ const EmployeeDetail = () => {
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [documentFiles, setDocumentFiles] = useState({});
+  const [existingDocumentFiles, setExistingDocumentFiles] = useState({});
   const [documentErrors, setDocumentErrors] = useState({});
   const [savingDocuments, setSavingDocuments] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [documentPreview, setDocumentPreview] = useState(null);
   const [newEmployeePassword, setNewEmployeePassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [accessDraft, setAccessDraft] = useState({});
   const [roleDraft, setRoleDraft] = useState("employee");
   const [savingAccess, setSavingAccess] = useState(false);
+  const [hrModuleAccess, setHrModuleAccess] = useState(null);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
     return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
@@ -189,14 +201,18 @@ const EmployeeDetail = () => {
         requests.push(hrApi.getEmployees());
         requests.push(authApi.getDepartments());
       }
+      if (user?.role === "hr") requests.push(authApi.getProfile());
       const responses = await Promise.all(requests);
       let responseIndex = 0;
       const employeeRes = responses[responseIndex++];
       const reportRes = includeReport ? responses[responseIndex++] : null;
       const employeesRes = canManage ? responses[responseIndex++] : null;
       const departmentsRes = canManage ? responses[responseIndex++] : null;
+      const profileRes = user?.role === "hr" ? responses[responseIndex++] : null;
       const employeeData = employeeRes.data.data;
+      if (profileRes) setHrModuleAccess(profileRes.data.data?.moduleAccess ?? null);
       setEmployee(employeeData);
+      setExistingDocumentFiles(Object.fromEntries(Object.entries(employeeData.documents || {}).map(([key, value]) => [key, value?.name || value?.fileName || (value?.url ? `${documentLabelMap[key] || key} (saved)` : "")]).filter(([, name]) => name)));
       const defaultAccess = Object.fromEntries(employeeAccessModules.map(([key]) => [key, employeeData.user?.moduleAccess?.[key] || { view: true, edit: true }]));
       setAccessDraft(defaultAccess);
       setRoleDraft(employeeData.user?.role === "teamlead" || employeeData.workRole === "teamlead" ? "teamlead" : "employee");
@@ -222,9 +238,11 @@ const EmployeeDetail = () => {
           street: employeeData.address?.street || "",
           city: employeeData.address?.city || "",
           state: employeeData.address?.state || "",
-          country: employeeData.address?.country || "",
+          country: employeeData.address?.country || "India",
           pincode: employeeData.address?.pincode || "",
         },
+        permanentAddress: { ...(employeeData.permanentAddress || employeeData.address || {}) },
+        alternateAddress: { ...(employeeData.alternateAddress || {}) },
         joiningChecklist: employeeData.joiningChecklist || {},
         leavingChecklist: employeeData.leavingChecklist || {},
         noDuesChecklist: employeeData.noDuesChecklist || {},
@@ -239,6 +257,24 @@ const EmployeeDetail = () => {
       if (initial) setLoading(false);
     }
   };
+
+  const hrCanViewModule = (key) => user?.role !== "hr"
+    || hrModuleAccess === null
+    || hrModuleAccess?.[key] === undefined
+    || hrModuleAccess[key]?.view !== false;
+  const hrCanEditModule = (key) => user?.role !== "hr"
+    || hrModuleAccess === null
+    || hrModuleAccess?.[key] === undefined
+    || hrModuleAccess[key]?.edit !== false;
+  const canManageDocuments = (user?.role === "hr" || user?.role === "superadmin") && hrCanEditModule("documents");
+
+  // The tab guard intentionally runs when the active tab or fetched HR permissions change.
+  useEffect(() => {
+    if (user?.role === "hr" && hrModuleAccess && activeTab === "documentSignatures" && !hrCanViewModule("documents")) {
+      changeActiveTab("details");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, hrModuleAccess, user?.role]);
 
   useEffect(() => {
     loadEmployee({ includeReport: false, initial: true });
@@ -350,6 +386,8 @@ const EmployeeDetail = () => {
         department: editForm.department.trim(),
         designation: editForm.designation.trim(),
         address: Object.fromEntries(Object.entries(editForm.address).map(([key, value]) => [key, value.trim()])),
+        permanentAddress: Object.fromEntries(Object.entries(editForm.permanentAddress).map(([key, value]) => [key, value.trim()])),
+        alternateAddress: Object.fromEntries(Object.entries(editForm.alternateAddress).map(([key, value]) => [key, value.trim()])),
       };
       await hrApi.updateEmployee(employeeId, payload);
       toast.success("Employee updated");
@@ -418,13 +456,13 @@ const EmployeeDetail = () => {
     }
   };
 
-  const handleAddressChange = (event) => {
+  const handleAddressChange = (event, addressKey = "address") => {
     const { name: field, value } = event.target;
     if (field === "pincode" && !/^\d{0,6}$/.test(value)) return;
     setEditForm((prev) => ({
       ...prev,
-      address: {
-        ...prev.address,
+      [addressKey]: {
+        ...prev[addressKey],
         [field]: value,
       },
     }));
@@ -567,7 +605,7 @@ const EmployeeDetail = () => {
     ["panCard", "PAN Card"],
     ["passbook", "Bank Proof / Passbook"],
     ["bloodGroupProof", "Blood Group Proof"],
-    ["drivingLicense", "Driving Licence"],
+    ["addressProof", "Address Proof"],
     ["degree", "Degree"],
     ["resume", "Resume"],
   ];
@@ -577,12 +615,13 @@ const EmployeeDetail = () => {
     : "border-red-200 bg-red-50 text-red-700";
   const employeeTabs = [
     { value: "details", label: "Details" },
-    ...(canManage ? [{ value: "edit", label: "Edit Profile" }] : []),
-    ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }, { value: "security", label: "Security" }] : []),
+    ...(canManage && hrCanEditModule("employees") ? [{ value: "edit", label: "Edit Profile" }] : []),
     { value: "attendance", label: "Attendance" },
     { value: "documents", label: "Documents" },
-    { value: "documentSignatures", label: "Documents & Signatures" },
-    ...(canManage ? [{ value: "actions", label: "Actions" }] : []),
+    ...(hrCanViewModule("documents") ? [{ value: "documentSignatures", label: "Documents & Signatures" }] : []),
+    ...(canManage && hrCanEditModule("employees") ? [{ value: "security", label: "Security" }] : []),
+    ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }] : []),
+    ...(canManage && hrCanEditModule("employees") ? [{ value: "actions", label: "Actions" }] : []),
   ];
 
   return (
@@ -653,10 +692,18 @@ const EmployeeDetail = () => {
             <DetailItem icon={<FiMapPin />} label="Address" value={formatAddress(employee.address)} className="md:col-span-2" />
           </div>
         </div>
+          <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm xl:col-span-2 dark:border-gray-700 dark:bg-gray-900">
+            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold text-gray-900 dark:text-white">Employee Documents</h3><button type="button" onClick={() => changeActiveTab("documents")} className="text-sm font-semibold text-[#f84525]">Manage documents</button></div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(documentLabelMap).map(([key, label]) => { const url = employee.documents?.[key]?.url; const uploaded = Boolean(url); return <div key={key} className={`flex items-center justify-between rounded-sm border px-3 py-2 text-sm ${uploaded ? "border-green-200 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}><span className="truncate">{label}</span>{uploaded ? <button type="button" onClick={() => setDocumentPreview({ label, url, type: employee.documents?.[key]?.resource_type || employee.documents?.[key]?.format })} className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button> : <span className="ml-2 shrink-0 text-xs font-semibold">Remaining</span>}</div>; })}</div>
+          </div>
 
       </section>}
 
-      {canManage && activeTab === "edit" && (
+      {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
+        {String(documentPreview.type || "").toLowerCase().includes("pdf") || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
+      </CommonModal>}
+
+      {canManage && hrCanEditModule("employees") && activeTab === "edit" && (
       <form id="edit-panel" role="tabpanel" aria-labelledby="edit-tab" ref={editFormRef} onSubmit={updateEmployee} className="scroll-mt-5 overflow-visible rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
         <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -777,7 +824,7 @@ const EmployeeDetail = () => {
 
         <div className="mt-5 border-t border-gray-100 pt-4">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-900"><FiMapPin className="text-[#f84525]" />Address</h3>
-          <AddressFields value={editForm.address} onChange={handleAddressChange} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" />
+          <div className="space-y-5"><div><h3 className="mb-2 font-semibold">Permanent Address</h3><AddressFields value={editForm.permanentAddress} onChange={(event) => handleAddressChange(event, "permanentAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={editForm.alternateAddress} onChange={(event) => handleAddressChange(event, "alternateAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div></div>
         </div>
         <div className="mt-5 border-t border-gray-100 pt-4">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Employee Checklists</h3>
@@ -831,7 +878,7 @@ const EmployeeDetail = () => {
         </section>
       )}
 
-      {user?.role === "superadmin" && activeTab === "security" && (
+      {canManage && hrCanEditModule("employees") && activeTab === "security" && (
         <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
           <SectionHeader title="Security" subtitle="Manage this employee login securely." />
           <div className="mt-5 flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-4">
@@ -841,7 +888,7 @@ const EmployeeDetail = () => {
         </section>
       )}
 
-      {canManage && activeTab === "actions" && (
+      {canManage && hrCanEditModule("employees") && activeTab === "actions" && (
         <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
           <SectionHeader title="Employee Actions" subtitle="Generate reports and manage this employee account." />
           <div className="mt-5 grid grid-cols-1 gap-4 rounded border border-gray-200 bg-gray-50 p-4 md:grid-cols-2">
@@ -858,10 +905,10 @@ const EmployeeDetail = () => {
 
       {activeTab === "documents" && <section id="documents-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <SectionHeader title="Documents" subtitle="Upload or replace employee documents below." />
-        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4">{documentItems.map(([key, label]) => { const isSupporting = key === "drivingLicense"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "drivingLicense", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name} selectedFile={documentFiles[key]} error={documentErrors[key]} uploaded={Boolean(documentFiles[key])} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch { setDocumentErrors((current) => ({ ...current, [key]: "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4">{documentItems.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key]} error={documentErrors[key]} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
 
-      {activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
+      {hrCanViewModule("documents") && activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="border-b border-gray-100 p-4"><h2 className="font-semibold">Documents &amp; Signatures</h2><p className="mt-1 text-xs text-gray-500">Manage this employee’s appointment letter, HR policy and signature verification.</p></div>
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
       </section>}

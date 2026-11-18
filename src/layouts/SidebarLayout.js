@@ -219,7 +219,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
         />
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 min-h-0 h-full flex-1 flex-col overflow-hidden">
         <header className={`${mode === "dark" ? "bg-gray-900 text-white border-gray-700" : "bg-white border-gray-200"} rounded-[18px] border shadow-[0_12px_30px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}>
           <button
             className="md:hidden text-xl text-[#f84525]"
@@ -386,7 +386,7 @@ const SidebarLayout = ({ title, navItems, variant = "default" }) => {
           </div>
         </header>
 
-        <main className={`flex-1 overflow-auto pt-3 ${mode === "dark" ? "bg-gray-950" : ""}`}>
+        <main className={`min-h-0 min-w-0 h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden pt-3 ${mode === "dark" ? "bg-gray-950" : ""}`}>
           <Outlet />
         </main>
       </div>
