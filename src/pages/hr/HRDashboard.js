@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { FiCalendar, FiClock, FiGift, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiCalendar, FiClock, FiUserCheck, FiUsers } from "react-icons/fi";
 import { hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import DateRangePicker from "../../components/common/DateRangePicker";
@@ -9,7 +9,6 @@ import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 
-const ORANGE = "#f84525";
 const AMBER = "#ffa826";
 const getLocalDateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -68,9 +67,6 @@ const HRDashboard = () => {
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
     [employees]
   );
-  const todayBirthdays = useMemo(() => employees.filter((employee) => { if (!employee.isActive || !employee.dob) return false; const dob = new Date(employee.dob); const now = new Date(); return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate(); }), [employees]);
-  const [birthdaySplash, setBirthdaySplash] = useState(false);
-  useEffect(() => { if (!todayBirthdays.length) return undefined; setBirthdaySplash(true); const timer = setTimeout(() => setBirthdaySplash(false), 5000); return () => clearTimeout(timer); }, [todayBirthdays.length]);
 
   const statCards = useMemo(
     () => [
@@ -112,20 +108,12 @@ const HRDashboard = () => {
   const rangeBucketCount = rangeIsValid
     ? Math.ceil((new Date(`${dateRange.end}T00:00:00`) - new Date(`${dateRange.start}T00:00:00`) + 86400000) / (7 * 86400000))
     : 0;
-  const interviewActivityTrend = useMemo(() => Array.from({ length: rangeBucketCount }, (_, index) => {
-    const week = index;
-    const count = candidates.reduce((total, candidate) => total + (candidate.interviewRounds || []).filter(
-      (round) => getRangeBucketIndex(round.date, dateRange.start, dateRange.end) === week
-    ).length, 0);
-    return { label: getRangeBucketLabel(dateRange.start, week), value: count };
-  }), [candidates, dateRange.end, dateRange.start, rangeBucketCount]);
 
   const leaveActivityTrend = useMemo(() => Array.from({ length: rangeBucketCount }, (_, index) => ({
     label: getRangeBucketLabel(dateRange.start, index),
     value: leaves.filter((leave) => getRangeBucketIndex(leave.createdAt, dateRange.start, dateRange.end) === index).length,
   })), [dateRange.end, dateRange.start, leaves, rangeBucketCount]);
 
-  const interviewTotal = interviewActivityTrend.reduce((total, point) => total + point.value, 0);
   const leaveTotal = leaveActivityTrend.reduce((total, point) => total + point.value, 0);
   const chartRangeLabel = rangeIsValid
     ? `${new Date(`${dateRange.start}T12:00:00`).toLocaleDateString()} – ${new Date(`${dateRange.end}T12:00:00`).toLocaleDateString()}`
@@ -158,7 +146,6 @@ const HRDashboard = () => {
 
   return (
     <div className="min-h-full space-y-4  p-3 dark:bg-gray-950 sm:p-4">
-      {birthdaySplash && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"><div className="rounded-2xl bg-white p-8 text-center shadow-2xl"><div className="mx-auto mb-3 h-14 w-14 animate-bounce rounded-full bg-orange-100 p-3 text-3xl">🎂</div><h2 className="text-xl font-bold text-[#f84525]">Happy Birthday!</h2><p className="mt-1 text-sm text-gray-600">Wishing {todayBirthdays.map((item) => item.name).join(", ")} a wonderful day.</p><div className="mt-4 h-1 w-48 overflow-hidden rounded bg-orange-100"><div className="h-full w-full animate-pulse bg-[#f84525]" /></div></div></div>}
       <PageHeader
         title={isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}
         description={isTeamLead
@@ -177,54 +164,9 @@ const HRDashboard = () => {
         ))}
       </section>
 
-      {birthdayReminders.length > 0 && (
-        <section className="rounded-sm border border-gray-100 border-l-4 border-l-[#f84525] bg-white p-3 shadow-sm dark:border-gray-800 dark:border-l-[#f84525] dark:bg-gray-900 sm:p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-full bg-[#fff5f3] text-[#f84525] flex items-center justify-center">
-                <FiGift className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Birthday Reminder</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Birthdays in the current month.</p>
-              </div>
-            </div>
-            <Button text="Employees" variant="secondary" onClick={() => navigate("/hr/employees")} />
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {birthdayReminders.map((employee) => (
-              <CompactInfoRow
-                key={employee._id}
-                title={employee.name}
-                subtitle={`${employee.employeeId || "-"} | ${employee.department || "No department"} | ${employee.designation || "No designation"}`}
-                className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20"
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <SectionCard title="Interview Activity" subtitle="Interview rounds scheduled in selected range" contentClassName="pt-3">
-          <ChartMetric icon={<FiUserCheck className="h-4 w-4" />} label="Interview rounds in range" value={interviewTotal} />
-          {rangeIsValid && interviewTotal > 0 ? (
-            <div className="h-36 sm:h-40">
-              <TrendAreaChart
-                data={interviewActivityTrend}
-                xKey="label"
-                series={[{ key: "value", name: "Interview rounds", color: ORANGE }]}
-                showYAxis={false}
-                showLatestDot
-                strokeWidth={2.5}
-                gradientOpacity={0.18}
-                variant="sparkline"
-              />
-            </div>
-          ) : (
-            <div className="flex h-36 items-center justify-center rounded-sm border border-dashed border-gray-200 bg-white px-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:h-40">
-              {chartRangeLabel}: no interview rounds recorded
-            </div>
-          )}
+        <SectionCard title="This Month's Birthdays" subtitle={`Employee birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} contentClassName="pt-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{birthdayReminders.length ? birthdayReminders.map((employee) => <CompactInfoRow key={employee._id} title={employee.name} subtitle={`${new Date(employee.dob).toLocaleDateString(undefined, { day: "2-digit", month: "short" })} · ${employee.employeeId || "-"}`} className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20" />) : <p className="text-sm text-gray-500">No employee birthdays this month.</p>}</div>
         </SectionCard>
 
         <SectionCard title="Leave Requests" subtitle="Requests submitted in selected range" contentClassName="pt-3">
