@@ -25,7 +25,7 @@ const fileData = file => new Promise((resolve, reject) => {
 export default function DocumentSigningList({ managed = false, employeeFilterId = '' }) {
   const { user } = useContext(AuthContext);
   const toast = useToast();
-  const isHr = user?.role === 'hr';
+  const isHr = ['hr', 'superadmin'].includes(user?.role);
   const canDelete = managed && ['hr', 'superadmin'].includes(user?.role);
   const [documents, setDocuments] = useState([]);
   const [employees, setEmployees] = useState([]);

@@ -25,7 +25,7 @@ const HRLayout = () => {
       .then((res) => {
         if (!active) return;
         const data = res.data.data || {};
-        setAccess(isTeamLead ? data : data.moduleAccess === null ? null : { modules: data.moduleAccess });
+        setAccess(isTeamLead ? { modules: data.moduleAccess || null, ...data } : data.moduleAccess === null ? null : { modules: data.moduleAccess });
       })
       .catch(() => {
         if (active) setAccess({});
@@ -36,8 +36,8 @@ const HRLayout = () => {
     };
   }, [isTeamLead, user]);
 
-  const moduleAllowed = (key) => isHr && (access === null || (typeof access?.modules?.[key] === 'object' ? access.modules[key].view !== false : access?.modules?.[key] !== false));
-  const canViewSystemAllotments = isHr ? moduleAllowed('systemAllotments') : Boolean(access?.systemAllotment);
+  const moduleAllowed = (key) => (isHr || isTeamLead) && (access === null || access?.modules === null || (typeof access?.modules?.[key] === 'object' ? access.modules[key].view !== false : access?.modules?.[key] !== false));
+  const canViewSystemAllotments = isHr || isTeamLead ? moduleAllowed(isTeamLead ? 'systemAllotment' : 'systemAllotments') : Boolean(access?.systemAllotment);
 
   const panelTitle = isProjectCoordinator
     ? "Project Coordinator Panel"
@@ -53,7 +53,7 @@ const HRLayout = () => {
     ...(isTeamLead ? [{ label: "Conative Calendar", path: "/hr/leave-calendar", icon: <FiCalendar /> }] : []),
     // Task module is temporarily hidden.
     // { label: "Tasks", path: "/hr/tasks", icon: <FiCheckSquare /> },
-    ...(!isProjectCoordinator && moduleAllowed('employees')
+    ...(!isProjectCoordinator && moduleAllowed(isTeamLead ? 'yourTeam' : 'employees')
       ? [{ label: isTeamLead ? "Your Team" : "Employees", path: "/hr/employees", icon: <FiUsers /> }]
       : []),
     ...(!isProjectCoordinator && moduleAllowed('candidates') ? [{ label: "Candidates", path: "/hr/candidates/list", icon: <FiUserCheck /> }] : []),

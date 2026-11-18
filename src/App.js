@@ -36,6 +36,8 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import ManageHR from "./pages/admin/ManageHR";
 import Departments from "./pages/admin/Departments";
 import EmployeeAccessControl from "./pages/admin/EmployeeAccessControl";
+import EmployeeModuleAccess from "./pages/admin/EmployeeModuleAccess";
+import AuditLogs from "./pages/admin/AuditLogs";
 import SystemAllotments from "./pages/SystemAllotments";
 import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
@@ -86,6 +88,8 @@ function App() {
           <Route path="leave-reports" element={<LeaveReports />} />
           <Route path="credentials" element={<EmployeeCredentials />} />
           <Route path="roles-access" element={<EmployeeAccessControl />} />
+          <Route path="employee-module-access" element={<EmployeeModuleAccess />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>

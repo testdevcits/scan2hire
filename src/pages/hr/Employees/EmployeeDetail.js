@@ -73,7 +73,7 @@ const EmployeeDetail = () => {
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
   // Backend profile edits and employee lifecycle actions are HR-only.
-  const canManage = user?.role === "hr";
+  const canManage = user?.role === "hr" || user?.role === "superadmin";
   const canManageDocuments = user?.role === "hr" || user?.role === "superadmin";
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
@@ -86,6 +86,7 @@ const EmployeeDetail = () => {
     name: "",
     mobile: "",
     altMobile: "",
+    bloodGroup: "",
     department: "",
     designation: "",
     dateOfJoining: "",
@@ -131,7 +132,6 @@ const EmployeeDetail = () => {
     try {
       const requests = [hrApi.getEmployee(employeeId)];
       if (includeReport) requests.push(hrApi.getEmployeeMonthlyReport(employeeId, month));
-      if (user?.role === "superadmin") requests.push(hrApi.getEmployeeAccountCredentials(employeeId));
       if (canManage) {
         requests.push(hrApi.getEmployees());
         requests.push(authApi.getDepartments());
@@ -140,7 +140,6 @@ const EmployeeDetail = () => {
       let responseIndex = 0;
       const employeeRes = responses[responseIndex++];
       const reportRes = includeReport ? responses[responseIndex++] : null;
-      const credentialsRes = user?.role === "superadmin" ? responses[responseIndex++] : null;
       const employeesRes = canManage ? responses[responseIndex++] : null;
       const departmentsRes = canManage ? responses[responseIndex++] : null;
       const employeeData = employeeRes.data.data;
@@ -154,6 +153,7 @@ const EmployeeDetail = () => {
         name: employeeData.name || "",
         mobile: employeeData.mobile || "",
         altMobile: employeeData.altMobile || "",
+        bloodGroup: employeeData.bloodGroup || "",
         department: employeeData.department || "",
         designation: employeeData.designation || "",
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
@@ -176,7 +176,6 @@ const EmployeeDetail = () => {
         setAttendance(reportRes.data.data?.records || []);
         setSummary(reportRes.data.data?.summary || null);
       }
-      if (credentialsRes) setAccountCredentials(credentialsRes.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load employee");
     } finally {
@@ -485,7 +484,8 @@ const EmployeeDetail = () => {
     ["photo", "Photo"],
     ["aadhaarCard", "Aadhaar Card"],
     ["panCard", "PAN Card"],
-    ["passbook", "Passbook"],
+    ["passbook", "Bank Proof / Passbook"],
+    ["bloodGroupProof", "Blood Group Proof"],
     ["degree", "Degree"],
     ["resume", "Resume"],
   ];
@@ -641,6 +641,13 @@ const EmployeeDetail = () => {
             pattern={name.toLowerCase().includes("mobile") ? "[0-9]{10}" : undefined}
           />
         ))}
+        <CustomDropdown
+          label="Blood Group"
+          value={editForm.bloodGroup}
+          onChange={(value) => setEditForm((current) => ({ ...current, bloodGroup: value }))}
+          options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]}
+          placeholder="Select blood group"
+        />
         <CustomDropdown
           label="Department"
           value={editForm.department}

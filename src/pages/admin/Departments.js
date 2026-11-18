@@ -3,6 +3,8 @@ import { FiEdit2, FiPlus, FiRefreshCw, FiTrash2 } from "react-icons/fi";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import InputField from "../../components/common/InputField";
+import CustomDropdown from "../../components/common/CustomDropdown";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -20,6 +22,7 @@ const Departments = () => {
   const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const loadDepartments = async () => {
     setLoading(true);
@@ -41,6 +44,7 @@ const Departments = () => {
   const resetForm = () => {
     setForm(emptyForm);
     setEditingId("");
+    setShowForm(false);
   };
 
   const saveDepartment = async (e) => {
@@ -65,6 +69,7 @@ const Departments = () => {
 
   const editDepartment = (department) => {
     setEditingId(department._id);
+    setShowForm(true);
     setForm({
       name: department.name || "",
       description: department.description || "",
@@ -104,62 +109,32 @@ const Departments = () => {
   if (loading) return <CommonLoader text="Loading departments..." />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 p-2">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Departments</h1>
           <p className="text-sm text-gray-500">Manage department master data used in employee forms.</p>
         </div>
-        <Button variant="secondary" onClick={loadDepartments}>
-          <span className="inline-flex items-center gap-2">
-            <FiRefreshCw /> Refresh
-          </span>
-        </Button>
+        <div className="flex items-center gap-2"><Button variant="secondary" onClick={loadDepartments}><span className="inline-flex items-center gap-2"><FiRefreshCw /> Refresh</span></Button><Button onClick={() => { resetForm(); setShowForm(true); }}><span className="inline-flex items-center gap-2"><FiPlus /> Add Department</span></Button></div>
       </div>
 
-      <form onSubmit={saveDepartment} className="bg-white rounded-sm shadow p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <h2 className="font-semibold md:col-span-4">{editingId ? "Update Department" : "Add Department"}</h2>
-        <label className="text-sm font-medium text-gray-700">
-          Department Name
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-            required
-          />
-        </label>
-        <label className="text-sm font-medium text-gray-700 md:col-span-2">
-          Description
-          <input
-            type="text"
-            value={form.description}
-            onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          />
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Status
-          <select
-            value={form.isActive ? "active" : "inactive"}
-            onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "active" }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <div className="md:col-span-4 flex flex-col sm:flex-row gap-2">
-          <Button type="submit" loading={saving}>
-            <span className="inline-flex items-center gap-2">
-              <FiPlus /> {editingId ? "Save Department" : "Add Department"}
-            </span>
-          </Button>
-          {editingId && <Button text="Cancel" variant="secondary" onClick={resetForm} />}
-        </div>
-      </form>
+      {showForm && <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/35 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) resetForm(); }}>
+        <form onSubmit={saveDepartment} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-md space-y-4 rounded-lg border-2 border-gray-300 bg-white p-5 shadow-2xl">
+          <div className="flex items-center justify-between border-b-2 border-gray-200 pb-3">
+            <h2 className="text-lg font-semibold text-gray-900">{editingId ? "Update Department" : "Add Department"}</h2>
+            <button type="button" aria-label="Close" onClick={resetForm} className="rounded px-2 py-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700">×</button>
+          </div>
+          <InputField label="Department Name" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} required />
+          <InputField label="Description" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
+          <CustomDropdown label="Status" value={form.isActive ? "active" : "inactive"} onChange={(value) => setForm((prev) => ({ ...prev, isActive: value === "active" }))} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} showPlaceholder={false} />
+          <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
+            <Button text="Cancel" variant="secondary" onClick={resetForm} />
+            <Button type="submit" loading={saving}><span className="inline-flex items-center gap-2"><FiPlus /> {editingId ? "Save Department" : "Add Department"}</span></Button>
+          </div>
+        </form>
+      </div>}
 
-      <section className="bg-white rounded-sm shadow overflow-hidden">
+      <section className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm">
         <div className="hidden md:grid grid-cols-5 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
           {["Department", "Description", "Status", "Updated", "Action"].map((item) => (
             <div key={item} className="px-4 py-3">{item}</div>

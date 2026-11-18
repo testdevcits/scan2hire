@@ -1,0 +1,2 @@
+const DateRangeFilter = ({ from, to, onFromChange, onToChange, onApply }) => <div className="flex flex-wrap gap-2 rounded border bg-white p-3"><input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} className="rounded border px-3 py-2" /><input type="date" value={to} onChange={(e) => onToChange(e.target.value)} className="rounded border px-3 py-2" /><button type="button" onClick={onApply} className="rounded bg-[#f84525] px-4 py-2 text-white">Filter</button></div>;
+export default DateRangeFilter;

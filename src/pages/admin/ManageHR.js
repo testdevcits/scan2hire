@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
-import CommonModal from "../../components/common/CommonModal";
 import CommonLoader from "../../components/common/CommonLoader";
+import EmployeeModuleAccess from "./EmployeeModuleAccess";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -11,6 +12,7 @@ const moduleOptions = [["dashboard", "Dashboard", "View HR dashboard and summary
 
 const ManageHR = () => {
   const toast = useToast();
+  const navigate = useNavigate();
   const { confirm } = useModal();
   const [hrs, setHrs] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -20,8 +22,10 @@ const ManageHR = () => {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [accessTarget, setAccessTarget] = useState(null);
+  const [drawerClosing, setDrawerClosing] = useState(false);
   const [moduleDraft, setModuleDraft] = useState({});
   const [savingAccess, setSavingAccess] = useState(false);
+  const [activeTab, setActiveTab] = useState("hr");
   const roleLabel = "HR";
 
   const hrEmployeeIds = useMemo(
@@ -105,6 +109,8 @@ const ManageHR = () => {
     }
   };
 
+  const getEmployeeProfileId = (hr) => hr.employeeProfile?._id || hr.employeeProfile || employees.find((employee) => String(employee.name || "").trim().toLowerCase() === String(hr.name || "").trim().toLowerCase() || String(employee.email || "").toLowerCase() === String(hr.email || "").toLowerCase())?._id;
+
   const editHr = async (hr) => {
     const ok = await confirm({
       title: `Edit ${roleLabel}`,
@@ -147,10 +153,11 @@ const ManageHR = () => {
   };
   const saveAccess = async () => {
     setSavingAccess(true);
-    try { await authApi.updateHrModuleAccess(accessTarget._id, moduleDraft); toast.success('HR module access updated'); setAccessTarget(null); await loadHrs(); }
+    try { await authApi.updateHrModuleAccess(accessTarget._id, moduleDraft); toast.success('HR module access updated'); closeDrawer(); await loadHrs(); }
     catch (err) { toast.error(err.response?.data?.message || 'Unable to update module access'); }
     finally { setSavingAccess(false); }
   };
+  const closeDrawer = () => { setDrawerClosing(true); window.setTimeout(() => { setDrawerClosing(false); setAccessTarget(null); }, 220); };
 
   const removeHrAccess = async (hr) => {
     const ok = await confirm({
@@ -176,8 +183,8 @@ const ManageHR = () => {
       <section className="bg-white rounded-sm shadow p-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage {roleLabel}</h1>
-            <p className="text-sm text-gray-500 mt-1">Create HR accounts and control which panel modules each HR user can access.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Role &amp; Access</h1>
+            <p className="text-sm text-gray-500 mt-1">Assign roles and manage module access for HR, employees and team leads.</p>
           </div>
           <Button
             text={showForm ? "Close" : `Assign Employee as ${roleLabel}`}
@@ -263,9 +270,17 @@ const ManageHR = () => {
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="px-4 py-3 bg-gray-50 border-b">
-          <h2 className="font-semibold text-gray-900">HR Role Access</h2>
-          <p className="text-xs text-gray-500 mt-1">Choose “Manage HR Role Access” to decide which modules each HR user can see.</p>
+        <div className="flex items-center gap-2 border-b border-gray-100 px-4 pt-4">
+          <button type="button" onClick={() => setActiveTab("hr")} className={`px-3 pb-3 text-sm font-semibold ${activeTab === "hr" ? "border-b-2 border-[#f84525] text-[#f84525]" : "text-gray-500"}`}>HR Role &amp; Access</button>
+          <button type="button" onClick={() => setActiveTab("employee")} className={`px-3 pb-3 text-sm font-semibold ${activeTab === "employee" ? "border-b-2 border-[#f84525] text-[#f84525]" : "text-gray-500"}`}>Employee Role &amp; Access</button>
+          <button type="button" onClick={() => setActiveTab("teamlead")} className={`px-3 pb-3 text-sm font-semibold ${activeTab === "teamlead" ? "border-b-2 border-[#f84525] text-[#f84525]" : "text-gray-500"}`}>Team Lead Role &amp; Access</button>
+        </div>
+        {activeTab === "employee" ? <div className="p-4"><EmployeeModuleAccess embedded /></div> : null}
+        {activeTab === "teamlead" ? <div className="p-4"><EmployeeModuleAccess role="teamlead" title="Team Lead Role & Access" embedded /></div> : null}
+        {activeTab === "hr" ? <>
+        <div className="border-b bg-gray-50 px-4 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">HR Role &amp; Access</h2>
+          <p className="mt-1 text-xs text-gray-500 md:text-sm">Choose “Manage Role Access” to decide which modules each HR user can see.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full text-sm">
@@ -304,10 +319,13 @@ const ManageHR = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex gap-2 flex-wrap">
-                        <button type="button" onClick={() => editHr(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-blue-600">
+                        <button type="button" onClick={() => getEmployeeProfileId(hr) ? navigate(`/admin/employees/${getEmployeeProfileId(hr)}`) : toast.error("Employee profile not found")} className="px-3 py-1.5 rounded-sm text-xs text-white bg-blue-600">
+                          Edit Employee
+                        </button>
+                        <button type="button" onClick={() => editHr(hr)} className="px-3 py-1.5 rounded-sm text-xs text-white bg-indigo-600">
                           Edit Login
                         </button>
-                        <button type="button" onClick={() => openAccess(hr)} className="px-3 py-1.5 rounded-sm text-xs font-semibold text-white bg-purple-600">Manage HR Role Access</button>
+                        <button type="button" onClick={() => openAccess(hr)} className="px-3 py-1.5 rounded-sm text-xs font-semibold text-white bg-purple-600">Manage Role Access</button>
                         <button type="button" onClick={() => toggleHr(hr)} className={`px-3 py-1.5 rounded-sm text-xs text-white ${hr.isActive ? "bg-gray-900" : "bg-green-600"}`}>
                           {hr.isActive ? "Deactivate" : "Activate"}
                         </button>
@@ -322,11 +340,12 @@ const ManageHR = () => {
             </tbody>
           </table>
         </div>
+        </> : null}
       </section>
-      {accessTarget && <CommonModal title="Manage HR Role Access" subtitle={`Select the modules that ${accessTarget.name} is allowed to view and use.`} className="max-w-2xl" onClose={() => { if (!savingAccess) setAccessTarget(null); }} footer={<><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={() => setAccessTarget(null)} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></>}>
+      {accessTarget && <div className={`fixed inset-0 z-50 bg-black/20 ${drawerClosing ? "animate-fade-out" : ""}`} onClick={() => { if (!savingAccess) closeDrawer(); }}><aside className={`${drawerClosing ? "animate-slide-out-right" : "animate-slide-in-right"} absolute right-0 top-0 flex h-full w-full max-w-xl flex-col bg-white shadow-2xl`} onClick={(event) => event.stopPropagation()}><div className="border-b px-6 py-5"><div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold">Manage Role Access</h2><p className="mt-1 text-sm text-gray-500">Select modules for {accessTarget.name}.</p></div><button type="button" onClick={closeDrawer} className="text-xl text-gray-500">×</button></div></div><div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-sm border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><p className="font-semibold">HR role permissions</p><p className="mt-1 text-xs">Checked modules will appear in this HR user’s panel. Unchecked modules will be hidden.</p></div>
         <div className="grid gap-3 sm:grid-cols-2">{moduleOptions.map(([key, label, description]) => <div key={key} className="rounded-sm border border-gray-200 p-3 dark:border-gray-700"><span className="block text-sm font-semibold text-gray-900 dark:text-white">{label}</span><span className="mt-1 block text-xs text-gray-500">{description}</span><div className="mt-3 flex gap-5 text-xs font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(moduleDraft[key]?.view)} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: { ...current[key], view: event.target.checked } }))} className="accent-[#f84525]" /> View</label><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(moduleDraft[key]?.edit)} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: { ...current[key], edit: event.target.checked, view: event.target.checked || current[key]?.view } }))} className="accent-[#f84525]" /> Edit</label></div></div>)}</div>
-      </CommonModal>}
+      </div><div className="flex justify-end gap-2 border-t bg-gray-50 px-6 py-4"><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={closeDrawer} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></div></aside></div>}
     </div>
   );
 };

@@ -9,6 +9,7 @@ const SelectField = ({
   error,
   required,
   placeholder = "Select",
+  showPlaceholder = true,
 }) => {
   return (
     <div className="flex flex-col min-w-0">
@@ -23,7 +24,7 @@ const SelectField = ({
           error ? "border-red-500" : "border-gray-300 dark:border-gray-700"
         }`}
       >
-        <option value="">{placeholder}</option>
+        {showPlaceholder && !value && <option value="">{placeholder}</option>}
         {options.map((option) => {
           const optionValue = typeof option === "string" ? option : option.value;
           const optionLabel = typeof option === "string" ? option : option.label;

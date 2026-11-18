@@ -18,7 +18,7 @@ const ManageEmployees = () => {
     useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const canAddEmployee = user?.role === "hr";
+  const canAddEmployee = user?.role === "hr" || user?.role === "superadmin";
   const canEditEmployee = user?.role === "hr" || user?.role === "superadmin";
   const [viewMode, setViewMode] = useState("list");
   const [hrUsers, setHrUsers] = useState([]);
@@ -55,17 +55,18 @@ const ManageEmployees = () => {
     fetchEmployees(params).finally(() => setHasLoadedEmployees(true));
   }, [debouncedSearch, fetchEmployees, isServerPaginated, page, pageSize, viewMode]);
 
-  const hrRows = useMemo(() => hrUsers.map((hr) => ({
-    ...hr,
-    employeeId: "HR",
-    department: "HR",
-    designation: "HR",
-    isHrAccount: true,
-  })), [hrUsers]);
-  const hrEmails = useMemo(() => new Set(hrUsers.map((hr) => String(hr.email || "").toLowerCase())), [hrUsers]);
-  const nonHrEmployees = useMemo(() => employees.filter(
-    (employee) => !hrEmails.has(String(employee.email || "").toLowerCase())
-  ), [employees, hrEmails]);
+  const hrRows = useMemo(() => hrUsers.map((hr) => {
+    const linked = hr.employeeProfile?._id || hr.employeeProfile || employees.find((item) => String(item.email || "").toLowerCase() === String(hr.email || "").toLowerCase() || String(item.name || "").trim().toLowerCase() === String(hr.name || "").trim().toLowerCase())?._id;
+    const profile = hr.employeeProfile && typeof hr.employeeProfile === "object" ? hr.employeeProfile : employees.find((item) => String(item._id) === String(linked));
+    return { ...hr, name: profile?.name || hr.name, email: profile?.email || hr.email, mobile: profile?.mobile || hr.mobile, employeeId: profile?.employeeId || "HR", department: profile?.department || "HR", designation: profile?.designation || "HR", isHrAccount: true, linkedEmployeeId: linked };
+  }), [hrUsers, employees]);
+  const hrEmails = useMemo(() => new Set(hrUsers.flatMap((hr) => [hr.email, hr.employeeProfile?.email]).filter(Boolean).map((email) => String(email).toLowerCase())), [hrUsers]);
+  const hrLinkedIds = useMemo(() => new Set(hrRows.map((row) => String(row.linkedEmployeeId || "")).filter(Boolean)), [hrRows]);
+  const hrIdentityKeys = useMemo(() => new Set(hrRows.map((row) => `${String(row.name || "").trim().toLowerCase()}|${String(row.mobile || "").trim()}`).filter((key) => key !== "|")), [hrRows]);
+  const nonHrEmployees = useMemo(() => employees.filter((employee) => {
+    const identity = `${String(employee.name || "").trim().toLowerCase()}|${String(employee.mobile || "").trim()}`;
+    return !hrEmails.has(String(employee.email || "").toLowerCase()) && !hrLinkedIds.has(String(employee._id)) && !hrIdentityKeys.has(identity);
+  }), [employees, hrEmails, hrLinkedIds, hrIdentityKeys]);
   const sortedHrEmployees = useMemo(() => [...employees].sort((left, right) =>
     String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" })
   ), [employees]);
@@ -89,14 +90,13 @@ const ManageEmployees = () => {
   const formatValue = (value) => value || "N/A";
   const isTeamLead = (user?.effectiveRole || user?.role) === "teamlead";
   const openEmployee = (employee) => {
-    if (employee.isHrAccount) {
-      if (user?.role === "hr") return;
-      navigate("/admin/hrs");
-      return;
-    }
-    navigate(`${employeesPath}/${employee._id}`);
+    const employeeRecordId = employee.isHrAccount ? employee.linkedEmployeeId : employee._id;
+    if (employeeRecordId) navigate(`${employeesPath}/${employeeRecordId}`);
   };
-  const editEmployee = (employee) => navigate(`${employeesPath}/${employee._id}?edit=1`);
+  const editEmployee = (employee) => {
+    const employeeRecordId = employee.isHrAccount ? employee.linkedEmployeeId : employee._id;
+    if (employeeRecordId) navigate(`${employeesPath}/${employeeRecordId}?edit=1`);
+  };
   const employeesPath = user?.role === "superadmin" ? "/admin/employees" : "/hr/employees";
 
   const paginationProps = isServerPaginated
