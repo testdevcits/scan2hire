@@ -154,6 +154,7 @@ const ManageEmployees = () => {
     />
   );
   const cardEmployees = isServerPaginated ? employees : filteredEmployees;
+  const employeeOnlyCount = filteredEmployees.filter((item) => item.user?.role !== "hr" && item.workRole !== "hr").length;
 
   if (loading && !hasLoadedEmployees) return <CommonLoader text="Fetching employees..." />;
 
@@ -175,7 +176,7 @@ const ManageEmployees = () => {
             options={[{ value: "list", label: "List View" }, { value: "card", label: "Card View" }]}
           />
           <span className="rounded-sm bg-[#fff5f3] px-3 py-2 text-sm text-[#f84525]">
-            {isTeamLead ? "Team Members" : "Total Employees"}: {totalEmployees}
+            {isTeamLead ? "Team Members" : user?.role === "superadmin" ? "Employees" : "Total Employees"}: {user?.role === "superadmin" ? employeeOnlyCount : totalEmployees}
           </span>
           {user?.role === "superadmin" && (
             <span className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-sm">
