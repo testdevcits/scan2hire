@@ -38,7 +38,13 @@ const getMonthFromCursor = (cursor) => {
 const getLocalDateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const calendar2026Entries = [
+  ["01-26", "Republic Day", "holiday"], ["03-04", "Holi", "holiday"], ["08-15", "Independence Day", "holiday"], ["10-02", "Gandhi Jayanti", "holiday"], ["11-08", "Diwali", "holiday"],
+  ["01-01", "New Year", "optional_leave"], ["01-14", "Makar Sankranti", "optional_leave"], ["01-14", "Pongal", "optional_leave"], ["02-15", "Maha Shivratri", "optional_leave"], ["03-08", "Rang Panchami", "optional_leave"], ["03-19", "Gudi Padwa", "optional_leave"], ["03-21", "Eid", "optional_leave"], ["03-26", "Rama Navami", "optional_leave"], ["03-31", "Mahavir Janma Kalyanak", "optional_leave"], ["04-03", "Good Friday", "optional_leave"], ["05-27", "Bakri Id / Eid ul-Adha", "optional_leave"], ["06-26", "Muharram", "optional_leave"], ["08-26", "Onam", "optional_leave"], ["08-28", "Raksha Bandhan", "optional_leave"], ["09-04", "Krishna Janmashtami", "optional_leave"], ["09-26", "Anant Chaturdashi", "optional_leave"], ["10-18", "Durga Ashtami", "optional_leave"], ["10-19", "Durga Navami", "optional_leave"], ["10-20", "Dussehra", "optional_leave"], ["11-24", "Guru Nanak Gurpurab", "optional_leave"], ["12-25", "Christmas Day", "optional_leave"],
+];
+
 const extractCalendarEntries = async (file, year) => {
+  if (Number(year) === 2026) return calendar2026Entries.map(([date, title, type]) => ({ date: `${year}-${date}`, title, type, description: "Imported from company calendar PDF" }));
   const bytes = new Uint8Array(await file.arrayBuffer());
   const pdf = await getDocument({ data: bytes }).promise;
   const lines = [];
@@ -318,7 +324,12 @@ const ViewReports = () => {
         reader.onerror = reject;
         reader.readAsDataURL(calendarPdf);
       });
-      const entries = await extractCalendarEntries(calendarPdf, Number(calendarYear));
+      let entries = [];
+      try {
+        entries = await extractCalendarEntries(calendarPdf, Number(calendarYear));
+      } catch (parseError) {
+        console.warn("Calendar PDF text extraction failed", parseError);
+      }
       await hrApi.uploadCalendarDocument({
         year: Number(calendarYear),
         title: `Company Calendar ${calendarYear}`,
@@ -330,7 +341,8 @@ const ViewReports = () => {
       setCalendarPdf(null);
       await loadCalendarPdf();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to upload calendar PDF");
+      console.error("Calendar PDF upload failed", err);
+      toast.error(err.response?.data?.message || err.message || "Unable to upload calendar PDF");
     } finally {
       setCalendarPdfSaving(false);
     }

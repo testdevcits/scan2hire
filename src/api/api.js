@@ -146,6 +146,7 @@ export const employeeApi = {
   applyLeave: (payload) => API.post("/employees/leaves", payload),
   getCalendar: (month, year) => API.get("/employees/calendar", { params: { month, year } }),
   getCalendarDocument: (year) => API.get("/employees/calendar-document", { params: { year } }),
+  getCalendarDocumentFile: (year) => API.get(`/employees/calendar-document/${year}/file`, { responseType: "blob" }),
   getAssignedCandidates: () => API.get("/employees/candidates"),
   getInterviewLogs: () => API.get("/employees/interview-logs"),
   updateRound: (candidateId, payload) =>

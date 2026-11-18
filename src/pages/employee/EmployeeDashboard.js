@@ -10,7 +10,6 @@ import {
   FiBriefcase,
   FiKey,
 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -181,7 +180,6 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [interviewLogs, setInterviewLogs] = useState([]);
@@ -906,14 +904,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
               subtitle="Open the form only when you want to send a leave mail and request."
               action={
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/employee/leave-calendar")}
-                    className="w-10 h-10 rounded-lg border border-[#ffd8cf] dark:border-[#5c2c1f] text-[#f84525] flex items-center justify-center hover:bg-[#fff5f3] dark:hover:bg-[#2a1712]"
-                    aria-label="Open leave calendar"
-                  >
-                    <FiCalendar />
-                  </button>
                   <Button
                     text={showLeaveForm ? "Close Form" : "Open Leave Form"}
                     type="button"

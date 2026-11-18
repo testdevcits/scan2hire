@@ -56,13 +56,18 @@ const EmployeeLeaveCalendar = () => {
   const todayKey = useMemo(() => getLocalDateKey(), []);
   const currentMonthCursor = useMemo(() => getMonthCursor(), []);
   const [calendar, setCalendar] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
   const [monthCursor, setMonthCursor] = useState(() => getMonthCursor());
   const [flipDirection, setFlipDirection] = useState(null);
   const [isFlipping, setIsFlipping] = useState(false);
   const [yearOverview, setYearOverview] = useState({});
+  const [yearOverviewLoading, setYearOverviewLoading] = useState(true);
   const [calendarDocument, setCalendarDocument] = useState(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfPreviewError, setPdfPreviewError] = useState("");
 
   const activeMonth = useMemo(() => getMonthFromCursor(monthCursor), [monthCursor]);
   const activeMonthKey = useMemo(
@@ -80,11 +85,14 @@ const EmployeeLeaveCalendar = () => {
   }, [toast]);
 
   const loadCalendar = useCallback(async () => {
+    setCalendarLoading(true);
     try {
       const res = await employeeApi.getCalendar(activeMonthKey);
       setCalendar(res.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load leave calendar");
+    } finally {
+      setCalendarLoading(false);
     }
   }, [toast, activeMonthKey]);
 
@@ -95,11 +103,34 @@ const EmployeeLeaveCalendar = () => {
       .then((res) => setCalendarDocument(res.data.data || null))
       .catch(() => setCalendarDocument(null));
   }, [activeMonth.year]);
+
+  useEffect(() => {
+    if (!pdfPreviewOpen || !calendarDocument?.url) return undefined;
+    let objectUrl = "";
+    setPdfPreviewError("");
+    employeeApi.getCalendarDocumentFile(activeMonth.year)
+      .then((response) => response.data)
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setPdfPreviewUrl(objectUrl);
+      })
+      .catch((error) => {
+        setPdfPreviewUrl("");
+        setPdfPreviewError(error.response?.data?.message || "Unable to load PDF preview. Please restart the backend server.");
+      });
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setPdfPreviewUrl("");
+      setPdfPreviewError("");
+    };
+  }, [pdfPreviewOpen, calendarDocument?.url, activeMonth.year]);
   useEffect(() => {
     const year = activeMonth.year;
+    setYearOverviewLoading(true);
     Promise.all(Array.from({ length: 12 }, (_, index) => employeeApi.getCalendar(`${year}-${String(index + 1).padStart(2, "0")}`)))
       .then((responses) => setYearOverview(Object.fromEntries(responses.map((response, index) => [`${year}-${String(index + 1).padStart(2, "0")}`, response.data.data || []]))))
-      .catch(() => setYearOverview({}));
+      .catch(() => setYearOverview({}))
+      .finally(() => setYearOverviewLoading(false));
   }, [activeMonth.year]);
 
   const calendarMap = useMemo(
@@ -200,7 +231,7 @@ const EmployeeLeaveCalendar = () => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Calendar</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Company yearly calendar with holidays, working Saturdays, optional leaves, notices, and HR-added leave items.</p>
           </div>
-          {calendarDocument?.url && <a href={calendarDocument.url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-lg border border-[#ffd8cf] px-3 py-2 text-sm font-semibold text-[#f84525] hover:bg-[#fff5f3]">View company PDF</a>}
+          {calendarDocument?.url && <button type="button" onClick={() => setPdfPreviewOpen(true)} className="inline-flex items-center justify-center rounded-lg border border-[#ffd8cf] px-3 py-2 text-sm font-semibold text-[#f84525] hover:bg-[#fff5f3]">View company PDF</button>}
         </div>
       </Card>
 
@@ -225,14 +256,15 @@ const EmployeeLeaveCalendar = () => {
         </div>
       )}
 
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900 dark:text-gray-100">Year Overview {activeMonth.year}</h2><p className="text-xs text-gray-500 dark:text-gray-400">Company holidays and optional leaves at a glance.</p></div><div className="flex gap-2 text-[10px]"><span className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700">Holiday</span><span className="rounded border border-green-200 bg-green-50 px-2 py-1 text-green-700">Working Sat</span><span className="rounded border border-yellow-200 bg-yellow-50 px-2 py-1 text-yellow-700">Optional</span></div></div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 12 }, (_, index) => { const key = `${activeMonth.year}-${String(index + 1).padStart(2, "0")}`; const items = yearOverview[key] || []; const itemMap = Object.fromEntries(items.map((item) => [item.dateKey, item])); const first = new Date(activeMonth.year, index, 1); const days = new Date(activeMonth.year, index + 1, 0).getDate(); return <button type="button" key={key} onClick={() => setMonthCursor(activeMonth.year * 12 + index)} className="rounded border border-[#f7e6e0] bg-white p-2 text-left hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-900"><p className="mb-1 text-center text-xs font-bold text-[#f84525]">{first.toLocaleString(undefined, { month: "long" })}</p><div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">{["S", "M", "T", "W", "T", "F", "S"].map((day, dayIndex) => <span key={`${key}-h-${dayIndex}`} className="font-semibold text-gray-400">{day}</span>)}{Array.from({ length: first.getDay() }, (_, blank) => <span key={`${key}-b-${blank}`} />)}{Array.from({ length: days }, (_, dayIndex) => { const dateKey = `${key}-${String(dayIndex + 1).padStart(2, "0")}`; const type = itemMap[dateKey]?.type; return <span key={dateKey} className={`rounded-sm py-0.5 ${type === "holiday" ? "bg-red-100 text-red-700" : type === "working_saturday" ? "bg-green-100 text-green-700" : type === "optional_leave" ? "bg-yellow-100 text-yellow-700" : "text-gray-700 dark:text-gray-300"}`}>{dayIndex + 1}</span>; })}</div></button>; })}</div>
+        {yearOverviewLoading || calendarLoading ? <div className="flex min-h-40 items-center justify-center text-sm text-gray-500">Loading calendar data...</div> : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 12 }, (_, index) => { const key = `${activeMonth.year}-${String(index + 1).padStart(2, "0")}`; const items = yearOverview[key] || []; const itemMap = Object.fromEntries(items.map((item) => [item.dateKey, item])); const first = new Date(activeMonth.year, index, 1); const days = new Date(activeMonth.year, index + 1, 0).getDate(); return <button type="button" key={key} onClick={() => setMonthCursor(activeMonth.year * 12 + index)} className="rounded border border-[#f7e6e0] bg-white p-2 text-left hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-900"><p className="mb-1 text-center text-xs font-bold text-[#f84525]">{first.toLocaleString(undefined, { month: "long" })}</p><div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">{["S", "M", "T", "W", "T", "F", "S"].map((day, dayIndex) => <span key={`${key}-h-${dayIndex}`} className="font-semibold text-gray-400">{day}</span>)}{Array.from({ length: first.getDay() }, (_, blank) => <span key={`${key}-b-${blank}`} />)}{Array.from({ length: days }, (_, dayIndex) => { const dateKey = `${key}-${String(dayIndex + 1).padStart(2, "0")}`; const type = itemMap[dateKey]?.type; return <span key={dateKey} className={`rounded-sm py-0.5 ${type === "holiday" ? "bg-red-200 text-red-800 font-semibold" : type === "working_saturday" ? "bg-green-200 text-green-800 font-semibold" : type === "optional_leave" ? "bg-yellow-200 text-yellow-800 font-semibold" : "text-gray-700 dark:text-gray-300"}`}>{dayIndex + 1}</span>; })}</div></button>; })}</div>}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
+      <div className="contents">
         {/* ===== Wall-calendar styled card ===== */}
-        <div className="relative">
+        <div className="hidden">
           <Card className="overflow-hidden">
             {/* header band */}
             <div
@@ -383,11 +415,13 @@ const EmployeeLeaveCalendar = () => {
         <Card className="overflow-hidden flex flex-col">
           <CardHeader
             icon={<FiList />}
-            title="Official Calendar List"
-            subtitle="Holidays, optional leaves, and working Saturdays for the selected month."
+            title={`Official Calendar List - ${activeMonth.label}`}
+            subtitle="Holidays, optional leaves, and working Saturdays for the current month."
           />
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#f7e6e0] dark:divide-gray-800">
-            {hrLeaveItems.length === 0 ? (
+            {calendarLoading ? (
+              <p className="p-6 text-center text-sm text-gray-500">Loading calendar...</p>
+            ) : hrLeaveItems.length === 0 ? (
               <p className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">No HR leave items added yet.</p>
             ) : (
               hrLeaveItems.map((item) => (
@@ -402,7 +436,7 @@ const EmployeeLeaveCalendar = () => {
                       <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.title}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.dateKey}</p>
                     </div>
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#fff5f3] dark:bg-[#2a1712] text-[#f84525] capitalize flex-shrink-0">
+                    <span className={`text-xs px-2.5 py-1 rounded-full capitalize flex-shrink-0 ${item.type === "holiday" ? "bg-red-100 text-red-700" : item.type === "optional_leave" ? "bg-yellow-100 text-yellow-700" : item.type === "working_saturday" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
                       {item.type.replace("_", " ")}
                     </span>
                   </div>
@@ -412,6 +446,7 @@ const EmployeeLeaveCalendar = () => {
             )}
           </div>
         </Card>
+      </div>
       </div>
 
       {selectedCalendarItem && (
@@ -464,6 +499,18 @@ const EmployeeLeaveCalendar = () => {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {pdfPreviewOpen && calendarDocument?.url && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h2 className="font-semibold text-gray-900">Company Calendar PDF</h2>
+              <button type="button" onClick={() => setPdfPreviewOpen(false)} className="font-semibold text-[#f84525]">Close</button>
+            </div>
+            {pdfPreviewUrl ? <iframe title="Company Calendar PDF" src={`${pdfPreviewUrl}#toolbar=1&navpanes=0`} className="h-full w-full flex-1" /> : <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-gray-500">{pdfPreviewError || "Loading PDF preview..."}</div>}
           </div>
         </div>
       )}
