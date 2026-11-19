@@ -15,7 +15,6 @@ import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import EmptyState from "../../components/common/EmptyState";
-import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { useToast } from "../../contexts/ToastContext";
 import { isTeamLeadUser } from "../../utils/roleUtils";
 
@@ -49,12 +48,6 @@ const fileToDataUri = (file) =>
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  });
-
-const formatChartDate = (dateKey) =>
-  new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
   });
 
 const roundLabels = {
@@ -468,19 +461,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
         })
       : "-";
 
-  const monthlyChartData = useMemo(
-    () =>
-      currentMonthAttendance
-        .slice()
-        .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
-        .map((item) => ({
-          date: formatChartDate(item.dateKey),
-          workHours: Number(((item.totalWorkMinutes || 0) / 60).toFixed(1)),
-          breakHours: Number(((item.totalBreakMinutes || 0) / 60).toFixed(1)),
-        })),
-    [currentMonthAttendance]
-  );
-
   const filteredAttendance = useMemo(() => {
     if (!attendanceDate) return attendance.slice(0, 8);
     return attendance.filter((item) => item.dateKey === attendanceDate);
@@ -533,62 +513,29 @@ const EmployeeDashboard = ({ section = "all" }) => {
           {/* main widget row */}
           <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2 flex flex-col min-h-0">
-              <CardHeader
-                title="Monthly Work & Break Hours"
-                subtitle={`Daily hours for ${currentMonthKey}`}
-              />
+              <CardHeader title="This Month's Birthdays" subtitle={`Birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} />
               <div className="flex-1 min-h-0 p-4">
-                {monthlyChartData.length === 0 ? (
-                  <div className="h-full flex items-center justify-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                    No attendance recorded this month.
+                {profile?.dob && new Date(profile.dob).getMonth() === new Date().getMonth() ? (
+                  <div className="flex items-center justify-between rounded-xl border border-orange-100 bg-[#fff8f6] px-4 py-3 dark:border-orange-950 dark:bg-orange-950/20">
+                    <div><p className="font-semibold text-gray-900 dark:text-gray-100">{profile.name || "You"}</p><p className="text-sm text-gray-500">{new Date(profile.dob).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</p></div>
+                    <span className="text-2xl" aria-hidden="true">🎂</span>
                   </div>
-                ) : (
-                  <TrendAreaChart
-                    data={monthlyChartData}
-                    xKey="date"
-                    yLabel="Hours"
-                    tooltipFormatter={(value, name) => [`${value}h`, name]}
-                    series={[
-                      { key: "workHours", name: "Work Hours", color: "#f84525" },
-                      { key: "breakHours", name: "Break Hours", color: "#ffa826" },
-                    ]}
-                  />
-                )}
+                ) : <div className="relative flex h-full min-h-56 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"><img src="/2025-3_2025-1_Conative_Wall.jpg" alt="Conative" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 flex items-center justify-center"><span className="rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-gray-600 shadow-sm dark:bg-gray-900/95 dark:text-gray-300">No birthdays this month.</span></div></div>}
               </div>
             </Card>
 
             <div className="flex flex-col gap-4 min-h-0">
-              <Card className="p-4 flex-shrink-0">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Total Time Today</p>
-                <p className="text-3xl font-bold text-[#f84525] mt-1 tabular-nums">
-                  {secondsToClock(liveAttendance.totalSeconds)}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login to now/end</p>
-              </Card>
-
-              <Card className="p-4 flex-1 min-h-0 overflow-y-auto">
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-3">
-                  My Profile
-                </h2>
-                <div className="space-y-2.5 text-sm">
-                  {[
-                    ["Employee ID", profile?.employeeId],
-                    ["Email", profile?.email],
-                    ["Mobile", profile?.mobile],
-                    [
-                      "Joining",
-                      profile?.dateOfJoining
-                        ? new Date(profile.dateOfJoining).toLocaleDateString()
-                        : null,
-                    ],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between gap-3">
-                      <span className="text-gray-500 dark:text-gray-400">{label}</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {value || "N/A"}
-                      </span>
-                    </div>
-                  ))}
+              <Card className="relative flex-1 min-h-0 overflow-hidden border-0 bg-gradient-to-br from-[#fff7f3] via-white to-[#fff1ed] p-0 shadow-sm dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-900">
+                <div className="h-2 bg-gradient-to-r from-[#f84525] via-[#ff9b73] to-[#f84525]" />
+                <div className="p-5">
+                  <div className="flex items-center gap-3 border-b border-orange-100 pb-4 dark:border-orange-950">
+                    <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain" />{profile?.documents?.photo?.url && <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-14 w-14 rounded-full border-4 border-white object-cover shadow-md" />}</div>
+                    <div className="min-w-0"><p className="text-lg font-bold text-gray-900 dark:text-white">{profile?.name || "Employee"}</p><p className="text-sm text-[#f84525]">{profile?.designation || "Employee"}</p><p className="mt-1 text-xs text-gray-500">{profile?.department || "Conative IT Solutions"}</p></div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                    {[["Employee ID", profile?.employeeId], ["Email", profile?.email], ["Mobile", profile?.mobile], ["Joining", profile?.dateOfJoining ? new Date(profile.dateOfJoining).toLocaleDateString() : null]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2 dark:bg-gray-800/60"><span className="text-xs text-gray-500 dark:text-gray-400">{label}</span><span className="max-w-[65%] truncate text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{value || "N/A"}</span></div>)}
+                  </div>
+                  <div className="mt-5 border-t border-orange-200 pt-3 text-center dark:border-orange-950"><p className="text-xs font-bold uppercase tracking-wide text-[#f84525]">Conative IT Solutions Pvt. Ltd.</p><p className="mt-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">Ph. +91-826-978-8173</p><p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">Office no. 608, Airen Heights, behind Pakiza Mall,<br />Opp. C21 Mall, Indore, M.P. 452010</p></div>
                 </div>
               </Card>
             </div>

@@ -226,7 +226,7 @@ const EmployeeLeaveCalendar = () => {
         .diary-page.flip-prev { animation: flipPrev 0.52s ease-in-out; }
       `}</style>
 
-      <Card className="p-5">
+      <Card className="p-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Calendar</h1>
@@ -237,7 +237,7 @@ const EmployeeLeaveCalendar = () => {
       </Card>
 
       {leaveBalance && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {[
             ["Earned Leave", leaveBalance.earned_leave],
             ["Sick Leave", leaveBalance.sick_leave],
@@ -246,7 +246,7 @@ const EmployeeLeaveCalendar = () => {
             ["Half Day", leaveBalance.half_day],
             ["Full Day", leaveBalance.full_day],
           ].map(([label, item]) => (
-            <Card key={label} className="p-4">
+            <Card key={label} className="p-3">
               <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Used {item.used} / {item.total} &middot; Available{" "}
@@ -260,7 +260,7 @@ const EmployeeLeaveCalendar = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900 dark:text-gray-100">Year Overview {activeMonth.year}</h2><p className="text-xs text-gray-500 dark:text-gray-400">Company holidays and optional leaves at a glance.</p></div><div className="flex gap-2 text-[10px]"><span className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700">Holiday</span><span className="rounded border border-green-200 bg-green-50 px-2 py-1 text-green-700">Working Sat</span><span className="rounded border border-yellow-200 bg-yellow-50 px-2 py-1 text-yellow-700">Optional</span></div></div>
-        {yearOverviewLoading || calendarLoading ? <div className="flex min-h-40 items-center justify-center text-sm text-gray-500">Loading calendar data...</div> : !hasYearCalendarData ? <div className="flex min-h-40 items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500">No available calendar for {activeMonth.year}.</div> : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 12 }, (_, index) => { const key = `${activeMonth.year}-${String(index + 1).padStart(2, "0")}`; const items = yearOverview[key] || []; const itemMap = Object.fromEntries(items.map((item) => [item.dateKey, item])); const first = new Date(activeMonth.year, index, 1); const days = new Date(activeMonth.year, index + 1, 0).getDate(); return <button type="button" key={key} onClick={() => setMonthCursor(activeMonth.year * 12 + index)} className="rounded border border-[#f7e6e0] bg-white p-2 text-left hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-900"><p className="mb-1 text-center text-xs font-bold text-[#f84525]">{first.toLocaleString(undefined, { month: "long" })}</p><div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">{["S", "M", "T", "W", "T", "F", "S"].map((day, dayIndex) => <span key={`${key}-h-${dayIndex}`} className="font-semibold text-gray-400">{day}</span>)}{Array.from({ length: first.getDay() }, (_, blank) => <span key={`${key}-b-${blank}`} />)}{Array.from({ length: days }, (_, dayIndex) => { const dateKey = `${key}-${String(dayIndex + 1).padStart(2, "0")}`; const type = itemMap[dateKey]?.type; return <span key={dateKey} className={`rounded-sm py-0.5 ${type === "holiday" ? "bg-red-200 text-red-800 font-semibold" : type === "working_saturday" ? "bg-green-200 text-green-800 font-semibold" : type === "optional_leave" ? "bg-yellow-200 text-yellow-800 font-semibold" : "text-gray-700 dark:text-gray-300"}`}>{dayIndex + 1}</span>; })}</div></button>; })}</div>}
+        {yearOverviewLoading || calendarLoading ? <div className="flex min-h-40 items-center justify-center text-sm text-gray-500">Loading calendar data...</div> : !hasYearCalendarData ? <div className="flex min-h-40 items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500">No available calendar for {activeMonth.year}.</div> : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 12 }, (_, index) => { const key = `${activeMonth.year}-${String(index + 1).padStart(2, "0")}`; const items = yearOverview[key] || []; const itemMap = Object.fromEntries(items.map((item) => [item.dateKey, item])); const first = new Date(activeMonth.year, index, 1); const days = new Date(activeMonth.year, index + 1, 0).getDate(); const selected = index === activeMonth.monthIndex && items.length > 0; return <button type="button" key={key} onClick={() => setMonthCursor(activeMonth.year * 12 + index)} className={`rounded border bg-white p-2 text-left hover:border-[#f84525] dark:bg-gray-900 ${selected ? "border-2 border-[#f84525] shadow-md" : "border-[#f7e6e0] dark:border-gray-700"}`}><p className="mb-1 text-center text-xs font-bold text-[#f84525]">{first.toLocaleString(undefined, { month: "long" })}</p><div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">{["S", "M", "T", "W", "T", "F", "S"].map((day, dayIndex) => <span key={`${key}-h-${dayIndex}`} className="font-semibold text-gray-400">{day}</span>)}{Array.from({ length: first.getDay() }, (_, blank) => <span key={`${key}-b-${blank}`} />)}{Array.from({ length: days }, (_, dayIndex) => { const dateKey = `${key}-${String(dayIndex + 1).padStart(2, "0")}`; const type = itemMap[dateKey]?.type; return <span key={dateKey} className={`rounded-sm py-0.5 ${type === "holiday" ? "bg-red-200 text-red-800 font-semibold" : type === "working_saturday" ? "bg-green-200 text-green-800 font-semibold" : type === "optional_leave" ? "bg-yellow-200 text-yellow-800 font-semibold" : "text-gray-700 dark:text-gray-300"}`}>{dayIndex + 1}</span>; })}</div></button>; })}</div>}
       </Card>
 
       <div className="contents">
