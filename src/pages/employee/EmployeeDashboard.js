@@ -527,7 +527,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <div className="flex flex-col gap-4 min-h-0">
               <Card className="relative flex-1 min-h-0 overflow-hidden border-0 bg-gradient-to-br from-[#fff7f3] via-white to-[#fff1ed] p-0 shadow-sm dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-900">
                 <div className="h-2 bg-gradient-to-r from-[#f84525] via-[#ff9b73] to-[#f84525]" />
-                <div className="p-5">
+                <div className="flex h-full flex-col p-5">
                   <div className="flex items-center gap-3 border-b border-orange-100 pb-4 dark:border-orange-950">
                     <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain" />{profile?.documents?.photo?.url && <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-14 w-14 rounded-full border-4 border-white object-cover shadow-md" />}</div>
                     <div className="min-w-0"><p className="text-lg font-bold text-gray-900 dark:text-white">{profile?.name || "Employee"}</p><p className="text-sm text-[#f84525]">{profile?.designation || "Employee"}</p><p className="mt-1 text-xs text-gray-500">{profile?.department || "Conative IT Solutions"}</p></div>
@@ -535,7 +535,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
                     {[["Employee ID", profile?.employeeId], ["Email", profile?.email], ["Mobile", profile?.mobile], ["Joining", profile?.dateOfJoining ? new Date(profile.dateOfJoining).toLocaleDateString() : null]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2 dark:bg-gray-800/60"><span className="text-xs text-gray-500 dark:text-gray-400">{label}</span><span className="max-w-[65%] truncate text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{value || "N/A"}</span></div>)}
                   </div>
-                  <div className="mt-5 border-t border-orange-200 pt-3 text-center dark:border-orange-950"><p className="text-xs font-bold uppercase tracking-wide text-[#f84525]">Conative IT Solutions Pvt. Ltd.</p><p className="mt-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">Ph. +91-826-978-8173</p><p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">Office no. 608, Airen Heights, behind Pakiza Mall,<br />Opp. C21 Mall, Indore, M.P. 452010</p></div>
+                  <div className="mt-auto border-t border-orange-200 pt-3 text-center dark:border-orange-950"><p className="text-xs font-bold uppercase tracking-wide text-[#f84525]">Conative IT Solutions Pvt. Ltd.</p><p className="mt-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">Ph. +91-826-978-8173</p><p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">Office no. 608, Airen Heights, behind Pakiza Mall,<br />Opp. C21 Mall, Indore, M.P. 452010</p></div>
                 </div>
               </Card>
             </div>
