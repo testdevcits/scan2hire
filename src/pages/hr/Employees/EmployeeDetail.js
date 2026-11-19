@@ -148,10 +148,12 @@ const EmployeeDetail = () => {
   const [selectedEmployeeLeave, setSelectedEmployeeLeave] = useState(null);
   const [employeeLeaveDrawerOpen, setEmployeeLeaveDrawerOpen] = useState(false);
   const employeeLeaveDrawerTimer = useRef(null);
+  const employeeLeaveDrawerFrame = useRef(null);
   const [selectedLeaveBalance, setSelectedLeaveBalance] = useState(null);
   const [adjustType, setAdjustType] = useState("earned_leave");
   const [adjustDays, setAdjustDays] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+  const [adjustmentSaving, setAdjustmentSaving] = useState(false);
   const [summary, setSummary] = useState(null);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportDate, setReportDate] = useState("");
@@ -219,21 +221,42 @@ const EmployeeDetail = () => {
     const days = Number(adjustDays);
     if (!Number.isFinite(days) || days === 0 || !adjustReason.trim()) return toast.error("Enter adjustment days and reason.");
     const typeLabel = employeeLeaveBalanceTypes.find((item) => item.value === adjustType)?.label || adjustType;
+    // Close the drawer first so the confirmation is presented on its own.
+    setEmployeeLeaveDrawerOpen(false);
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
     const ok = await confirm({ title: "Confirm leave adjustment", message: `${days > 0 ? "Add" : "Deduct"} ${Math.abs(days)} day(s) from ${typeLabel}? Reason: ${adjustReason.trim()}`, confirmText: "Adjust leaves", cancelText: "Cancel", tone: days < 0 ? "danger" : "primary" });
-    if (!ok) return;
-    try { const response = await hrApi.adjustEmployeeLeaveBalance(employeeId, { type: adjustType, days, reason: adjustReason.trim() }); setSelectedLeaveBalance(response.data.data || null); setAdjustDays(""); setAdjustReason(""); toast.success("Leave balance adjusted"); } catch (err) { toast.error(err.response?.data?.message || "Unable to adjust leave"); }
+    if (!ok) {
+      window.requestAnimationFrame(() => setEmployeeLeaveDrawerOpen(true));
+      return;
+    }
+    setAdjustmentSaving(true);
+    try {
+      const response = await hrApi.adjustEmployeeLeaveBalance(employeeId, { type: adjustType, days, reason: adjustReason.trim() });
+      setSelectedLeaveBalance(response.data.data || null);
+      setAdjustDays("");
+      setAdjustReason("");
+      setSelectedEmployeeLeave(null);
+      toast.success("Leave balance adjusted");
+    } catch (err) {
+      window.requestAnimationFrame(() => setEmployeeLeaveDrawerOpen(true));
+      toast.error(err.response?.data?.message || "Unable to adjust leave");
+    } finally {
+      setAdjustmentSaving(false);
+    }
   };
 
   const openEmployeeLeaveDrawer = (leave) => {
     window.clearTimeout(employeeLeaveDrawerTimer.current);
+    window.cancelAnimationFrame(employeeLeaveDrawerFrame.current);
     setSelectedEmployeeLeave(leave);
-    setEmployeeLeaveDrawerOpen(true);
+    setEmployeeLeaveDrawerOpen(false);
+    employeeLeaveDrawerFrame.current = window.requestAnimationFrame(() => setEmployeeLeaveDrawerOpen(true));
   };
 
   const closeEmployeeLeaveDrawer = () => {
     setEmployeeLeaveDrawerOpen(false);
     window.clearTimeout(employeeLeaveDrawerTimer.current);
-    employeeLeaveDrawerTimer.current = window.setTimeout(() => setSelectedEmployeeLeave(null), 300);
+    employeeLeaveDrawerTimer.current = window.setTimeout(() => setSelectedEmployeeLeave(null), 380);
   };
 
   const reviewEmployeeLeave = async (nextStatus) => {
@@ -1045,6 +1068,8 @@ const EmployeeDetail = () => {
         {selectedLeaveBalance && <section className="mt-3"><h3 className="text-sm font-semibold">Leave adjustments</h3>{selectedLeaveBalance.adjustments?.length ? <div className="mt-2 space-y-2">{selectedLeaveBalance.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:justify-between"><span className="font-medium">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500">{item.adjustedBy?.name || item.adjustedBy?.email || "Admin"} · {item.reason}</span></div>)}</div> : <p className="mt-1 text-sm text-gray-500">No leave adjustments yet.</p>}</section>}
         <p className="mt-4">Reason: {selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p>
       </CommonModal>}
+
+      {adjustmentSaving && <CommonLoader fullScreen text="Updating leave balance..." />}
 
       {passwordModalOpen && <CommonModal title="Change employee password" subtitle={`Set a new login password for ${employee.name}.`} className="max-w-md" as="form" onSubmit={resetEmployeePassword} onClose={() => { if (!savingPassword) setPasswordModalOpen(false); }} footer={<><Button text="Cancel" variant="secondary" type="button" disabled={savingPassword} onClick={() => setPasswordModalOpen(false)} /><Button text="Save Password" type="submit" loading={savingPassword} disabled={newEmployeePassword.length < 8} /></>}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">New password<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newEmployeePassword} onChange={(event) => setNewEmployeePassword(event.target.value)} className="mt-2 w-full rounded-sm border border-gray-300 p-3 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Minimum 8 characters" required /></label>

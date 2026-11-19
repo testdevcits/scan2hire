@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { FiX } from "react-icons/fi";
 
@@ -17,28 +16,16 @@ const CommonModal = ({
   drawer = false,
   open = true,
 }) => {
-  const [entered, setEntered] = useState(!drawer);
-
-  useEffect(() => {
-    if (!drawer || !open) {
-      setEntered(!drawer);
-      return undefined;
-    }
-    const frame = window.requestAnimationFrame(() => setEntered(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, [drawer, open]);
-
-  const visible = !drawer || (open && entered);
   return createPortal(
     <div
-      className={`fixed inset-0 z-[140] flex bg-black/45 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${drawer ? `items-stretch justify-end ${visible ? "opacity-100" : "pointer-events-none opacity-0"}` : "items-center justify-center p-3 sm:p-5"}`}
+      className={`fixed inset-0 z-[140] flex bg-black/45 ${drawer ? `transition-opacity duration-300 ease-in-out ${open ? "opacity-100" : "pointer-events-none opacity-0"}` : "items-center justify-center p-3 sm:p-5"}`}
       role="presentation"
       onMouseDown={(event) => { if (drawer && event.target === event.currentTarget) onClose?.(); }}
     >
       <Panel
         onSubmit={onSubmit}
-        className={`flex w-full flex-col overflow-hidden border border-gray-100 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 ${drawer ? "m-0 h-dvh max-h-dvh self-stretch rounded-none" : "max-h-[92vh] rounded-lg"} ${className}`}
-        style={drawer ? { transform: visible ? "translate3d(0, 0, 0)" : "translate3d(100%, 0, 0)", transition: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "none" : "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)" } : undefined}
+        className={`flex w-full flex-col overflow-hidden border border-gray-100 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 ${drawer ? `absolute inset-y-0 right-0 m-0 h-dvh max-h-dvh w-full self-stretch rounded-none transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}` : "max-h-[92vh] rounded-lg"} ${className}`}
+        onMouseDown={(event) => { if (drawer) event.stopPropagation(); }}
         role={Panel === "form" ? undefined : "dialog"}
         aria-modal="true"
         aria-labelledby="common-modal-title"
