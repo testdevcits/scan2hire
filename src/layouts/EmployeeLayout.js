@@ -7,6 +7,7 @@ import { employeeApi } from "../api";
 const EmployeeLayout = () => {
   const { user } = useContext(AuthContext);
   const [access, setAccess] = useState({});
+  const [accessLoading, setAccessLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -17,13 +18,18 @@ const EmployeeLayout = () => {
       })
       .catch(() => {
         if (active) setAccess({});
+      })
+      .finally(() => {
+        if (active) setAccessLoading(false);
       });
     return () => {
       active = false;
     };
   }, []);
 
-  const navItems = [
+  const navItems = accessLoading ? [
+    { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
+  ] : [
     ...(!access.moduleAccess || access.moduleAccess.dashboard?.view !== false ? [{ label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> }] : []),
     ...(!access.moduleAccess || access.moduleAccess.attendance?.view !== false ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
     ...(!access.moduleAccess || access.moduleAccess.interviews?.view !== false ? [{ label: "Interviews", path: "/employee/interviews", icon: <FiBriefcase /> }] : []),
@@ -46,7 +52,7 @@ const EmployeeLayout = () => {
     ? "Project Coordinator Panel"
     : "Employee Panel";
 
-  return <SidebarLayout title={title} navItems={navItems} />;
+  return <SidebarLayout title={title} navItems={navItems} navLoading={accessLoading} />;
 };
 
 export default EmployeeLayout;

@@ -100,7 +100,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     <Button text="Close" variant="secondary" disabled={busy} onClick={onClose} />
     {doc && setup && <Button text="Save Placements & Send" disabled={visited.length !== count || !ready} loading={busy} onClick={sendLayout} />}
     {signing && !pageSigned && <Button text="Sign This Page" disabled={!signature || !accepted || !ready} loading={busy} onClick={savePage} />}
-    {signing && count > 0 && signedPages.length === count && <Button text="Submit for Verification" loading={busy} onClick={submit} />}
+    {signing && count > 0 && <Button text="Submit for Verification" disabled={busy || signedPages.length !== count || visited.length !== count} loading={busy} onClick={submit} />}
     {reviewing && <><Button text="Request Correction" variant="secondary" disabled={visited.length !== count || !reason.trim()} loading={busy} onClick={() => review('correction')} /><Button text="Approve & Mark Done" disabled={visited.length !== count || !ready} loading={busy} onClick={() => review('approve')} /></>}
   </>}>
     {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : !doc ? <CommonLoader compact text="Loading document…" /> : <>
