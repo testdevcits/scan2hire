@@ -35,9 +35,12 @@ const LeaveReports = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
-  const [moduleAccess, setModuleAccess] = useState(user?.moduleAccess || {});
+  const [moduleAccess, setModuleAccess] = useState({});
+  const [accessLoaded, setAccessLoaded] = useState(user?.role !== "hr");
+  const canView = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.view));
   const canReview = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.edit));
-  const canAdjust = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.adjust));
+  const canAdjust = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveReports?.adjust === true);
+  const canDelete = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveReports?.delete === true);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
@@ -55,6 +58,7 @@ const LeaveReports = () => {
   const [pageSize, setPageSize] = useState(20);
   const requestId = useRef(0);
   const [balanceEmployeeId, setBalanceEmployeeId] = useState("");
+  const [selectedLeave, setSelectedLeave] = useState(null);
   const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
   const [balanceData, setBalanceData] = useState(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -66,9 +70,18 @@ const LeaveReports = () => {
   useEffect(() => {
     if (user?.role !== "hr") return undefined;
     let active = true;
+    setAccessLoaded(false);
     authApi.getProfile().then((response) => {
-      if (active) setModuleAccess(response.data.data?.moduleAccess || {});
-    }).catch(() => {});
+      if (active) {
+        setModuleAccess(response.data.data?.moduleAccess || {});
+        setAccessLoaded(true);
+      }
+    }).catch(() => {
+      if (active) {
+        setModuleAccess({});
+        setAccessLoaded(true);
+      }
+    });
     return () => { active = false; };
   }, [user?.role]);
 
@@ -202,6 +215,16 @@ const LeaveReports = () => {
     }
   };
 
+  const deleteLeave = async () => {
+    if (!selectedLeave) return;
+    const confirmed = await confirm({ title: "Delete leave request?", message: "This leave request will be permanently deleted.", confirmText: "Delete request", cancelText: "Cancel", tone: "danger" });
+    if (!confirmed) return;
+    setUpdatingId(selectedLeave._id);
+    try { await hrApi.deleteLeave(selectedLeave._id); toast.success("Leave request deleted"); closeBalanceModal(); await loadData(); }
+    catch (err) { toast.error(err.response?.data?.message || "Unable to delete leave"); }
+    finally { setUpdatingId(""); }
+  };
+
   const submitBalanceAdjustment = async (event) => {
     event.preventDefault();
     const days = Number(adjustmentDays);
@@ -256,6 +279,7 @@ const LeaveReports = () => {
     setAdjustmentDays("");
     setAdjustmentReason("");
     setBalanceDrawerOpen(false);
+    setSelectedLeave(leave);
     setBalanceEmployeeId(employeeId);
     window.requestAnimationFrame(() => setBalanceDrawerOpen(true));
   };
@@ -265,6 +289,7 @@ const LeaveReports = () => {
     setBalanceDrawerOpen(false);
     setAdjustmentDays("");
     setAdjustmentReason("");
+    setSelectedLeave(null);
   };
 
   const columns = [
@@ -304,10 +329,8 @@ const LeaveReports = () => {
       ),
     },
   ];
-  const actions = canReview ? [
+  const actions = canView ? [
     { key: "leaves", label: "View employee leaves", icon: <FiEye className="h-4 w-4" />, iconOnly: true, title: "View employee leaves", onClick: openBalanceModal, className: "border border-[#f84525]/30 bg-[#fff5f3] text-[#d93a1e] hover:bg-[#ffebe6] dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/60" },
-    { key: "approve", label: (leave) => updatingId === leave._id ? "Saving..." : "Approve", onClick: (leave) => reviewLeave(leave._id, "approved"), className: "bg-green-600 text-white hover:bg-green-700 disabled:opacity-50", disabled: (leave) => leave.status !== "pending" || updatingId === leave._id },
-    { key: "reject", label: (leave) => updatingId === leave._id ? "Saving..." : "Reject", onClick: (leave) => reviewLeave(leave._id, "rejected"), className: "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50", disabled: (leave) => leave.status !== "pending" || updatingId === leave._id },
   ] : undefined;
 
   return (
@@ -356,6 +379,7 @@ const LeaveReports = () => {
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{balanceData?.employee?.name || leaves.find((leave) => leave.employee?._id === balanceEmployeeId)?.employee?.name || "Loading employee leaves..."} · Used and available leave by type.</p>
               </div>
               <button type="button" onClick={closeBalanceModal} disabled={adjustmentSaving} aria-label="Close employee leaves" className="rounded-md px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white">×</button>
+              <div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={deleteLeave} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div>
             </header>
             <div className="overflow-y-auto p-5">
         {balanceLoading && <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading employee leaves...</p>}
