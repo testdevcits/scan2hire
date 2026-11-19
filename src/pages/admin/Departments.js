@@ -14,6 +14,16 @@ const emptyForm = {
   isActive: true,
 };
 
+const MasterOptionsSection = ({ type, title, description }) => {
+  const toast = useToast(); const { confirm } = useModal(); const [items, setItems] = useState([]); const [name, setName] = useState(""); const [editing, setEditing] = useState(null); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
+  const load = async () => { setLoading(true); try { const res = await authApi.getMasterOptions(type, { includeInactive: true }); setItems(res.data.data || []); } catch (e) { toast.error(e.response?.data?.message || `Unable to load ${title}`); } finally { setLoading(false); } };
+  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
+  const save = async (event) => { event.preventDefault(); if (!name.trim()) return; setSaving(true); try { if (editing) await authApi.updateMasterOption(type, editing._id, { name }); else await authApi.createMasterOption(type, { name }); toast.success(`${title} ${editing ? "updated" : "added"}`); setName(""); setEditing(null); await load(); } catch (e) { toast.error(e.response?.data?.message || `Unable to save ${title}`); } finally { setSaving(false); } };
+  const remove = async (item) => { if (!(await confirm({ title: `Delete ${title}`, message: `Delete ${item.name}?`, confirmText: "Delete", tone: "danger" }))) return; try { await authApi.deleteMasterOption(type, item._id); await load(); toast.success(`${title} deleted`); } catch (e) { toast.error(e.response?.data?.message || "Unable to delete option"); } };
+  return <section className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm"><div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-end md:justify-between"><div><h2 className="font-semibold">{title}</h2><p className="text-xs text-gray-500">{description}</p></div><form onSubmit={save} className="flex gap-2"><input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Add ${title}`} className="rounded-sm border px-3 py-2 text-sm" required /><Button type="submit" loading={saving}>{editing ? "Save" : "Add"}</Button>{editing && <Button type="button" variant="secondary" onClick={() => { setEditing(null); setName(""); }}>Cancel</Button>}</form></div>{loading ? <CommonLoader text={`Loading ${title}...`} /> : items.map((item) => <div key={item._id} className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>{item.name}</span><span className="flex gap-2"><button type="button" onClick={() => { setEditing(item); setName(item.name); }} className="border px-2 py-1 text-xs">Edit</button><button type="button" onClick={() => remove(item)} className="border px-2 py-1 text-xs text-red-600">Delete</button></span></div>)}</section>;
+};
+
 const Departments = () => {
   const toast = useToast();
   const { confirm } = useModal();
@@ -183,6 +193,7 @@ const Departments = () => {
           ))
         )}
       </section>
+      <div className="grid gap-5 lg:grid-cols-2"><MasterOptionsSection type="bloodGroup" title="Blood Groups" description="Blood group master values used in employee forms." /><MasterOptionsSection type="employeeType" title="Employee Types" description="Employee type master values used in employee forms." /></div>
     </div>
   );
 };
