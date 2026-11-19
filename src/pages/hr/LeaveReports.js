@@ -220,7 +220,7 @@ const LeaveReports = () => {
     const confirmed = await confirm({ title: "Delete leave request?", message: "This leave request will be permanently deleted.", confirmText: "Delete request", cancelText: "Cancel", tone: "danger" });
     if (!confirmed) return;
     setUpdatingId(selectedLeave._id);
-    try { await hrApi.deleteLeave(selectedLeave._id); toast.success("Leave request deleted"); closeBalanceModal(); await loadData(); }
+    try { await hrApi.deleteLeave(selectedLeave._id); toast.success("Leave request deleted"); setLeaves((current) => current.filter((item) => item._id !== selectedLeave._id)); setSummary((current) => ({ ...current, total: Math.max(0, current.total - 1), pending: selectedLeave.status === "pending" ? Math.max(0, current.pending - 1) : current.pending, approved: selectedLeave.status === "approved" ? Math.max(0, current.approved - 1) : current.approved, rejected: selectedLeave.status === "rejected" ? Math.max(0, current.rejected - 1) : current.rejected })); closeBalanceModal(); loadData(); }
     catch (err) { toast.error(err.response?.data?.message || "Unable to delete leave"); }
     finally { setUpdatingId(""); }
   };
@@ -382,6 +382,7 @@ const LeaveReports = () => {
               <div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={deleteLeave} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div>
             </header>
             <div className="overflow-y-auto p-5">
+        {selectedLeave && <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-800"><h3 className="font-semibold text-gray-900 dark:text-gray-100">Leave request details</h3><div className="mt-3 grid grid-cols-2 gap-3"><p><span className="text-gray-500">Type</span><br /><b>{labelize(selectedLeave.type)}</b></p><p><span className="text-gray-500">Status</span><br /><b className="capitalize">{selectedLeave.status}</b></p><p><span className="text-gray-500">From</span><br /><b>{formatDate(selectedLeave.fromDate)}</b></p><p><span className="text-gray-500">To</span><br /><b>{formatDate(selectedLeave.toDate)}</b></p></div>{(selectedLeave.reason || selectedLeave.content) && <p className="mt-3"><span className="text-gray-500">Reason</span><br />{selectedLeave.reason || selectedLeave.content}</p>}</div>}
         {balanceLoading && <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading employee leaves...</p>}
         {!balanceLoading && !balanceData && <p className="py-8 text-center text-sm text-gray-500">Employee leaves could not be loaded.</p>}
         {balanceData && !balanceLoading && (
@@ -468,7 +469,9 @@ const LeaveReports = () => {
               </form>
             )}
 
-            {balanceData.adjustments?.length > 0 && (
+            {canAdjust && <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Leave adjustments</h3>{balanceData.adjustments?.length > 0 ? <div className="mt-2 space-y-2">{balanceData.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between"><span className="font-medium capitalize text-gray-800 dark:text-gray-100">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500 dark:text-gray-400">{item.adjustedBy?.name || item.adjustedBy?.email || "HR"} · {item.reason} · {formatDateTime(item.adjustedAt)}</span></div>)}</div> : <p className="mt-2 text-sm text-gray-500">No leave adjustments yet.</p>}</div>}
+
+            {false && (
               <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Recent leave adjustments</h3>
                 <div className="mt-2 space-y-2">

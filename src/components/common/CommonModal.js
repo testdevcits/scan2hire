@@ -12,8 +12,9 @@ const CommonModal = ({
   bodyClassName = "",
   as: Panel = "section",
   onSubmit,
+  drawer = false,
 }) => (
-  <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-3 sm:p-5" role="presentation">
+  <div className={`fixed inset-0 z-[140] flex bg-black/45 ${drawer ? "justify-end" : "items-center justify-center p-3 sm:p-5"}`} role="presentation">
     <Panel
       onSubmit={onSubmit}
       className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-lg border border-gray-100 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 ${className}`}

@@ -105,13 +105,14 @@ const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
   image.onerror = () => reject(new Error("Invalid image"));
   image.src = URL.createObjectURL(file);
 });
+const labelize = (value = "") => String(value).replace(/_/g, " ");
 const employeeModuleActions = ["view", "add", "edit", "delete"];
 const employeeAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["attendance", "Attendance", ["view", "edit"], { view: "View Attendance", edit: "Update Attendance" }], ["interviews", "Interviews", ["view", "edit"], { view: "View Interviews", edit: "Submit Review" }], ["leaves", "Leaves", ["view", "add"], { view: "View Leaves", add: "Apply Leave" }], ["leaveCalendar", "Conative Calendar", ["view"], { view: "View Calendar" }], ["systemAllotment", "My System", employeeModuleActions, { view: "View System", add: "Add Item", edit: "Update Item", delete: "Delete Item" }], ["documents", "Documents", ["view", "edit"], { view: "View Documents", edit: "Sign Documents" }], ["credentials", "Credentials", employeeModuleActions, { view: "View Credentials", add: "Add Credential", edit: "Update Credential", delete: "Delete Credential" }], ["settings", "Settings", ["view", "edit"], { view: "View Settings", edit: "Update Settings" }]];
 const teamLeadAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["yourTeam", "My Team / Team List", ["view", "edit"], { view: "View Team", edit: "Manage Team" }], ...employeeAccessModules.slice(1)];
 const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view", "edit", "adjust", "delete"], { view: "View Reports", edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "edit", "delete"]], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
 const documentLabelMap = { photo: "Photo", aadhaarCard: "Aadhaar Card", panCard: "PAN Card", passbook: "Bank Proof / Passbook", bloodGroupProof: "Blood Group Proof", addressProof: "Address Proof", addressProofPermanent: "Permanent Address Proof", addressProofAlternate: "Alternate Address Proof", degree: "Degree", resume: "Resume" };
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
-  const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
+  const availableTabs = ["details", "attendance", "leaves", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
   if (isSuperAdmin) availableTabs.push("credentials", "access");
   if (canManage) availableTabs.push("security");
@@ -134,6 +135,12 @@ const EmployeeDetail = () => {
   const canManage = user?.role === "hr" || user?.role === "superadmin";
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
+  const [employeeLeaves, setEmployeeLeaves] = useState([]);
+  const [employeeLeavesLoading, setEmployeeLeavesLoading] = useState(false);
+  const [selectedEmployeeLeave, setSelectedEmployeeLeave] = useState(null);
+  const [selectedLeaveBalance, setSelectedLeaveBalance] = useState(null);
+  const [adjustDays, setAdjustDays] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
   const [summary, setSummary] = useState(null);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportDate, setReportDate] = useState("");
@@ -188,6 +195,29 @@ const EmployeeDetail = () => {
     const params = new URLSearchParams(location.search);
     return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
   });
+
+  useEffect(() => {
+    if (!selectedEmployeeLeave?.employee?._id && !employeeId) { setSelectedLeaveBalance(null); return undefined; }
+    const targetId = selectedEmployeeLeave?.employee?._id || employeeId;
+    let active = true;
+    hrApi.getEmployeeLeaveBalance(targetId).then((response) => { if (active) setSelectedLeaveBalance(response.data.data || null); }).catch(() => { if (active) setSelectedLeaveBalance(null); });
+    return () => { active = false; };
+  }, [selectedEmployeeLeave, employeeId]);
+
+  const adjustSelectedLeave = async () => {
+    const days = Number(adjustDays);
+    if (!Number.isFinite(days) || days === 0 || !adjustReason.trim()) return toast.error("Enter adjustment days and reason.");
+    const ok = await confirm({ title: "Adjust leave balance?", message: "Confirm this balance adjustment.", confirmText: "Adjust", cancelText: "Cancel", tone: "primary" });
+    if (!ok) return;
+    try { const response = await hrApi.adjustEmployeeLeaveBalance(employeeId, { type: "earned_leave", days, reason: adjustReason.trim() }); setSelectedLeaveBalance(response.data.data || null); setAdjustDays(""); setAdjustReason(""); toast.success("Leave balance adjusted"); } catch (err) { toast.error(err.response?.data?.message || "Unable to adjust leave"); }
+  };
+
+  const reviewEmployeeLeave = async (nextStatus) => {
+    if (!selectedEmployeeLeave) return;
+    const ok = await confirm({ title: `${nextStatus === "approved" ? "Approve" : "Reject"} leave?`, message: "Confirm this leave request action.", confirmText: nextStatus === "approved" ? "Approve" : "Reject", cancelText: "Cancel", tone: nextStatus === "approved" ? "primary" : "danger" });
+    if (!ok) return;
+    try { await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); setSelectedEmployeeLeave(null); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, status: nextStatus } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
+  };
 
   const changeActiveTab = (tab) => {
     const params = new URLSearchParams(location.search);
@@ -282,6 +312,13 @@ const EmployeeDetail = () => {
   const canManageDocuments = (user?.role === "hr" || user?.role === "superadmin") && hrCanEditModule("documents");
 
   // The tab guard intentionally runs when the active tab or fetched HR permissions change.
+  useEffect(() => {
+    if (activeTab === "leaves" && employeeId) {
+      setEmployeeLeavesLoading(true);
+      hrApi.getLeaves({ employeeId, limit: 100 }).then((response) => setEmployeeLeaves(response.data.data || [])).catch(() => setEmployeeLeaves([])).finally(() => setEmployeeLeavesLoading(false));
+    }
+  }, [activeTab, employeeId]);
+
   useEffect(() => {
     if (user?.role === "hr" && hrModuleAccess && activeTab === "documentSignatures" && !hrCanViewModule("documents")) {
       changeActiveTab("details");
@@ -634,6 +671,7 @@ const EmployeeDetail = () => {
     { value: "details", label: "Details" },
     ...(canManage && hrCanEditModule("employees") ? [{ value: "edit", label: "Edit Profile" }] : []),
     { value: "attendance", label: "Attendance" },
+    { value: "leaves", label: "Leaves" },
     { value: "documents", label: "Documents" },
     ...(hrCanViewModule("documents") ? [{ value: "documentSignatures", label: "Documents & Signatures" }] : []),
     ...(canManage && hrCanEditModule("employees") ? [{ value: "security", label: "Security" }] : []),
@@ -930,6 +968,8 @@ const EmployeeDetail = () => {
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
       </section>}
 
+      {activeTab === "leaves" && <section className="rounded-sm bg-white p-4 shadow dark:bg-gray-900"><h2 className="mb-4 font-semibold">Employee Leaves</h2>{employeeLeavesLoading ? <CommonLoader text="Loading leaves..." /> : <CommonTable columns={[{ accessor: "type", header: "Leave Type", render: (value) => labelize(value) }, { accessor: "fromDate", header: "From", render: (value) => formatDate(value) }, { accessor: "toDate", header: "To", render: (value) => formatDate(value) }, { accessor: "status", header: "Status" }, { accessor: "reason", header: "Reason" }]} data={employeeLeaves} actions={[{ key: "view", label: "View leave", icon: <FiEye className="h-4 w-4" />, iconOnly: true, onClick: setSelectedEmployeeLeave, className: "border border-orange-200 text-orange-600" }]} emptyText="No leaves found." />}</section>}
+
       {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold">This Month Attendance</h2>
@@ -959,6 +999,8 @@ const EmployeeDetail = () => {
           />
         )}
       </section>}
+
+      {selectedEmployeeLeave && <CommonModal title="Leave request" drawer onClose={() => setSelectedEmployeeLeave(null)} footer={<><Button text="Close" variant="secondary" onClick={() => setSelectedEmployeeLeave(null)} />{selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}><h3 className="mb-3 font-semibold">Leave request details</h3><p>Status: <b className="capitalize">{selectedEmployeeLeave.status}</b></p><p>Type: <b>{labelize(selectedEmployeeLeave.type)}</b></p><p>From: <b>{formatDate(selectedEmployeeLeave.fromDate)}</b> · To: <b>{formatDate(selectedEmployeeLeave.toDate)}</b></p>{selectedLeaveBalance && <div className="mt-4 grid grid-cols-2 gap-3">{Object.entries(selectedLeaveBalance.balance || {}).map(([key,item]) => <div key={key} className="rounded border p-3"><b>{labelize(key)}</b><p>{item.remaining} remaining</p><small>{item.used} used / {item.total} total</small></div>)}</div>}<div className="mt-4 flex gap-2"><input value={adjustDays} onChange={(e) => setAdjustDays(e.target.value)} placeholder="Adjust days" className="min-h-9 flex-1 rounded border px-2" /><input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Reason" className="min-h-9 flex-1 rounded border px-2" /><Button text="Adjust" onClick={adjustSelectedLeave} /></div><p className="mt-4">Reason: {selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p></CommonModal>}
 
       {passwordModalOpen && <CommonModal title="Change employee password" subtitle={`Set a new login password for ${employee.name}.`} className="max-w-md" as="form" onSubmit={resetEmployeePassword} onClose={() => { if (!savingPassword) setPasswordModalOpen(false); }} footer={<><Button text="Cancel" variant="secondary" type="button" disabled={savingPassword} onClick={() => setPasswordModalOpen(false)} /><Button text="Save Password" type="submit" loading={savingPassword} disabled={newEmployeePassword.length < 8} /></>}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">New password<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newEmployeePassword} onChange={(event) => setNewEmployeePassword(event.target.value)} className="mt-2 w-full rounded-sm border border-gray-300 p-3 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Minimum 8 characters" required /></label>
