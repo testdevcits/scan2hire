@@ -38,7 +38,7 @@ const initialForm = {
 const EmployeeCreate = () => {
   const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
-  const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], employeeType: [] });
+  const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], employeeType: [], designation: [] });
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
   const { user } = useContext(AuthContext);
@@ -52,8 +52,8 @@ const EmployeeCreate = () => {
 
   useEffect(() => {
     if (user?.role !== "hr" && user?.role !== "superadmin") return;
-    Promise.all([authApi.getDepartments(), authApi.getMasterOptions("bloodGroup"), authApi.getMasterOptions("employeeType")])
-      .then(([departmentResponse, bloodResponse, typeResponse]) => { setDepartments(departmentResponse.data.data || []); setMasterOptions({ bloodGroup: (bloodResponse.data.data || []).map((item) => item.name), employeeType: (typeResponse.data.data || []).map((item) => item.name) }); })
+    Promise.all([authApi.getDepartments(), authApi.getMasterOptions("bloodGroup"), authApi.getMasterOptions("employeeType"), authApi.getMasterOptions("designation")])
+      .then(([departmentResponse, bloodResponse, typeResponse, designationResponse]) => { setDepartments(departmentResponse.data.data || []); setMasterOptions({ bloodGroup: (bloodResponse.data.data || []).map((item) => item.name), employeeType: (typeResponse.data.data || []).map((item) => item.name), designation: (designationResponse.data.data || []).map((item) => item.name) }); })
       .catch(() => setDepartments([]));
   }, [user?.role]);
 
@@ -131,7 +131,6 @@ const EmployeeCreate = () => {
           ["email", "Email", "email"],
           ["mobile", "Mobile", "tel"], ["altMobile", "Alternate Mobile", "tel"],
           ["password", "Temporary Password", "password"],
-          ["designation", "Designation", "text"],
           ["reportingManager", "Reporting Manager", "text"],
           ["hrFileNo", "HR File No.", "text"], ["emergencyNumber", "Emergency Number", "tel"], ["trainingPeriod", "Provision", "text"], ["salary", "Salary", "text"], ["bondPeriodDuration", "Bond Period Duration", "text"], ["bankAccountNumber", "Bank Account Number", "text"], ["bankIfscCode", "Bank IFSC Code", "text"],
         ].filter(([name]) => step === 1 ? ["name", "email", "mobile", "altMobile", "password", "designation", "dateOfJoining"].includes(name) : step === 2 ? !["name", "email", "mobile", "altMobile", "password", "designation", "dateOfJoining"].includes(name) : false).map(([name, label, type]) => (
@@ -147,7 +146,7 @@ const EmployeeCreate = () => {
           />
         ))}
 
-        {step === 1 ? <><CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value }))} /><CalendarPicker label="Date of Birth" mode="date" value={form.dob} onChange={(value) => setForm((current) => ({ ...current, dob: value }))} /><CustomDropdown label="Gender" value={form.gender} onChange={handleSelect("gender")} options={["Male", "Female", "Other"]} /><CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu /><CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} /></> : null}
+        {step === 1 ? <><CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value }))} /><CalendarPicker label="Date of Birth" mode="date" value={form.dob} onChange={(value) => setForm((current) => ({ ...current, dob: value }))} /><CustomDropdown label="Gender" value={form.gender} onChange={handleSelect("gender")} options={["Male", "Female", "Other"]} /><CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu /><CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation} searchable portalMenu /><CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} /></> : null}
         {step === 2 ? <><CustomDropdown label="Blood Group" value={form.bloodGroup} onChange={handleSelect("bloodGroup")} options={masterOptions.bloodGroup.length ? masterOptions.bloodGroup : ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]} /><CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} /><CalendarPicker label="Resignation Date" mode="date" value={form.resignationDate} onChange={(value) => setForm((current) => ({ ...current, resignationDate: value }))} /><CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} /></> : null}
         {step === 3 ? <div className="md:col-span-3 border-t pt-4">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.salaryOnHold} onChange={(e) => setForm((c) => ({ ...c, salaryOnHold: e.target.checked }))} /> Salary on hold</label>

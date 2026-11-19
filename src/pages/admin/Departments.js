@@ -122,8 +122,8 @@ const Departments = () => {
     <div className="space-y-5 p-2">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Departments</h1>
-          <p className="text-sm text-gray-500">Manage department master data used in employee forms.</p>
+          <h1 className="text-xl font-bold">Organization Master Data</h1>
+          <p className="text-sm text-gray-500">Manage departments and employee master values used in forms.</p>
         </div>
         <div className="flex items-center gap-2"><Button variant="secondary" onClick={loadDepartments}><span className="inline-flex items-center gap-2"><FiRefreshCw /> Refresh</span></Button><Button onClick={() => { resetForm(); setShowForm(true); }}><span className="inline-flex items-center gap-2"><FiPlus /> Add Department</span></Button></div>
       </div>
@@ -193,7 +193,7 @@ const Departments = () => {
           ))
         )}
       </section>
-      <div className="grid gap-5 lg:grid-cols-2"><MasterOptionsSection type="bloodGroup" title="Blood Groups" description="Blood group master values used in employee forms." /><MasterOptionsSection type="employeeType" title="Employee Types" description="Employee type master values used in employee forms." /></div>
+      <div className="grid gap-5 lg:grid-cols-3"><MasterOptionsSection type="bloodGroup" title="Blood Group Master" description="Manage blood group options available in employee forms." /><MasterOptionsSection type="employeeType" title="Employment Type Master" description="Manage employment types available in employee forms." /><MasterOptionsSection type="designation" title="Designation Master" description="Manage designations available in employee forms." /></div>
     </div>
   );
 };

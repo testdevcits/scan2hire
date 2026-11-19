@@ -5,7 +5,7 @@ const AdminLayout = () => {
   const navItems = [
     { label: "Dashboard", path: "/admin/dashboard", end: true, icon: <FiBarChart2 /> },
     { label: "Role & Access", path: "/admin/hrs", icon: <FiBriefcase /> },
-    { label: "Departments", path: "/admin/departments", icon: <FiGrid /> },
+    { label: "Master Data", path: "/admin/departments", icon: <FiGrid /> },
     { label: "Employees", path: "/admin/employees", icon: <FiUsers /> },
     { label: "Candidates", path: "/admin/candidates", icon: <FiUserCheck /> },
     { label: "Today Check-ins", path: "/admin/today-checkins", icon: <FiClock /> },
