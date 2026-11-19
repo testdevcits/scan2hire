@@ -13,7 +13,7 @@ const formatDate = (value) => {
   return date ? date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "Select date";
 };
 
-const DateRangePicker = ({ value, onApply, className = "" }) => {
+const DateRangePicker = ({ value, onApply, className = "", minDate = "" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(value || { start: "", end: "" });
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -56,8 +56,9 @@ const DateRangePicker = ({ value, onApply, className = "" }) => {
   }, [isOpen]);
 
   const openPicker = () => {
-    setDraft(value || { start: "", end: "" });
-    const selected = parseDateKey(value?.start);
+    const safeValue = value && (!minDate || (( !value.start || value.start >= minDate) && (!value.end || value.end >= minDate))) ? value : { start: "", end: "" };
+    setDraft(safeValue);
+    const selected = parseDateKey(safeValue?.start);
     setVisibleMonth(selected || new Date());
     setIsOpen(true);
   };
@@ -66,6 +67,7 @@ const DateRangePicker = ({ value, onApply, className = "" }) => {
 
   const selectDate = (date) => {
     const selectedKey = getDateKey(date);
+    if (minDate && selectedKey < minDate) return;
     setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     setDraft((current) => {
       if (!current.start || current.end) return { start: selectedKey, end: "" };

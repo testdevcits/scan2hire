@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FiCheckCircle, FiClock, FiEye, FiFileText, FiXCircle } from "react-icons/fi";
-import { hrApi } from "../../api";
+import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
 import CommonTable from "../../components/common/CommonTable";
@@ -35,7 +35,10 @@ const LeaveReports = () => {
   const toast = useToast();
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
-  const canReview = user?.role === "hr";
+  const [moduleAccess, setModuleAccess] = useState(user?.moduleAccess || {});
+  const canReview = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.edit));
+  const canAdjust = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.adjust));
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [status, setStatus] = useState("");
@@ -60,6 +63,15 @@ const LeaveReports = () => {
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [adjustmentSaving, setAdjustmentSaving] = useState(false);
 
+  useEffect(() => {
+    if (user?.role !== "hr") return undefined;
+    let active = true;
+    authApi.getProfile().then((response) => {
+      if (active) setModuleAccess(response.data.data?.moduleAccess || {});
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [user?.role]);
+
   const loadData = useCallback(async () => {
     const currentRequestId = ++requestId.current;
     setLoading(true);
@@ -74,8 +86,21 @@ const LeaveReports = () => {
         limit: pageSize,
       });
       if (currentRequestId !== requestId.current) return;
-      setLeaves(leavesRes.data.data || []);
-      setSummary(leavesRes.data.summary || { total: 0, pending: 0, approved: 0, rejected: 0 });
+      const responseLeaves = leavesRes.data.data || [];
+      const term = debouncedSearch.trim().toLowerCase();
+      const visibleLeaves = responseLeaves.filter((leave) => {
+        const employee = leave.employee || {};
+        const matchesEmployee = !selectedEmployeeId || String(employee._id) === String(selectedEmployeeId);
+        const matchesStatus = !status || leave.status === status;
+        const from = String(leave.fromDate || "").slice(0, 10);
+        const to = String(leave.toDate || leave.fromDate || "").slice(0, 10);
+        const matchesDate = !selectedDate || (from <= selectedDate && to >= selectedDate);
+        const haystack = [employee.name, employee.employeeId, employee.email, leave.type, leave.title, leave.content, leave.reason].filter(Boolean).join(" ").toLowerCase();
+        return matchesEmployee && matchesStatus && matchesDate && (!term || haystack.includes(term));
+      });
+      setLeaves(visibleLeaves);
+      const filteredSummary = visibleLeaves.reduce((result, leave) => { result.total += 1; if (leave.status === "pending") result.pending += 1; if (leave.status === "approved") result.approved += 1; if (leave.status === "rejected") result.rejected += 1; return result; }, { total: 0, pending: 0, approved: 0, rejected: 0 });
+      setSummary(filteredSummary);
       setPagination(leavesRes.data.pagination || { page: 1, limit: pageSize, totalItems: 0, totalPages: 1 });
     } catch (err) {
       if (currentRequestId !== requestId.current) return;
@@ -264,7 +289,7 @@ const LeaveReports = () => {
       accessor: "attachment",
       header: "Attachment",
       render: (attachment) => attachment?.url ? (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="font-medium text-[#f84525] underline">View</a>
+        <button type="button" onClick={() => setAttachmentPreview(attachment)} className="font-medium text-[#f84525] underline">View</button>
       ) : "-",
     },
     {
@@ -287,6 +312,7 @@ const LeaveReports = () => {
 
   return (
     <div className="space-y-3 p-2 sm:space-y-4">
+      {attachmentPreview && createPortal(<div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 p-4" onClick={() => setAttachmentPreview(null)}><div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-4 dark:bg-gray-900" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Leave Attachment</h2><button type="button" onClick={() => setAttachmentPreview(null)} className="text-xl">×</button></div>{attachmentPreview.type === "application/pdf" || attachmentPreview.url.toLowerCase().includes(".pdf") ? <iframe title="Leave attachment" src={attachmentPreview.url} className="h-[78vh] w-full rounded border" /> : <img src={attachmentPreview.url} alt={attachmentPreview.name || "Leave attachment"} className="max-h-[78vh] w-full object-contain" />}<a href={attachmentPreview.url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-[#f84525] underline">Open in new tab</a></div></div>, document.body)}
       <PageHeader
         title="Leave Reports"
         description="Review employee leave requests by date, employee, and status."
@@ -366,7 +392,7 @@ const LeaveReports = () => {
               })}
             </div>
 
-            {canReview && (
+            {canAdjust && (
               <form onSubmit={submitBalanceAdjustment} className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 md:grid-cols-2 xl:grid-cols-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                   Leave type

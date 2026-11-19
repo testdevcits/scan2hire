@@ -5,7 +5,7 @@ import { FiChevronDown, FiSearch, FiX } from "react-icons/fi";
 const normalizeOption = (option) =>
   typeof option === "string"
     ? { label: option, value: option }
-    : { label: option.label || option.value || "", value: option.value || option.label || "" };
+    : { label: option.label || option.name || option.value || "", value: option.value || option.name || option.label || "" };
 
 const CustomDropdown = ({
   label,

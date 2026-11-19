@@ -14,6 +14,8 @@ import {
 import { employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
+import DateRangePicker from "../../components/common/DateRangePicker";
+import CustomDropdown from "../../components/common/CustomDropdown";
 import EmptyState from "../../components/common/EmptyState";
 import { useToast } from "../../contexts/ToastContext";
 import { isTeamLeadUser } from "../../utils/roleUtils";
@@ -175,6 +177,7 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const [profile, setProfile] = useState(null);
+  const [moduleAccess, setModuleAccess] = useState({});
   const [candidates, setCandidates] = useState([]);
   const [interviewLogs, setInterviewLogs] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -197,6 +200,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
     attachment: null,
   });
   const [showLeaveForm, setShowLeaveForm] = useState(false);
+  const [includeLeaveAttachment, setIncludeLeaveAttachment] = useState(false);
   const todayKey = toDateKey();
   const yesterdayKey = toDateKey(addDays(new Date(), -1));
   const currentMonthKey = todayKey.slice(0, 7);
@@ -244,14 +248,16 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes] = await Promise.all([
+      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, accessRes] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
         employeeApi.getAssignedCandidates(),
         employeeApi.getInterviewLogs(),
+        employeeApi.getMyAccess(),
       ]);
       setProfile(profileRes.data.data);
+      setModuleAccess(accessRes.data.data?.moduleAccess || {});
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
@@ -270,6 +276,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const applyLeave = async (e) => {
     e.preventDefault();
+    const minimumDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
+    if (minimumDate && leaveForm.fromDate < minimumDate) { toast.error("Earned and optional leave must start from a future date."); return; }
     setLeaveSaving(true);
     try {
       await employeeApi.applyLeave({
@@ -284,6 +292,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         content: "",
         attachment: null,
       });
+      setIncludeLeaveAttachment(false);
       setShowLeaveForm(false);
       await fetchData();
       toast.success("Leave request submitted");
@@ -299,8 +308,8 @@ const EmployeeDashboard = ({ section = "all" }) => {
       setLeaveForm((prev) => ({ ...prev, attachment: null }));
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file.");
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      toast.error("Please upload an image or PDF file.");
       return;
     }
     const dataUri = await fileToDataUri(file);
@@ -418,6 +427,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const show = (name) => section === name;
   const isDashboard = section === "all";
+  const effectiveModuleAccess = moduleAccess || profile?.user?.moduleAccess || profile?.moduleAccess || {};
+  const canApplyLeave = Boolean(effectiveModuleAccess.leaves?.add || effectiveModuleAccess.leaves?.edit);
+  const leaveMinDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
 
   const currentMonthAttendance = useMemo(
     () => attendance.filter((item) => item.dateKey?.startsWith(currentMonthKey)),
@@ -832,7 +844,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       {show("leaves") && (
         <div className="flex-1 min-h-0 flex flex-col gap-4">
           {leaveBalance && (
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
               {[
                 ["Earned Leave", leaveBalance.earned_leave],
                 ["Sick Leave", leaveBalance.sick_leave],
@@ -856,7 +868,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <ScrollCard
               title="Apply Leave"
               subtitle="Open the form only when you want to send a leave mail and request."
-              action={
+              action={canApplyLeave ? (
                 <div className="flex items-center gap-2">
                   <Button
                     text={showLeaveForm ? "Close Form" : "Open Leave Form"}
@@ -864,58 +876,32 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     onClick={() => setShowLeaveForm((prev) => !prev)}
                   />
                 </div>
-              }
+              ) : null}
             >
               {showLeaveForm ? (
                 <form onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Leave Type
-                    <select
-                      value={leaveForm.type}
-                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, type: e.target.value }))}
-                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
-                    >
-                      <option value="earned_leave">EL - Earned Leave</option>
-                      <option value="sick_leave">SL - Sick Leave</option>
-                      <option value="urgent_leave">Urgent Leave</option>
-                      <option value="optional_leave">Optional Leave</option>
-                      <option value="half_day">Half Day</option>
-                      <option value="full_day">Full Day</option>
-                    </select>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <CustomDropdown label="Leave Type" value={leaveForm.type} showPlaceholder={false} options={[{ value: "earned_leave", label: "EL - Earned Leave" }, { value: "sick_leave", label: "SL - Sick Leave" }, { value: "urgent_leave", label: "Urgent Leave" }, { value: "optional_leave", label: "Optional Leave" }, { value: "half_day", label: "Half Day" }, { value: "full_day", label: "Full Day" }]} onChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value, fromDate: "", toDate: "" }))} buttonClassName="h-10" portalMenu placement="bottom" />
                     {leaveBalance?.[leaveForm.type] && (
                       <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                         Available for this leave type: {leaveBalance[leaveForm.type].remaining} day(s).
                       </span>
                     )}
-                  </label>
+                  </div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Mail Subject / Title
                     <input
                       value={leaveForm.title}
                       onChange={(e) => setLeaveForm((prev) => ({ ...prev, title: e.target.value }))}
-                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
+                      className="mt-1.5 h-10 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
                       required
                     />
                   </label>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    From Date
-                    <input
-                      type="date"
-                      value={leaveForm.fromDate}
-                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, fromDate: e.target.value }))}
-                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    To Date
-                    <input
-                      type="date"
-                      value={leaveForm.toDate}
-                      onChange={(e) => setLeaveForm((prev) => ({ ...prev, toDate: e.target.value }))}
-                      className="mt-1.5 w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40 focus:border-[#f84525]"
-                    />
-                  </label>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Leave Date Range</p>
+                    <DateRangePicker value={{ start: leaveForm.fromDate, end: leaveForm.toDate }} minDate={leaveMinDate} onApply={({ start, end }) => { if (leaveMinDate && (start < leaveMinDate || end < leaveMinDate)) { toast.error("Please select a future date."); return; } setLeaveForm((prev) => ({ ...prev, fromDate: start, toDate: end })); }} className="mt-1.5" />
+                    {leaveMinDate && <p className="mt-1 text-xs text-gray-500">{leaveForm.type === "optional_leave" ? "Optional leave can be selected only for future calendar dates." : "Earned leave can be selected from tomorrow onward."}</p>}
+                  </div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
                     Mail Content
                     <textarea
@@ -926,22 +912,22 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     />
                   </label>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
-                    Attachment Image
-                    <div
+                    <span className="flex items-center gap-2"><input type="checkbox" checked={includeLeaveAttachment} onChange={(e) => { setIncludeLeaveAttachment(e.target.checked); if (!e.target.checked) setLeaveForm((prev) => ({ ...prev, attachment: null })); }} className="accent-[#f84525]" /> Add attachment image</span>
+                    {includeLeaveAttachment && <div
                       tabIndex={0}
                       onPaste={handleLeaveAttachmentPaste}
                       className="mt-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525]/40"
                     >
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,application/pdf"
                         onChange={(e) => handleLeaveAttachment(e.target.files?.[0])}
                         className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 dark:text-gray-100 text-sm"
                       />
                       <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                         Paste copied image here or choose file.
                       </p>
-                    </div>
+                    </div>}
                     {leaveForm.attachment?.name && (
                       <span className="mt-1.5 block text-xs text-gray-500 dark:text-gray-400">
                         Selected: {leaveForm.attachment.name}
@@ -1137,7 +1123,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
       {selectedLeave && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[85vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-3 flex-shrink-0">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#f84525]">
@@ -1189,6 +1175,17 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   {selectedLeave.content || selectedLeave.reason || "No reason added."}
                 </p>
               </div>
+              {selectedLeave.attachment?.url && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Attachment</p>
+                  {selectedLeave.attachment.type === "application/pdf" || selectedLeave.attachment.url.toLowerCase().includes(".pdf") ? (
+                    <iframe title="Leave attachment PDF" src={selectedLeave.attachment.url} className="mt-2 h-72 w-full rounded-lg border border-gray-200" />
+                  ) : (
+                    <img src={selectedLeave.attachment.url} alt={selectedLeave.attachment.name || "Leave attachment"} className="mt-2 max-h-72 w-full rounded-lg border border-gray-200 object-contain" />
+                  )}
+                  <a href={selectedLeave.attachment.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-medium text-[#f84525] hover:underline">Open attachment</a>
+                </div>
+              )}
             </div>
           </div>
         </div>

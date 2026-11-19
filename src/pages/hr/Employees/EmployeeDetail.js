@@ -105,8 +105,10 @@ const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
   image.onerror = () => reject(new Error("Invalid image"));
   image.src = URL.createObjectURL(file);
 });
-const employeeAccessModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ["credentials", "Credentials"], ["settings", "Settings"]];
-const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view", "add", "edit", "delete"]], ["documents", "Documents & Signatures", ["view", "add", "edit", "delete"]], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
+const employeeModuleActions = ["view", "add", "edit", "delete"];
+const employeeAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["attendance", "Attendance", ["view", "edit"], { view: "View Attendance", edit: "Update Attendance" }], ["interviews", "Interviews", ["view", "edit"], { view: "View Interviews", edit: "Submit Review" }], ["leaves", "Leaves", ["view", "add"], { view: "View Leaves", add: "Apply Leave" }], ["leaveCalendar", "Conative Calendar", ["view"], { view: "View Calendar" }], ["systemAllotment", "My System", employeeModuleActions, { view: "View System", add: "Add Item", edit: "Update Item", delete: "Delete Item" }], ["documents", "Documents", ["view", "edit"], { view: "View Documents", edit: "Sign Documents" }], ["credentials", "Credentials", employeeModuleActions, { view: "View Credentials", add: "Add Credential", edit: "Update Credential", delete: "Delete Credential" }], ["settings", "Settings", ["view", "edit"], { view: "View Settings", edit: "Update Settings" }]];
+const teamLeadAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["yourTeam", "My Team / Team List", ["view", "edit"], { view: "View Team", edit: "Manage Team" }], ...employeeAccessModules.slice(1)];
+const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view", "edit", "adjust", "delete"], { view: "View Reports", edit: "Approve / Reject", adjust: "Adjust Leave Balance", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "edit", "delete"]], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
 const documentLabelMap = { photo: "Photo", aadhaarCard: "Aadhaar Card", panCard: "PAN Card", passbook: "Bank Proof / Passbook", bloodGroupProof: "Blood Group Proof", addressProof: "Address Proof", addressProofPermanent: "Permanent Address Proof", addressProofAlternate: "Alternate Address Proof", degree: "Degree", resume: "Resume" };
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "documents", "documentSignatures"];
@@ -167,6 +169,7 @@ const EmployeeDetail = () => {
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], employeeType: [], designation: [] });
   const [documentFiles, setDocumentFiles] = useState({});
   const [existingDocumentFiles, setExistingDocumentFiles] = useState({});
   const [documentErrors, setDocumentErrors] = useState({});
@@ -179,6 +182,7 @@ const EmployeeDetail = () => {
   const [accessDraft, setAccessDraft] = useState({});
   const [roleDraft, setRoleDraft] = useState("employee");
   const [savingAccess, setSavingAccess] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(true);
   const [hrModuleAccess, setHrModuleAccess] = useState(null);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
@@ -195,6 +199,7 @@ const EmployeeDetail = () => {
 
   const loadEmployee = async ({ includeReport = true, initial = false } = {}) => {
     if (initial) setLoading(true);
+    setAccessLoading(true);
     try {
       const requests = [hrApi.getEmployee(employeeId)];
       if (includeReport) requests.push(hrApi.getEmployeeMonthlyReport(employeeId, month));
@@ -214,16 +219,18 @@ const EmployeeDetail = () => {
       if (profileRes) setHrModuleAccess(profileRes.data.data?.moduleAccess ?? null);
       setEmployee(employeeData);
       setExistingDocumentFiles(Object.fromEntries(Object.entries(employeeData.documents || {}).map(([key, value]) => [key, value?.name || value?.fileName || (value?.url ? `${documentLabelMap[key] || key} (saved)` : "")]).filter(([, name]) => name)));
-      const detectedRole = employeeData.user?.role === "hr" || employeeData.workRole === "hr"
-        ? "hr"
-        : employeeData.user?.role === "teamlead" || employeeData.workRole === "teamlead" ? "teamlead" : "employee";
-      const accessModules = detectedRole === "hr" ? hrAccessModules : employeeAccessModules;
-      const defaultAccess = Object.fromEntries(accessModules.map(([key]) => [key, employeeData.user?.moduleAccess?.[key] || { view: true, add: true, edit: true, delete: true }]));
+      const detectedRole = employeeData.workRole === "teamlead" || employeeData.user?.role === "teamlead"
+        ? "teamlead"
+        : employeeData.user?.role === "hr" || employeeData.workRole === "hr" ? "hr" : "employee";
+      const accessModules = detectedRole === "hr" ? hrAccessModules : detectedRole === "teamlead" ? teamLeadAccessModules : employeeAccessModules;
+      const defaultAccess = Object.fromEntries(accessModules.map(([key, , actions = ["view", "add", "edit", "delete"]]) => [key, employeeData.user?.moduleAccess?.[key] || Object.fromEntries(actions.map((action) => [action, action === "view" && (key === "dashboard" || key === "settings")]))]));
       setAccessDraft(defaultAccess);
       setRoleDraft(detectedRole);
       if (canManage) {
         setEmployeeOptions(employeesRes?.data?.data || []);
         setDepartments(departmentsRes?.data?.data || []);
+        const masters = await Promise.all([authApi.getMasterOptions("bloodGroup"), authApi.getMasterOptions("employeeType"), authApi.getMasterOptions("designation")]);
+        setMasterOptions({ bloodGroup: masters[0].data.data || [], employeeType: masters[1].data.data || [], designation: masters[2].data.data || [] });
       }
       setEditForm({
         employeeId: employeeData.employeeId || "",
@@ -260,6 +267,7 @@ const EmployeeDetail = () => {
       toast.error(err.response?.data?.message || "Unable to load employee");
     } finally {
       if (initial) setLoading(false);
+      setAccessLoading(false);
     }
   };
 
@@ -733,7 +741,6 @@ const EmployeeDetail = () => {
           ["name", "Full Name", "text"],
           ["mobile", "Mobile", "text"],
           ["altMobile", "Alt Mobile", "text"],
-          ["designation", "Designation", "text"],
         ].map(([name, label, type]) => (
           <InputField
             key={name}
@@ -754,7 +761,7 @@ const EmployeeDetail = () => {
           label="Blood Group"
           value={editForm.bloodGroup}
           onChange={(value) => setEditForm((current) => ({ ...current, bloodGroup: value }))}
-          options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]}
+          options={masterOptions.bloodGroup.length ? masterOptions.bloodGroup : ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]}
           placeholder="Select blood group"
         />
         <CalendarPicker
@@ -774,6 +781,7 @@ const EmployeeDetail = () => {
           placeholder="Select department"
           error={editErrors.department}
         />
+        <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
         <CustomDropdown
           label="Reporting Manager"
           value={editForm.teamLead}
@@ -801,7 +809,7 @@ const EmployeeDetail = () => {
             setEditForm((current) => ({ ...current, employeeType: value }));
             setEditErrors((current) => ({ ...current, employeeType: ["Permanent", "Probation", "Intern"].includes(value) ? "" : "Choose a valid employee type" }));
           }}
-          options={["Permanent", "Probation", "Intern"]}
+          options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]}
           error={editErrors.employeeType}
         />
         <CalendarPicker
@@ -847,9 +855,9 @@ const EmployeeDetail = () => {
         <section id="access-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div><h2 className="text-lg font-semibold">Role &amp; Access</h2><p className="text-sm text-gray-500">Assign this user as Employee or Team Lead and manage individual module access.</p></div>
-            <CustomDropdown label="Role" value={roleDraft} showPlaceholder={false} options={[{ value: "employee", label: "Employee" }, { value: "teamlead", label: "Team Lead" }, { value: "hr", label: "HR" }]} onChange={(value) => { setRoleDraft(value); setAccessDraft(Object.fromEntries((value === "hr" ? hrAccessModules : employeeAccessModules).map(([key]) => [key, { view: true, add: true, edit: true, delete: true }]))); }} className="w-full sm:w-64" portalMenu placement="bottom" />
+            <CustomDropdown label="Role" value={roleDraft} disabled={accessLoading || savingAccess} showPlaceholder={false} options={[{ value: "employee", label: "Employee" }, { value: "teamlead", label: "Team Lead" }, { value: "hr", label: "HR" }]} onChange={(value) => { setRoleDraft(value); const modules = value === "hr" ? hrAccessModules : value === "teamlead" ? teamLeadAccessModules : employeeAccessModules; setAccessDraft(Object.fromEntries(modules.map(([key, , actions = ["view", "add", "edit", "delete"]]) => [key, Object.fromEntries(actions.map((action) => [action, action === "view" && (key === "dashboard" || key === "settings")]))]))); }} className="w-full sm:w-64" portalMenu placement="bottom" />
           </div>
-          <ModulePermissionMatrix modules={roleDraft === "hr" ? hrAccessModules : employeeAccessModules} value={accessDraft} onChange={(key, value) => setAccessDraft((current) => ({ ...current, [key]: value }))} />
+          {accessLoading ? <CommonLoader text="Loading role and access..." /> : <ModulePermissionMatrix modules={roleDraft === "hr" ? hrAccessModules : roleDraft === "teamlead" ? teamLeadAccessModules : employeeAccessModules} value={accessDraft} onChange={(key, value) => setAccessDraft((current) => ({ ...current, [key]: value }))} />}
           <div className="mt-4 flex justify-end"><Button text="Save Role & Access" loading={savingAccess} onClick={saveEmployeeAccess} /></div>
         </section>
       )}
