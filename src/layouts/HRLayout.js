@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { FiBarChart2, FiCalendar, FiClock, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 import { employeeApi } from "../api";
@@ -64,6 +64,7 @@ const HRLayout = () => {
     ...(!isProjectCoordinator && moduleAllowed('checkins') ? [{ label: "Today Check-ins", path: "/hr/today-checkins", icon: <FiClock /> }] : []),
     ...(!isProjectCoordinator && moduleAllowed('attendanceReports') ? [{ label: "Attendance Reports", path: "/hr/reports", icon: <FiCalendar /> }] : []),
     ...(!isProjectCoordinator && moduleAllowed('leaveReports') ? [{ label: "Leave Reports", path: "/hr/leave-reports", icon: <FiCalendar /> }] : []),
+    ...(moduleAllowed('ownDocuments') ? [{ label: "My Documents", path: "/hr/my-documents", icon: <FiFolder /> }] : []),
     ...(canViewSystemAllotments
       ? [{ label: "System Allotments", path: "/hr/system-allotments", icon: <FiMonitor /> }]
       : []),

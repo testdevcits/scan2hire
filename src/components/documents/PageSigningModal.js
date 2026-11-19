@@ -88,8 +88,15 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     return { left: `${(placement.mode === 'strip' ? Math.max(12, currentSize.width - 244) : placement.x) / currentSize.width * 100}%`, top: `${(placement.mode === 'strip' ? currentSize.height + 20 : placement.y) / totalHeight * 100}%`, width: `${220 / currentSize.width * 100}%`, height: `${80 / totalHeight * 100}%` };
   };
   const label = document.type === 'hr_policy' ? 'HR Policy' : 'Appointment Letter';
-  return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : 'Read and sign each page. HR/Admin approval is required for Done.'} className="max-w-5xl" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
-    {canDelete && <Button text="Delete" variant="danger" disabled={busy} onClick={onDelete} className="mr-auto" />}
+  return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : 'Read and sign each page. HR/Admin approval is required for Done.'} headerContent={setup && placement ? <div className="mr-2 flex max-w-[260px] items-center gap-2"><span className="text-xs font-medium text-gray-500">Placement</span><CustomDropdown showPlaceholder={false} value={placement.mode} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} /></div> : null} className="max-w-5xl border-2 border-[#f84525]" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
+    {canDelete && <Button text="Delete" variant="danger" disabled={busy} onClick={onDelete} className="mr-4" />}
+    {doc && <div className="flex flex-wrap gap-1">{doc.pages.map(p => <Button key={p.page} text={`${p.page}${signedPages.includes(p.page) ? ' ✓' : ''}`} variant={page === p.page ? 'primary' : 'secondary'} disabled={busy} onClick={() => changePage(p.page)} className="!px-2 !py-1 text-xs" />)}</div>}
+    <div className="mr-auto" />
+    {doc && <div className="flex flex-wrap items-center gap-1">
+      <Button text="Previous" variant="secondary" disabled={busy || page === 1} onClick={() => changePage(page - 1)} className="text-xs" />
+      <span className="px-1 text-sm font-semibold">Page {page} / {count}</span>
+      <Button text="Next" variant="secondary" disabled={busy || page === count || !ready} onClick={() => changePage(page + 1)} className="text-xs" />
+    </div>}
     <Button text="Close" variant="secondary" disabled={busy} onClick={onClose} />
     {doc && setup && <Button text="Save Placements & Send" disabled={visited.length !== count || !ready} loading={busy} onClick={sendLayout} />}
     {signing && !pageSigned && <Button text="Sign This Page" disabled={!signature || !accepted || !ready} loading={busy} onClick={savePage} />}
@@ -97,13 +104,8 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     {reviewing && <><Button text="Request Correction" variant="secondary" disabled={visited.length !== count || !reason.trim()} loading={busy} onClick={() => review('correction')} /><Button text="Approve & Mark Done" disabled={visited.length !== count || !ready} loading={busy} onClick={() => review('approve')} /></>}
   </>}>
     {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : !doc ? <CommonLoader compact text="Loading document…" /> : <>
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-gray-50 p-2 dark:bg-gray-800">
-        <div className="flex items-center gap-2"><Button text="Previous" variant="secondary" disabled={busy || page === 1} onClick={() => changePage(page - 1)} className="text-xs" /><span className="text-sm font-semibold">Page {page} / {count}</span><Button text="Next" variant="secondary" disabled={busy || page === count || !ready} onClick={() => changePage(page + 1)} className="text-xs" /></div>
-        <span className="text-xs">{setup || reviewing ? `${visited.length}/${count} pages viewed` : `${signedPages.length}/${count} pages signed`}</span>
-      </div>
-      <div className="flex flex-wrap gap-1">{doc.pages.map(p => <Button key={p.page} text={`${p.page}${signedPages.includes(p.page) ? ' ✓' : ''}`} variant={page === p.page ? 'primary' : 'secondary'} disabled={busy} onClick={() => changePage(p.page)} className="!px-2 !py-1 text-xs" />)}</div>
       {doc.correctionReason && <p className="rounded-sm bg-amber-50 p-3 text-sm text-amber-900">Correction requested: {doc.correctionReason}. Please read and sign all pages again.</p>}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid items-start gap-4">
         <div className="min-w-0 overflow-hidden rounded-sm border border-gray-200 bg-gray-100 p-2 dark:border-gray-700 dark:bg-gray-800">
           <div ref={pageArea} className="relative" style={{ backgroundColor: '#ffffff' }} onClick={event => {
             if (!setup || !ready || placement.mode !== 'overlay' || busy) return;
@@ -121,10 +123,9 @@ export default function PageSigningModal({ document, managed, canDelete = false,
             {ready && signing && !pageSigned && signature && <div className="pointer-events-none absolute" style={{ ...pointBox(), background: "#ffffff" }}><img src={signature} alt="Final fixed-size signature preview" className="h-full w-full object-contain" /></div>}
           </div>
         </div>
-        <div className="space-y-4 rounded-sm border border-gray-200 p-3 dark:border-gray-700">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-sm border border-gray-200 p-3 dark:border-gray-700">
           {setup ? <>
             <h3 className="text-sm font-semibold">Signature placement · Page {page}</h3>
-            <CustomDropdown label="Placement" showPlaceholder={false} value={placement?.mode || 'strip'} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} />
             <p className="text-xs text-gray-500">{placement?.mode === 'strip' ? 'Adds a white strip below this page. Original text stays uncovered.' : 'Click a blank area on the page to position the box. You can drag the box to adjust it.'}</p>
             {placement?.mode === 'overlay' && <div className="flex gap-2">{['x', 'y'].map(axis => <label key={axis} className="min-w-0 flex-1 text-xs">{axis.toUpperCase()} (pt)<input type="number" min="0" step="1" disabled={busy} value={Math.round(placement[axis])} onChange={event => changePlacement({ [axis]: Math.max(0, Math.min((axis === 'x' ? currentSize.width - 220 : currentSize.height - 80), Number(event.target.value) || 0)) })} className="mt-1 w-full rounded-sm border bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>)}</div>}
             <p className="text-xs text-gray-500">Box size is fixed on every page. Review all {count} pages to enable Send.</p>

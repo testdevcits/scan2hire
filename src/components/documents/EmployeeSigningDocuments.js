@@ -13,7 +13,7 @@ export default function EmployeeSigningDocuments({ documents, loading, error, bu
       <div><h2 className="font-semibold text-gray-900 dark:text-white">Appointment Letter & HR Policy</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Read and sign every page. HR/Admin verifies your submission before Done.</p></div>
       <div className="flex items-center gap-3"><span className="text-xs font-medium text-gray-500 dark:text-gray-400">{signed}/2 signed</span><Button title="Refresh documents" variant="secondary" disabled={busy || loading} onClick={onRefresh} className="inline-flex !p-2"><FiRefreshCw /><span className="sr-only">Refresh documents</span></Button></div>
     </div>
-    {loading ? <CommonLoader compact text="Loading your documents…" /> : error ? <EmptyState variant="error" text={error} action={<Button text="Try again" onClick={onRefresh} />} /> : <div className="divide-y divide-gray-100 dark:divide-gray-800">
+    {loading ? <CommonLoader compact text="Loading your documents…" /> : error ? <EmptyState variant="error" text={error} action={<Button text="Try again" onClick={onRefresh} />} /> : !documents.length ? <EmptyState text="No documents assigned to you yet." action={<Button text="Refresh" variant="secondary" onClick={onRefresh} />} /> : <div className="divide-y divide-gray-100 dark:divide-gray-800">
       {Object.entries(types).map(([type, title]) => {
         const doc = documents.find(item => item.type === type);
         const done = doc?.status === 'done';

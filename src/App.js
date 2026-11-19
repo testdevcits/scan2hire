@@ -107,6 +107,7 @@ function App() {
           <Route path="dashboard" element={<HRDashboard />} />
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
+          <Route path="my-documents" element={<DocumentSigningList />} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />

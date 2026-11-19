@@ -45,14 +45,13 @@ const HRDashboard = () => {
 
   useEffect(() => {
     if (isProjectCoordinator) return undefined;
-    Promise.all([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
-      .then(([attendanceRes, leavesRes, candidatesRes, employeeRes]) => {
-        setAttendance(attendanceRes.data.data || []);
-        setLeaves(leavesRes.data.data || []);
-        setCandidates(candidatesRes.data.data || []);
-        setEmployees(employeeRes.data.data || []);
-      })
-      .catch((err) => toast.error(err.response?.data?.message || "Unable to load HR dashboard"));
+    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
+      .then(([attendance, leaves, candidates, employees]) => {
+        if (attendance.status === "fulfilled") setAttendance(attendance.value.data.data || []);
+        if (leaves.status === "fulfilled") setLeaves(leaves.value.data.data || []);
+        if (candidates.status === "fulfilled") setCandidates(candidates.value.data.data || []);
+        if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
+      });
   }, [currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();

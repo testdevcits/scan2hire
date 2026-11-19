@@ -48,11 +48,15 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const result = await API.get('/documents');
-      setDocuments(result.data.data || []);
+      const result = await API.get(!managed && isHr ? '/documents?self=true' : '/documents');
+      const rows = result.data.data || [];
+      const ownEmployeeId = user?.employeeProfile?._id || user?.employeeProfile;
+      setDocuments(!managed && isHr && ownEmployeeId
+        ? rows.filter(doc => String(doc.employee?._id || doc.employee) === String(ownEmployeeId))
+        : rows);
     } catch (err) { setError(err.response?.data?.message || 'Unable to load documents'); }
     finally { setLoading(false); }
-  }, []);
+  }, [isHr, managed, user?.employeeProfile]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!managed || !isHr) return;
@@ -144,7 +148,10 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
     result[key].documents.push(doc);
     return result;
   }, {})).map(group => ({ ...group, status: Object.keys(labels).every(key => group.documents.some(doc => doc.type === key && doc.status === 'done')) ? 'done' : group.documents.some(doc => doc.status === 'needs_correction') ? 'needs_correction' : group.documents.some(doc => doc.status === 'draft') ? 'draft' : group.documents.some(doc => doc.status === 'awaiting_verification') ? 'awaiting_verification' : group.documents.every(doc => doc.status === 'cancelled') ? 'cancelled' : 'pending' }));
-  const visible = groups.filter(group => filter === 'all' || group.status === filter);
+  const selectedGroups = employeeFilterId
+    ? groups.filter(group => [group._id, group.employee?._id, group.employee?.employeeId].some(value => String(value || '') === String(employeeFilterId)))
+    : groups;
+  const selectedVisible = selectedGroups.filter(group => filter === 'all' || group.status === filter);
   const documentCell = (row, documentType) => {
     const doc = row.documents.find(item => item.type === documentType);
     return <DocumentTableCell document={doc} onView={() => open(doc, doc.status === 'done')} busy={busy} />;
@@ -155,14 +162,16 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
     { accessor: 'status', header: 'Overall Status', headerClassName: managed ? 'w-[20%]' : 'w-[28%]', cellClassName: '!py-2 !align-middle', render: value => <DocumentStatusBadge status={value} /> },
   ];
   return <section className="space-y-5 dark:text-white">
-    {managed && <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm bg-white p-5 shadow-sm dark:bg-gray-900">
-      <div><h1 className="text-xl font-bold">{managed ? 'Documents & Signatures' : 'Documents to Sign'}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{managed ? 'Send appointment letters and HR policies. Track employee signatures here.' : 'Open your document, read it and sign. Completed copies stay available here.'}</p></div>
-      {managed && isHr && !employeeFilterId && <Button text="+ Add Employee Documents" onClick={() => { setEditTarget(null); setEmployeeId(''); setFile(null); setFiles({}); setUploadOpen(true); }} disabled={busy} />}
-    </div>}
-    {managed && <div className="flex flex-wrap gap-2 rounded-sm border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">{[['all', 'All'], ['draft', 'Set Placement'], ['pending', 'Pending'], ['awaiting_verification', 'Verify'], ['needs_correction', 'Needs Correction'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([key, label]) => <Button key={key} text={`${label} (${key === 'all' ? groups.length : groups.filter(group => group.status === key).length})`} variant={filter === key ? 'primary' : 'secondary'} onClick={() => setFilter(key)} className="text-sm" />)}</div>}
+    {managed && <>
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm bg-white p-5 shadow-sm dark:bg-gray-900">
+        <div><h1 className="text-xl font-bold">{managed ? 'Documents & Signatures' : 'Documents to Sign'}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{managed ? 'Send appointment letters and HR policies. Track employee signatures here.' : 'Open your document, read it and sign. Completed copies stay available here.'}</p></div>
+        <div className="flex flex-wrap justify-end gap-2">{[['all', 'All'], ['draft', 'Set Placement'], ['pending', 'Pending'], ['awaiting_verification', 'Verify'], ['needs_correction', 'Needs Correction'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([key, label]) => <Button key={key} text={`${label} (${key === 'all' ? selectedGroups.length : selectedGroups.filter(group => group.status === key).length})`} variant={filter === key ? 'primary' : 'secondary'} onClick={() => setFilter(key)} className="text-sm" />)}</div>
+        {managed && isHr && !employeeFilterId && <Button text="+ Add Employee Documents" onClick={() => { setEditTarget(null); setEmployeeId(''); setFile(null); setFiles({}); setUploadOpen(true); }} disabled={busy} />}
+      </div>
+    </>}
     {!managed && <EmployeeSigningDocuments documents={documents} loading={loading} error={error} busy={busy} onRefresh={load} onOpen={open} onDownload={downloadSigned} />}
     {managed && employeeFilterId && isHr && <div className="mb-4 rounded-sm border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"><h2 className="mb-3 font-semibold">Upload employee documents</h2><div className="grid gap-4 sm:grid-cols-2">{Object.entries(labels).map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept=".pdf,application/pdf" hint="PDF only · Maximum 5 MB" required disabled={busy} fileName={files[key]?.name} onChange={e => setFiles(currentFiles => ({ ...currentFiles, [key]: e.target.files?.[0] || null }))} />)}</div><div className="mt-4 flex justify-end"><Button text="Save Documents" loading={busy} onClick={upload} disabled={Object.keys(labels).some(key => !files[key])} /></div></div>}
-    {managed && <CommonTable tableClassName="table-fixed min-w-[640px]" mobileLayout="stack" columns={columns} data={employeeFilterId ? visible.filter(group => String(group._id) === String(employeeFilterId)) : visible} loading={loading} loadingText="Loading documents…" error={error} errorAction={<Button text="Try again" onClick={load} variant="secondary" />} emptyText={filter === 'pending' ? 'No pending signatures. You are all caught up.' : 'No documents found.'}
+    {managed && <CommonTable tableClassName="table-fixed min-w-[640px]" mobileLayout="stack" columns={columns} data={selectedVisible} loading={loading} loadingText="Loading documents…" error={error} errorAction={<Button text="Try again" onClick={load} variant="secondary" />} emptyText={filter === 'pending' ? 'No pending signatures. You are all caught up.' : 'No documents found.'}
       toolbar={<div className="flex justify-end border-b border-gray-100 p-3 dark:border-gray-800"><Button text="Refresh" variant="secondary" disabled={loading || busy} onClick={load} /></div>}
     />}
     {workflow && <Suspense fallback={<CommonLoader compact text="Opening signing screen…" />}><PageSigningModal document={workflow} managed={managed} canDelete={canDelete} onDelete={() => setDeleteTarget(workflow)} onClose={() => setWorkflow(null)} onChanged={load} /></Suspense>}
