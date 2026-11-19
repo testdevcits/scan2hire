@@ -55,6 +55,14 @@ const formatAddress = (address = {}) =>
     .join(", ") || "N/A";
 
 const detailFallback = (value) => value || "N/A";
+const employeeLeaveBalanceTypes = [
+  { value: "earned_leave", label: "Earned Leave" },
+  { value: "sick_leave", label: "Sick Leave" },
+  { value: "urgent_leave", label: "Urgent Leave" },
+  { value: "optional_leave", label: "Optional Leave" },
+  { value: "half_day", label: "Half Day" },
+  { value: "full_day", label: "Full Day" },
+];
 const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => {
@@ -138,7 +146,10 @@ const EmployeeDetail = () => {
   const [employeeLeaves, setEmployeeLeaves] = useState([]);
   const [employeeLeavesLoading, setEmployeeLeavesLoading] = useState(false);
   const [selectedEmployeeLeave, setSelectedEmployeeLeave] = useState(null);
+  const [employeeLeaveDrawerOpen, setEmployeeLeaveDrawerOpen] = useState(false);
+  const employeeLeaveDrawerTimer = useRef(null);
   const [selectedLeaveBalance, setSelectedLeaveBalance] = useState(null);
+  const [adjustType, setAdjustType] = useState("earned_leave");
   const [adjustDays, setAdjustDays] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [summary, setSummary] = useState(null);
@@ -207,16 +218,29 @@ const EmployeeDetail = () => {
   const adjustSelectedLeave = async () => {
     const days = Number(adjustDays);
     if (!Number.isFinite(days) || days === 0 || !adjustReason.trim()) return toast.error("Enter adjustment days and reason.");
-    const ok = await confirm({ title: "Adjust leave balance?", message: "Confirm this balance adjustment.", confirmText: "Adjust", cancelText: "Cancel", tone: "primary" });
+    const typeLabel = employeeLeaveBalanceTypes.find((item) => item.value === adjustType)?.label || adjustType;
+    const ok = await confirm({ title: "Confirm leave adjustment", message: `${days > 0 ? "Add" : "Deduct"} ${Math.abs(days)} day(s) from ${typeLabel}? Reason: ${adjustReason.trim()}`, confirmText: "Adjust leaves", cancelText: "Cancel", tone: days < 0 ? "danger" : "primary" });
     if (!ok) return;
-    try { const response = await hrApi.adjustEmployeeLeaveBalance(employeeId, { type: "earned_leave", days, reason: adjustReason.trim() }); setSelectedLeaveBalance(response.data.data || null); setAdjustDays(""); setAdjustReason(""); toast.success("Leave balance adjusted"); } catch (err) { toast.error(err.response?.data?.message || "Unable to adjust leave"); }
+    try { const response = await hrApi.adjustEmployeeLeaveBalance(employeeId, { type: adjustType, days, reason: adjustReason.trim() }); setSelectedLeaveBalance(response.data.data || null); setAdjustDays(""); setAdjustReason(""); toast.success("Leave balance adjusted"); } catch (err) { toast.error(err.response?.data?.message || "Unable to adjust leave"); }
+  };
+
+  const openEmployeeLeaveDrawer = (leave) => {
+    window.clearTimeout(employeeLeaveDrawerTimer.current);
+    setSelectedEmployeeLeave(leave);
+    setEmployeeLeaveDrawerOpen(true);
+  };
+
+  const closeEmployeeLeaveDrawer = () => {
+    setEmployeeLeaveDrawerOpen(false);
+    window.clearTimeout(employeeLeaveDrawerTimer.current);
+    employeeLeaveDrawerTimer.current = window.setTimeout(() => setSelectedEmployeeLeave(null), 300);
   };
 
   const reviewEmployeeLeave = async (nextStatus) => {
     if (!selectedEmployeeLeave) return;
     const ok = await confirm({ title: `${nextStatus === "approved" ? "Approve" : "Reject"} leave?`, message: "Confirm this leave request action.", confirmText: nextStatus === "approved" ? "Approve" : "Reject", cancelText: "Cancel", tone: nextStatus === "approved" ? "primary" : "danger" });
     if (!ok) return;
-    try { await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); setSelectedEmployeeLeave(null); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, status: nextStatus } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
+    try { await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); closeEmployeeLeaveDrawer(); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, status: nextStatus } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
   };
 
   const changeActiveTab = (tab) => {
@@ -968,7 +992,7 @@ const EmployeeDetail = () => {
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} /></div>
       </section>}
 
-      {activeTab === "leaves" && <section className="rounded-sm bg-white p-4 shadow dark:bg-gray-900"><h2 className="mb-4 font-semibold">Employee Leaves</h2>{employeeLeavesLoading ? <CommonLoader text="Loading leaves..." /> : <CommonTable columns={[{ accessor: "type", header: "Leave Type", render: (value) => labelize(value) }, { accessor: "fromDate", header: "From", render: (value) => formatDate(value) }, { accessor: "toDate", header: "To", render: (value) => formatDate(value) }, { accessor: "status", header: "Status" }, { accessor: "reason", header: "Reason" }]} data={employeeLeaves} actions={[{ key: "view", label: "View leave", icon: <FiEye className="h-4 w-4" />, iconOnly: true, onClick: setSelectedEmployeeLeave, className: "border border-orange-200 text-orange-600" }]} emptyText="No leaves found." />}</section>}
+      {activeTab === "leaves" && <section className="rounded-sm bg-white p-4 shadow dark:bg-gray-900"><h2 className="mb-4 font-semibold">Employee Leaves</h2>{employeeLeavesLoading ? <CommonLoader text="Loading leaves..." /> : <CommonTable columns={[{ accessor: "type", header: "Leave Type", render: (value) => labelize(value) }, { accessor: "fromDate", header: "From", render: (value) => formatDate(value) }, { accessor: "toDate", header: "To", render: (value) => formatDate(value) }, { accessor: "status", header: "Status" }, { accessor: "reason", header: "Reason" }]} data={employeeLeaves} actions={[{ key: "view", label: "View leave", icon: <FiEye className="h-4 w-4" />, iconOnly: true, onClick: openEmployeeLeaveDrawer, className: "border border-orange-200 text-orange-600" }]} emptyText="No leaves found." />}</section>}
 
       {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
@@ -1000,7 +1024,27 @@ const EmployeeDetail = () => {
         )}
       </section>}
 
-      {selectedEmployeeLeave && <CommonModal title="Leave request" drawer onClose={() => setSelectedEmployeeLeave(null)} footer={<><Button text="Close" variant="secondary" onClick={() => setSelectedEmployeeLeave(null)} />{selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}><h3 className="mb-3 font-semibold">Leave request details</h3><p>Status: <b className="capitalize">{selectedEmployeeLeave.status}</b></p><p>Type: <b>{labelize(selectedEmployeeLeave.type)}</b></p><p>From: <b>{formatDate(selectedEmployeeLeave.fromDate)}</b> · To: <b>{formatDate(selectedEmployeeLeave.toDate)}</b></p>{selectedLeaveBalance && <div className="mt-4 grid grid-cols-2 gap-3">{Object.entries(selectedLeaveBalance.balance || {}).map(([key,item]) => <div key={key} className="rounded border p-3"><b>{labelize(key)}</b><p>{item.remaining} remaining</p><small>{item.used} used / {item.total} total</small></div>)}</div>}<div className="mt-4 flex gap-2"><input value={adjustDays} onChange={(e) => setAdjustDays(e.target.value)} placeholder="Adjust days" className="min-h-9 flex-1 rounded border px-2" /><input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Reason" className="min-h-9 flex-1 rounded border px-2" /><Button text="Adjust" onClick={adjustSelectedLeave} /></div><p className="mt-4">Reason: {selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p></CommonModal>}
+      {selectedEmployeeLeave && <CommonModal title="Leave request" drawer open={employeeLeaveDrawerOpen} className="!h-screen !max-h-none !max-w-[672px] !rounded-none" onClose={closeEmployeeLeaveDrawer} footer={<><Button text="Close" variant="secondary" onClick={closeEmployeeLeaveDrawer} />{selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}>
+        <h3 className="mb-3 font-semibold">Leave request details</h3>
+        <p>Status: <b className="capitalize">{selectedEmployeeLeave.status}</b></p>
+        <p>Type: <b>{labelize(selectedEmployeeLeave.type)}</b></p>
+        <p>From: <b>{formatDate(selectedEmployeeLeave.fromDate)}</b> · To: <b>{formatDate(selectedEmployeeLeave.toDate)}</b></p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {employeeLeaveBalanceTypes.map(({ value, label }) => {
+            const item = selectedLeaveBalance?.balance?.[value] || { total: 0, used: 0, remaining: 0 };
+            const usage = item.total > 0 ? Math.min(100, Math.max(0, (item.used / item.total) * 100)) : 0;
+            return <article key={value} className="min-w-0 rounded-sm border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-start justify-between gap-2"><div><p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p><p className="mt-1"><b className="text-xl">{item.remaining}</b> <span className="text-xs text-gray-500">days remaining</span></p></div><span className="rounded-full bg-orange-50 px-2 py-1 text-xs font-semibold text-[#d93a1e]">{item.used} used</span></div><div className="mt-3 flex justify-between text-xs text-gray-500"><span>Leave used</span><span>{item.used} / {item.total} days</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#f84525]" style={{ width: `${usage}%` }} /></div></article>;
+          })}
+        </div>
+        <form onSubmit={(event) => { event.preventDefault(); adjustSelectedLeave(); }} className="mt-4 grid grid-cols-1 gap-3 border-y border-gray-100 py-3 dark:border-gray-800 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_auto] xl:items-end">
+          <div className="min-w-0"><span className="block text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Leave type</span><CustomDropdown className="mt-1" buttonClassName="!h-10 !min-h-10 w-full" value={adjustType} onChange={setAdjustType} options={employeeLeaveBalanceTypes} searchable={false} showPlaceholder={false} portalMenu /></div>
+          <label className="block min-w-0 text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Adjust days<input type="number" step="0.5" min="-365" max="365" value={adjustDays} onChange={(event) => setAdjustDays(event.target.value)} placeholder="e.g. 2 or -1" className="mt-1 block h-10 w-full box-border rounded-sm border border-gray-300 bg-white px-3 text-sm font-normal dark:border-gray-700 dark:bg-gray-800" required /></label>
+          <label className="block min-w-0 text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Reason<input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} maxLength={500} placeholder="Why adjusting these leaves?" className="mt-1 block h-10 w-full box-border rounded-sm border border-gray-300 bg-white px-3 text-sm font-normal dark:border-gray-700 dark:bg-gray-800" required /></label>
+          <Button text="Adjust leaves" type="submit" className="h-10 whitespace-nowrap self-end" />
+        </form>
+        {selectedLeaveBalance && <section className="mt-3"><h3 className="text-sm font-semibold">Leave adjustments</h3>{selectedLeaveBalance.adjustments?.length ? <div className="mt-2 space-y-2">{selectedLeaveBalance.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:justify-between"><span className="font-medium">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500">{item.adjustedBy?.name || item.adjustedBy?.email || "Admin"} · {item.reason}</span></div>)}</div> : <p className="mt-1 text-sm text-gray-500">No leave adjustments yet.</p>}</section>}
+        <p className="mt-4">Reason: {selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p>
+      </CommonModal>}
 
       {passwordModalOpen && <CommonModal title="Change employee password" subtitle={`Set a new login password for ${employee.name}.`} className="max-w-md" as="form" onSubmit={resetEmployeePassword} onClose={() => { if (!savingPassword) setPasswordModalOpen(false); }} footer={<><Button text="Cancel" variant="secondary" type="button" disabled={savingPassword} onClick={() => setPasswordModalOpen(false)} /><Button text="Save Password" type="submit" loading={savingPassword} disabled={newEmployeePassword.length < 8} /></>}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">New password<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newEmployeePassword} onChange={(event) => setNewEmployeePassword(event.target.value)} className="mt-2 w-full rounded-sm border border-gray-300 p-3 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Minimum 8 characters" required /></label>
