@@ -27,6 +27,7 @@ import AddressFields from "../../../components/common/AddressFields";
 import Avatar from "../../../components/common/Avatar";
 import CalendarPicker from "../../../components/common/CalendarPicker";
 import CommonLoader from "../../../components/common/CommonLoader";
+import LeaveReviewDetails from "../../../components/common/LeaveReviewDetails";
 import CommonModal from "../../../components/common/CommonModal";
 import CommonTable from "../../../components/common/CommonTable";
 import CustomDropdown from "../../../components/common/CustomDropdown";
@@ -58,10 +59,7 @@ const detailFallback = (value) => value || "N/A";
 const employeeLeaveBalanceTypes = [
   { value: "earned_leave", label: "Earned Leave" },
   { value: "sick_leave", label: "Sick Leave" },
-  { value: "urgent_leave", label: "Urgent Leave" },
   { value: "optional_leave", label: "Optional Leave" },
-  { value: "half_day", label: "Half Day" },
-  { value: "full_day", label: "Full Day" },
 ];
 const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve, reject) => {
   const image = new Image();
@@ -263,7 +261,7 @@ const EmployeeDetail = () => {
     if (!selectedEmployeeLeave) return;
     const ok = await confirm({ title: `${nextStatus === "approved" ? "Approve" : "Reject"} leave?`, message: "Confirm this leave request action.", confirmText: nextStatus === "approved" ? "Approve" : "Reject", cancelText: "Cancel", tone: nextStatus === "approved" ? "primary" : "danger" });
     if (!ok) return;
-    try { await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); closeEmployeeLeaveDrawer(); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, status: nextStatus } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
+    try { const response = await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); closeEmployeeLeaveDrawer(); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, ...response.data.data } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
   };
 
   const changeActiveTab = (tab) => {
@@ -1048,17 +1046,22 @@ const EmployeeDetail = () => {
       </section>}
 
       {selectedEmployeeLeave && <CommonModal title="Leave request" drawer open={employeeLeaveDrawerOpen} className="!h-screen !max-h-none !max-w-[672px] !rounded-none" onClose={closeEmployeeLeaveDrawer} footer={<><Button text="Close" variant="secondary" onClick={closeEmployeeLeaveDrawer} />{selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}>
-        <h3 className="mb-3 font-semibold">Leave request details</h3>
-        <p>Status: <b className="capitalize">{selectedEmployeeLeave.status}</b></p>
-        <p>Type: <b>{labelize(selectedEmployeeLeave.type)}</b></p>
-        <p>From: <b>{formatDate(selectedEmployeeLeave.fromDate)}</b> · To: <b>{formatDate(selectedEmployeeLeave.toDate)}</b></p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {employeeLeaveBalanceTypes.map(({ value, label }) => {
             const item = selectedLeaveBalance?.balance?.[value] || { total: 0, used: 0, remaining: 0 };
             const usage = item.total > 0 ? Math.min(100, Math.max(0, (item.used / item.total) * 100)) : 0;
-            return <article key={value} className="min-w-0 rounded-sm border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-start justify-between gap-2"><div><p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p><p className="mt-1"><b className="text-xl">{item.remaining}</b> <span className="text-xs text-gray-500">days remaining</span></p></div><span className="rounded-full bg-orange-50 px-2 py-1 text-xs font-semibold text-[#d93a1e]">{item.used} used</span></div><div className="mt-3 flex justify-between text-xs text-gray-500"><span>Leave used</span><span>{item.used} / {item.total} days</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#f84525]" style={{ width: `${usage}%` }} /></div></article>;
+            return <article key={value} className="min-w-0 rounded-sm border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"><p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{label}</p><p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{item.remaining}</p><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Remaining</p><p className="mt-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">{item.used} / {item.total} used</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"><div className="h-full rounded-full bg-[#f84525]" style={{ width: `${usage}%` }} /></div></article>;
           })}
         </div>
+        <h3 className="mb-3 mt-6 text-base font-semibold">Leave request details</h3>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <span className="text-gray-500">Status</span><span className="text-right"><b className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${selectedEmployeeLeave.status === "approved" ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300" : selectedEmployeeLeave.status === "rejected" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"}`}>{selectedEmployeeLeave.status}</b></span>
+            <span className="text-gray-500">Type</span><b className="text-right">{labelize(selectedEmployeeLeave.type)}</b>
+            <span className="text-gray-500">Duration</span><b className="text-right">{formatDate(selectedEmployeeLeave.fromDate)} <span className="mx-1 text-gray-400">→</span> {formatDate(selectedEmployeeLeave.toDate)}</b>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-gray-500">ⓘ &nbsp;Urgent Leave, Half Day (0.5 day), and Full Day requests are deducted from Earned Leave.</p>
         <form onSubmit={(event) => { event.preventDefault(); adjustSelectedLeave(); }} className="mt-4 grid grid-cols-1 gap-3 border-y border-gray-100 py-3 dark:border-gray-800 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_auto] xl:items-end">
           <div className="min-w-0"><span className="block text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Leave type</span><CustomDropdown className="mt-1" buttonClassName="!h-10 !min-h-10 w-full" value={adjustType} onChange={setAdjustType} options={employeeLeaveBalanceTypes} searchable={false} showPlaceholder={false} portalMenu /></div>
           <label className="block min-w-0 text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Adjust days<input type="number" step="0.5" min="-365" max="365" value={adjustDays} onChange={(event) => setAdjustDays(event.target.value)} placeholder="e.g. 2 or -1" className="mt-1 block h-10 w-full box-border rounded-sm border border-gray-300 bg-white px-3 text-sm font-normal dark:border-gray-700 dark:bg-gray-800" required /></label>
@@ -1066,7 +1069,8 @@ const EmployeeDetail = () => {
           <Button text="Adjust leaves" type="submit" className="h-10 whitespace-nowrap self-end" />
         </form>
         {selectedLeaveBalance && <section className="mt-3"><h3 className="text-sm font-semibold">Leave adjustments</h3>{selectedLeaveBalance.adjustments?.length ? <div className="mt-2 space-y-2">{selectedLeaveBalance.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:justify-between"><span className="font-medium">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500">{item.adjustedBy?.name || item.adjustedBy?.email || "Admin"} · {item.reason}</span></div>)}</div> : <p className="mt-1 text-sm text-gray-500">No leave adjustments yet.</p>}</section>}
-        <p className="mt-4">Reason: {selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p>
+        <p className="mt-4 rounded-sm border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-800"><span className="font-semibold">Reason</span><br />{selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p>
+        <LeaveReviewDetails leave={selectedEmployeeLeave} />
       </CommonModal>}
 
       {adjustmentSaving && <CommonLoader fullScreen text="Updating leave balance..." />}

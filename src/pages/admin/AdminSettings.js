@@ -38,11 +38,6 @@ const inputClass =
 
 const leaveEntitlementFields = [
   ["earned_leave", "Earned Leave"],
-  ["sick_leave", "Sick Leave"],
-  ["urgent_leave", "Urgent Leave"],
-  ["optional_leave", "Optional Leave"],
-  ["half_day", "Half Day"],
-  ["full_day", "Full Day"],
 ];
 
 const ToggleRow = ({ label, checked, onChange }) => (
@@ -71,9 +66,9 @@ const AdminSettings = () => {
     allowLeaveBeyondBalance: false,
     leaveEntitlements: {
       earned_leave: 12,
-      sick_leave: 4,
-      urgent_leave: 4,
-      optional_leave: 0,
+      sick_leave: 6,
+      urgent_leave: 0,
+      optional_leave: 3,
       half_day: 0,
       full_day: 0,
     },
@@ -586,7 +581,7 @@ const AdminSettings = () => {
             <CardHeader
               icon={<FiCalendar />}
               title="Leave Allocations"
-              subtitle="Earned Leave accrues monthly and carries forward. Sick Leave accrues quarterly. Urgent Leave is allocated annually (4 days by default)."
+              subtitle="Earned Leave accrues monthly and carries forward. Sick Leave accrues at 0.5 day per completed month. Optional Leave adds 1 day in January, May, and September. Urgent Leave requests use the Earned Leave balance."
             />
             <div className="space-y-4 p-5">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -608,7 +603,7 @@ const AdminSettings = () => {
                   </label>
                 ))}
               </div>
-              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">Earned Leave adds 1 day per completed month, capped by its annual allocation and carried forward. Sick Leave adds 1 day per completed three-month period, up to its annual allocation. Urgent Leave is available as an annual allocation. Optional Leave dates are taken from the HR Leave Calendar. HR adjustments are added on top.</p>
+              <p className="px-1 text-xs text-gray-500 dark:text-gray-400">Earned Leave adds 1 day per completed month, capped by its annual allocation and carried forward. Sick Leave adds 0.5 day per completed month (1 day every 2 months), up to 6 days per year. Optional Leave adds 1 day on January 1, May 1, and September 1. Employees can request it on future dates marked Optional Leave in the HR Leave Calendar. Urgent Leave is a request label deducted from Earned Leave. Half Day uses 0.5 EL day and Full Day uses 1 EL day. HR adjustments are added on top.</p>
             </div>
           </Card>
 

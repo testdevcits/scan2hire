@@ -1,3 +1,4 @@
+import LeaveReviewDetails from "../../components/common/LeaveReviewDetails";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FiCheckCircle, FiClock, FiEye, FiFileText, FiXCircle } from "react-icons/fi";
@@ -25,10 +26,7 @@ const labelize = (value = "") => value.replace(/_/g, " ");
 const leaveBalanceTypes = [
   { value: "earned_leave", label: "Earned Leave" },
   { value: "sick_leave", label: "Sick Leave" },
-  { value: "urgent_leave", label: "Urgent Leave" },
   { value: "optional_leave", label: "Optional Leave" },
-  { value: "half_day", label: "Half Day" },
-  { value: "full_day", label: "Full Day" },
 ];
 
 const LeaveReports = () => {
@@ -373,49 +371,37 @@ const LeaveReports = () => {
       {balanceEmployeeId && createPortal((
         <div className={`fixed inset-0 z-[120] bg-gray-950/45 transition-opacity duration-300 ease-in-out ${balanceDrawerOpen ? "opacity-100" : "pointer-events-none opacity-0"}`} onMouseDown={closeBalanceModal}>
           <section role="dialog" aria-modal="true" aria-labelledby="employee-leaves-title" onMouseDown={(event) => event.stopPropagation()} className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-900 ${balanceDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
-            <header className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+            <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
               <div>
                 <h2 id="employee-leaves-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Employee Leaves</h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{balanceData?.employee?.name || leaves.find((leave) => leave.employee?._id === balanceEmployeeId)?.employee?.name || "Loading employee leaves..."} · Used and available leave by type.</p>
               </div>
               <button type="button" onClick={closeBalanceModal} disabled={adjustmentSaving} aria-label="Close employee leaves" className="rounded-md px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white">×</button>
-              <div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={deleteLeave} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div>
+
             </header>
-            <div className="overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {selectedLeave && <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-800"><h3 className="font-semibold text-gray-900 dark:text-gray-100">Leave request details</h3><div className="mt-3 grid grid-cols-2 gap-3"><p><span className="text-gray-500">Type</span><br /><b>{labelize(selectedLeave.type)}</b></p><p><span className="text-gray-500">Status</span><br /><b className="capitalize">{selectedLeave.status}</b></p><p><span className="text-gray-500">From</span><br /><b>{formatDate(selectedLeave.fromDate)}</b></p><p><span className="text-gray-500">To</span><br /><b>{formatDate(selectedLeave.toDate)}</b></p></div>{(selectedLeave.reason || selectedLeave.content) && <p className="mt-3"><span className="text-gray-500">Reason</span><br />{selectedLeave.reason || selectedLeave.content}</p>}</div>}
         {balanceLoading && <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading employee leaves...</p>}
         {!balanceLoading && !balanceData && <p className="py-8 text-center text-sm text-gray-500">Employee leaves could not be loaded.</p>}
         {balanceData && !balanceLoading && (
           <>
-            <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-1 grid grid-cols-3 gap-2">
               {leaveBalanceTypes.map(({ value, label }) => {
                 const item = balanceData.balance?.[value] || { total: 0, used: 0, remaining: 0 };
                 const usagePercent = item.total > 0 ? Math.min(100, Math.max(0, (item.used / item.total) * 100)) : 0;
                 return (
-                  <article key={value} className={`min-w-0 rounded-xl border p-4 shadow-sm ${item.remaining < 0 ? "border-red-200 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/70"}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p>
-                        <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
-                          <span className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{item.remaining}</span>
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">days remaining</span>
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#d93a1e] dark:bg-orange-950/50 dark:text-orange-300">{item.used} used</span>
-                    </div>
-                    <div className="mt-4">
-                      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>Leave used</span>
-                        <span className="tabular-nums">{item.used} / {item.total} days</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-                        <div className={`h-full rounded-full ${item.remaining < 0 ? "bg-red-500" : "bg-[#f84525]"}`} style={{ width: `${usagePercent}%` }} />
-                      </div>
-                    </div>
+                  <article key={value} className="min-w-0 rounded-sm border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{label}</p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{item.remaining}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                    <p className="mt-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">{item.used} / {item.total} used</p>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"><div className="h-full rounded-full bg-[#f84525]" style={{ width: `${usagePercent}%` }} /></div>
                   </article>
                 );
               })}
             </div>
+
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Urgent Leave, Half Day (0.5 day), and Full Day requests are deducted from Earned Leave.</p>
 
             {canAdjust && (
               <form onSubmit={submitBalanceAdjustment} className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 md:grid-cols-2 xl:grid-cols-4">
@@ -470,6 +456,7 @@ const LeaveReports = () => {
             )}
 
             {canAdjust && <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Leave adjustments</h3>{balanceData.adjustments?.length > 0 ? <div className="mt-2 space-y-2">{balanceData.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between"><span className="font-medium capitalize text-gray-800 dark:text-gray-100">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500 dark:text-gray-400">{item.adjustedBy?.name || item.adjustedBy?.email || "HR"} · {item.reason} · {formatDateTime(item.adjustedAt)}</span></div>)}</div> : <p className="mt-2 text-sm text-gray-500">No leave adjustments yet.</p>}</div>}
+            <LeaveReviewDetails leave={selectedLeave} />
 
             {false && (
               <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
@@ -487,6 +474,7 @@ const LeaveReports = () => {
           </>
         )}
             </div>
+            {((canReview && selectedLeave?.status === "pending") || canDelete) && <footer className="flex shrink-0 justify-end border-t border-gray-100 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900"><div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={deleteLeave} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div></footer>}
           </section>
         </div>
       ), document.body)}

@@ -38,6 +38,8 @@ const toDateKey = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const leaveUsesEarnedBalance = (type) => ["urgent_leave", "half_day", "full_day"].includes(type);
+
 const addDays = (date, days) => {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
@@ -848,10 +850,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               {[
                 ["Earned Leave", leaveBalance.earned_leave],
                 ["Sick Leave", leaveBalance.sick_leave],
-                ["Urgent Leave", leaveBalance.urgent_leave],
                 ["Optional Leave", leaveBalance.optional_leave],
-                ["Half Day", leaveBalance.half_day],
-                ["Full Day", leaveBalance.full_day],
               ].map(([label, item]) => (
                 <Card key={label} className="p-4">
                   <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
@@ -882,9 +881,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <form onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     <CustomDropdown label="Leave Type" value={leaveForm.type} showPlaceholder={false} options={[{ value: "earned_leave", label: "EL - Earned Leave" }, { value: "sick_leave", label: "SL - Sick Leave" }, { value: "urgent_leave", label: "Urgent Leave" }, { value: "optional_leave", label: "Optional Leave" }, { value: "half_day", label: "Half Day" }, { value: "full_day", label: "Full Day" }]} onChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value, fromDate: "", toDate: "" }))} buttonClassName="h-10" portalMenu placement="bottom" />
-                    {leaveBalance?.[leaveForm.type] && (
+                    {leaveBalance?.[leaveUsesEarnedBalance(leaveForm.type) ? "earned_leave" : leaveForm.type] && (
                       <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                        Available for this leave type: {leaveBalance[leaveForm.type].remaining} day(s).
+                        Available {leaveUsesEarnedBalance(leaveForm.type) ? "from Earned Leave" : "for this leave type"}: {leaveBalance[leaveUsesEarnedBalance(leaveForm.type) ? "earned_leave" : leaveForm.type].remaining} day(s).{leaveUsesEarnedBalance(leaveForm.type) ? ` ${leaveForm.type.replace(/_/g, " ")} is deducted from EL${leaveForm.type === "half_day" ? " at 0.5 day" : leaveForm.type === "full_day" ? " at 1 day" : ""}.` : ""}
                       </span>
                     )}
                   </div>

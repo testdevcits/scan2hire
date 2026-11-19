@@ -862,7 +862,7 @@ const ViewReports = () => {
           </select>
           {holidayForm.type === "optional_leave" && (
             <p className="text-xs text-gray-500">
-              Employees can request Optional Leave only on dates marked this way. The annual allowance is configured in Admin Settings.
+              Optional Leave adds 1 day in January, May, and September. Employees can request it only on future dates marked this way.
             </p>
           )}
           <textarea
