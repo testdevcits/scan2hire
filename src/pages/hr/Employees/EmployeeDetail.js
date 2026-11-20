@@ -122,7 +122,6 @@ const documentLabelMap = {
   panCard: "PAN Card",
   passbook: "Bank Proof / Passbook",
   bloodGroupProof: "Blood Group Proof",
-  drivingLicense: "Driving Licence",
   bondDocument: "Bond Document Original",
   bondLetter: "Bond Letter",
   addressProof: "Address Proof",
@@ -207,6 +206,7 @@ const EmployeeDetail = () => {
     bankAccountNumber: "",
     bankIfscCode: "",
     chequeNumber: "",
+    chequeAccountNumber: "",
     chequeAmount: "",
     chequeDate: "",
     chequeBankName: "",
@@ -411,6 +411,7 @@ const EmployeeDetail = () => {
         bankAccountNumber: employeeData.bankAccountNumber || "",
         bankIfscCode: employeeData.bankIfscCode || "",
         chequeNumber: employeeData.chequeNumber || "",
+        chequeAccountNumber: employeeData.chequeAccountNumber || "",
         chequeAmount: employeeData.chequeAmount || "",
         chequeDate: employeeData.chequeDate ? employeeData.chequeDate.slice(0, 10) : "",
         chequeBankName: employeeData.chequeBankName || "",
@@ -847,7 +848,6 @@ const EmployeeDetail = () => {
     ["panCard", "PAN Card"],
     ["passbook", "Bank Proof / Passbook"],
     ["bloodGroupProof", "Blood Group Proof"],
-    ["drivingLicense", "Driving Licence"],
     ["bondDocument", "Bond Document Original"],
     ["bondLetter", "Bond Letter"],
     ["addressProof", "Address Proof"],
@@ -966,6 +966,7 @@ const EmployeeDetail = () => {
             <DetailItem icon={<FiBriefcase />} label="Bank Account Number" value={detailFallback(employee.bankAccountNumber)} />
             <DetailItem icon={<FiBriefcase />} label="Bank IFSC Code" value={detailFallback(employee.bankIfscCode)} />
             <DetailItem icon={<FiBriefcase />} label="Cheque Number" value={detailFallback(employee.chequeNumber)} />
+            <DetailItem icon={<FiBriefcase />} label="Cheque Account Number" value={detailFallback(employee.chequeAccountNumber)} />
             <DetailItem icon={<FiShield />} label="Cheque Amount" value={detailFallback(employee.chequeAmount)} />
             <DetailItem icon={<FiCalendar />} label="Cheque Date" value={formatDate(employee.chequeDate)} />
             <DetailItem icon={<FiBriefcase />} label="Cheque Bank Name" value={detailFallback(employee.chequeBankName)} />
@@ -1179,7 +1180,7 @@ const EmployeeDetail = () => {
                   onPreviewCurrent={employee?.documents?.salarySlips?.[0]?.url && hrCanViewModule("employeeDocuments") ? () => setDocumentPreview({ label: "Salary Slips", url: employee.documents.salarySlips[0].url, type: employee.documents.salarySlips[0].resource_type }) : undefined}
                   onDownloadCurrent={employee?.documents?.salarySlips?.[0]?.url && hrCanDownloadModule("employeeDocuments") ? () => downloadEmployeeDocument(employee.documents.salarySlips[0].url, "Salary Slips") : undefined}
                   onChange={(event) => setDocumentFiles((current) => ({ ...current, [key]: Array.from(event.target.files || []).slice(0, 10) }))}
-                  disabled={savingProfile || savingDocuments}
+                  disabled={savingProfile || savingDocuments || !canManageDocuments}
                 />
             ) : (
               <FileUploadField
@@ -1210,7 +1211,7 @@ const EmployeeDetail = () => {
                     setDocumentFiles((current) => ({ ...current, [key]: null }));
                   }
                 }}
-                disabled={savingProfile || savingDocuments}
+                disabled={savingProfile || savingDocuments || !canManageDocuments}
               />
             ))}
           </div>
@@ -1225,6 +1226,7 @@ const EmployeeDetail = () => {
             <InputField label="Bank Account Number" name="bankAccountNumber" value={editForm.bankAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Bank IFSC Code" name="bankIfscCode" value={editForm.bankIfscCode} onChange={handleEditFieldChange} />
             <InputField label="Cheque Number" name="chequeNumber" value={editForm.chequeNumber} onChange={handleEditFieldChange} />
+            <InputField label="Cheque Account Number" name="chequeAccountNumber" value={editForm.chequeAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Cheque Amount" name="chequeAmount" value={editForm.chequeAmount} onChange={handleEditFieldChange} />
             <InputField label="Cheque Bank Name" name="chequeBankName" value={editForm.chequeBankName} onChange={handleEditFieldChange} />
             <CalendarPicker label="Cheque Date" mode="date" value={editForm.chequeDate} onChange={(value) => setEditForm((current) => ({ ...current, chequeDate: value }))} />

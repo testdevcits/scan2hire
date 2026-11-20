@@ -21,7 +21,7 @@ const initialForm = {
   altMobile: "", gender: "Other", attendanceMode: "office",
   hrFileNo: "", fatherOrHusbandName: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: false, bondPeriodDuration: "",
   bankHolderName: "", bankAccountNumber: "", bankIfscCode: "", bankName: "",
-  chequeNumber: "", chequeAmount: "", chequeDate: "", chequeBankName: "",
+  chequeNumber: "", chequeAccountNumber: "", chequeAmount: "", chequeDate: "", chequeBankName: "",
   resignationDate: "", leavingDate: "",
   password: "",
   department: "",
@@ -244,6 +244,7 @@ const EmployeeCreate = () => {
             <InputField label="Bank Account Number" name="bankAccountNumber" value={form.bankAccountNumber} onChange={handleChange} />
             <InputField label="Bank IFSC Code" name="bankIfscCode" value={form.bankIfscCode} onChange={handleChange} />
             <InputField label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
+            <InputField label="Cheque Account Number" name="chequeAccountNumber" value={form.chequeAccountNumber} onChange={handleChange} />
             <InputField label="Cheque Amount" name="chequeAmount" value={form.chequeAmount} onChange={handleChange} />
             <CalendarPicker label="Cheque Date" mode="date" value={form.chequeDate} onChange={(value) => setForm((current) => ({ ...current, chequeDate: value }))} />
             <InputField label="Cheque Bank Name" name="chequeBankName" value={form.chequeBankName} onChange={handleChange} />
@@ -264,7 +265,7 @@ const EmployeeCreate = () => {
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 ["aadhaarCard", "Aadhaar Card"], ["panCard", "PAN Card"], ["passbook", "Bank Proof / Passbook"],
-                ["bloodGroupProof", "Blood Group Proof"], ["drivingLicense", "Driving Licence"], ["bondDocument", "Bond Document Original"],
+                ["bloodGroupProof", "Blood Group Proof"], ["bondDocument", "Bond Document Original"],
                 ["bondLetter", "Bond Letter"], ["addressProof", "Address Proof"],
                 ["degree", "Degree / Qualification"], ["resume", "Resume"], ["offerLetter", "Offer Letter"],
                 ["appointmentLetter", "Appointment Letter"], ["leavingLetter", "Leaving Letter"], ["experienceCertificate", "Experience Certificate"],
