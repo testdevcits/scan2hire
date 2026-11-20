@@ -8,7 +8,7 @@ import PdfPageCanvas from './PdfPageCanvas';
 import SignaturePad from './SignaturePad';
 import { useToast } from '../../contexts/ToastContext';
 
-export default function PageSigningModal({ document, managed, canDelete = false, onDelete, onClose, onChanged }) {
+export default function PageSigningModal({ document, managed, canDelete = false, canPlacement = false, canReview = false, onDelete, onClose, onChanged }) {
   const toast = useToast();
   const [doc, setDoc] = useState(null), [original, setOriginal] = useState(null), [pageBytes, setPageBytes] = useState(null);
   const [page, setPage] = useState(1), [placements, setPlacements] = useState([]), [visited, setVisited] = useState([]);
@@ -28,9 +28,9 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     }).catch(err => { if (active) setError(err.response?.data?.message || 'Unable to load document'); });
     return () => { active = false; };
   }, [document._id]);
-  const setup = managed && doc?.status === 'draft';
+  const setup = managed && canPlacement && doc?.status === 'draft';
   const signing = !managed && ['pending', 'needs_correction'].includes(doc?.status);
-  const reviewing = managed && doc?.status === 'awaiting_verification';
+  const reviewing = managed && canReview && doc?.status === 'awaiting_verification';
   const count = doc?.pages?.length || 0;
   const signedPages = doc?.signedPages || [];
   const pageSigned = signedPages.includes(page);

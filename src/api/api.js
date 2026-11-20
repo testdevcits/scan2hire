@@ -23,6 +23,8 @@ export const authApi = {
   updateDefaultEmployeeModuleAccess: (modules, role = 'employee') => API.patch('/users/employees/default-module-access', { modules, role }),
   getDefaultEmployeeModuleAccess: (role = 'employee') => API.get('/users/employees/default-module-access', { params: { role } }),
   getAuditLogs: (params) => API.get('/users/audit-logs', { params }),
+  deleteSelectedAuditLogs: (ids) => API.delete('/users/audit-logs/selected', { data: { ids } }),
+  deleteAllAuditLogs: (payload) => API.delete('/users/audit-logs', { data: payload }),
   createHr: (payload) => API.post("/users/hrs", payload),
   assignEmployeeAsHr: (payload) => API.post("/users/hrs/assign-employee", payload),
   removeHrAccess: (userId) => API.patch(`/users/hrs/${userId}/remove-access`),
@@ -73,6 +75,7 @@ export const hrApi = {
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
   resetEmployeePassword: (employeeId, newPassword) => API.patch(`/hr/employees/${employeeId}/password`, { newPassword }),
+  getEmployeeLoginPassword: (employeeId) => API.get(`/hr/employees/${employeeId}/login-password`),
   updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
@@ -131,6 +134,7 @@ export const hrApi = {
   getBugs: (params) => API.get("/hr/bugs", { params }),
   createBug: (payload) => API.post("/hr/bugs", payload),
   updateBug: (bugId, payload) => API.patch(`/hr/bugs/${bugId}`, payload),
+  getBirthdays: (month) => API.get("/hr/birthdays", { params: month ? { month } : undefined }),
 };
 
 export const employeeApi = {
@@ -179,4 +183,5 @@ export const employeeApi = {
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),
+  getBirthdays: () => API.get("/employees/birthdays"),
 };

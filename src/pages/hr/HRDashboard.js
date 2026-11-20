@@ -42,30 +42,21 @@ const HRDashboard = () => {
   const [leaves, setLeaves] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [birthdayReminders, setBirthdayReminders] = useState([]);
 
   useEffect(() => {
     if (isProjectCoordinator) return undefined;
-    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees()])
-      .then(([attendance, leaves, candidates, employees]) => {
+    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees(), hrApi.getBirthdays(new Date().getMonth() + 1)])
+      .then(([attendance, leaves, candidates, employees, birthdays]) => {
         if (attendance.status === "fulfilled") setAttendance(attendance.value.data.data || []);
         if (leaves.status === "fulfilled") setLeaves(leaves.value.data.data || []);
         if (candidates.status === "fulfilled") setCandidates(candidates.value.data.data || []);
         if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
+        if (birthdays.status === "fulfilled") setBirthdayReminders(birthdays.value.data.data || []);
       });
   }, [currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();
-  const birthdayReminders = useMemo(
-    () =>
-      employees
-        .filter((employee) => {
-          if (!employee.isActive || !employee.dob) return false;
-          const dob = new Date(employee.dob);
-          return dob.getMonth() === new Date().getMonth();
-        })
-        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
-    [employees]
-  );
 
   const statCards = useMemo(
     () => [
@@ -165,7 +156,7 @@ const HRDashboard = () => {
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <SectionCard title="This Month's Birthdays" subtitle={`Employee birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} contentClassName="pt-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{birthdayReminders.length ? birthdayReminders.map((employee) => <CompactInfoRow key={employee._id} title={employee.name} subtitle={`${new Date(employee.dob).toLocaleDateString(undefined, { day: "2-digit", month: "short" })} · ${employee.employeeId || "-"}`} className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20" />) : <p className="text-sm text-gray-500">No employee birthdays this month.</p>}</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{birthdayReminders.length ? birthdayReminders.map((employee) => <CompactInfoRow key={employee._id} title={employee.name} subtitle={`${new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString(undefined, { day: "2-digit", month: "short" })} · ${employee.employeeId || "-"}`} className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20" />) : <p className="text-sm text-gray-500">No employee birthdays this month.</p>}</div>
         </SectionCard>
 
         <SectionCard title="Leave Requests" subtitle="Requests submitted in selected range" contentClassName="pt-3">

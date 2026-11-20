@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { authApi } from "../../api";
 import CommonLoader from "../../components/common/CommonLoader";
 import DateRangeFilter from "../../components/common/DateRangeFilter";
-import { FiRefreshCw } from "react-icons/fi";
+import { FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { useModal } from "../../contexts/ModalContext";
+import { useToast } from "../../contexts/ToastContext";
 
 const moduleNames = {
   users: "User Management",
@@ -33,18 +35,13 @@ const actionNames = {
   view: "Viewed",
 };
 
-const actionStyles = {
-  create: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-  add: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-  update: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  edit: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  delete: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300",
-  view: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300",
-};
-
 export default function AuditLogs() {
+  const { confirm } = useModal();
+  const toast = useToast();
   const [logs, setLogs] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
@@ -142,23 +139,111 @@ export default function AuditLogs() {
     return `${actorName} ${action} ${subject}${employeeContext}.`;
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
+
+  const toggleSelectPage = () => {
+    const pageIds = logs.map((log) => log._id);
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((current) => allSelected
+      ? current.filter((id) => !pageIds.includes(id))
+      : [...new Set([...current, ...pageIds])]);
+  };
+
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    const confirmed = await confirm({
+      title: "Delete selected activity logs?",
+      message: `${selectedIds.length} selected activity log${selectedIds.length === 1 ? "" : "s"} will be permanently deleted.`,
+      confirmText: "Delete selected",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setDeleting(true);
+    setLoading(true);
+    try {
+      await authApi.deleteSelectedAuditLogs(selectedIds);
+      toast.success(`${selectedIds.length} activity log${selectedIds.length === 1 ? "" : "s"} deleted`);
+      setSelectedIds([]);
+      await load(page);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to delete activity logs");
+    } finally {
+      setDeleting(false);
+      setLoading(false);
+    }
+  };
+
+  const deleteAll = async () => {
+    const scopeMessage = from || to
+      ? "All activity logs in the selected date range will be permanently deleted."
+      : "All activity logs will be permanently deleted.";
+    const confirmed = await confirm({
+      title: "Delete activity logs?",
+      message: scopeMessage,
+      confirmText: "Delete all",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setDeleting(true);
+    setLoading(true);
+    try {
+      await authApi.deleteAllAuditLogs({ from: from || undefined, to: to || undefined });
+      toast.success("Activity logs deleted");
+      setSelectedIds([]);
+      setPage(1);
+      await load(1);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to delete activity logs");
+    } finally {
+      setDeleting(false);
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-2">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Activity Logs</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">A readable history of who viewed, created, updated or deleted information.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => load(page)}
-          disabled={loading}
-          className="inline-flex h-10 flex-none items-center gap-2 rounded-md border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          title="Refresh latest activity logs"
-        >
-          <FiRefreshCw className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => load(page)}
+            disabled={loading}
+            className="inline-flex h-10 flex-none items-center gap-2 rounded-md border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            title="Refresh latest activity logs"
+          >
+            <FiRefreshCw className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={deleteSelected}
+              disabled={loading || deleting}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800"
+            >
+              <FiTrash2 className={deleting ? "animate-pulse" : ""} />
+              {deleting ? "Deleting..." : `Delete selected (${selectedIds.length})`}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={deleteAll}
+            disabled={loading || deleting || pagination.total === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/30"
+            title="Delete all matching activity logs"
+          >
+            <FiTrash2 className={deleting ? "animate-pulse" : ""} />
+            {deleting ? "Deleting..." : "Delete all"}
+          </button>
+        </div>
       </div>
 
       <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onApply={load} onClear={clearRange} />
@@ -185,12 +270,25 @@ export default function AuditLogs() {
 
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         {loading ? (
-          <CommonLoader text="Loading activity logs..." />
+          <CommonLoader text={deleting ? "Deleting activity logs..." : "Loading activity logs..."} />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/80">
               <tr>
-                {["Date & time", "User", "Role", "Action", "Module", "What happened"].map((heading) => (
+                <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={logs.length > 0 && logs.every((log) => selectedIds.includes(log._id))}
+                      onChange={toggleSelectPage}
+                      className="h-4 w-4 rounded-md border-gray-300 text-[#f84525] focus:ring-[#f84525] dark:border-gray-600 dark:bg-gray-700"
+                      aria-label="Select all logs on this page"
+                    />
+                    <span>This page</span>
+                    <span>· Date & time</span>
+                  </div>
+                </th>
+                {["User", "Role", "Action", "Module", "What happened"].map((heading) => (
                   <th key={heading} className="p-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     {heading}
                   </th>
@@ -212,27 +310,32 @@ export default function AuditLogs() {
                   return (
                     <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-600" key={log._id}>
                       <td className="whitespace-nowrap p-3 text-gray-600 dark:text-gray-300">
-                        {new Date(log.createdAt).toLocaleString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(log._id)}
+                            onChange={() => toggleSelect(log._id)}
+                            className="h-4 w-4 rounded-md border-gray-300 text-[#f84525] focus:ring-[#f84525] dark:border-gray-600 dark:bg-gray-700"
+                            aria-label={`Select log from ${actorName} on ${new Date(log.createdAt).toLocaleString()}`}
+                          />
+                          {new Date(log.createdAt).toLocaleString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
                       </td>
                       <td className="p-3">
                         <div className="font-semibold text-gray-900 dark:text-gray-100">{actorName}</div>
                         {log.actor?.email && <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{log.actor.email}</div>}
                       </td>
                       <td className="p-3">
-                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                          {actorRole}
-                        </span>
+                        <div className="font-semibold text-gray-900 dark:text-gray-100">{actorRole}</div>
                       </td>
                       <td className="p-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${actionStyles[action] || "bg-gray-100 text-gray-700"}`}>
-                          {actionNames[action] || action}
-                        </span>
+                        <div className="font-semibold text-gray-900 dark:text-gray-100">{actionNames[action] || action}</div>
                       </td>
                       <td className="whitespace-nowrap p-3 font-medium text-gray-700 dark:text-gray-300">
                         {moduleNames[log.module] || log.module || "System"}

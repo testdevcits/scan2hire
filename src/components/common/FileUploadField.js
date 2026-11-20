@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FiEye, FiFileText, FiUploadCloud } from "react-icons/fi";
+import { FiDownload, FiEye, FiFileText, FiUploadCloud } from "react-icons/fi";
 
 const FileUploadField = ({
   label,
@@ -19,6 +19,7 @@ const FileUploadField = ({
   multiple = false,
   currentFileLabel,
   onPreviewCurrent,
+  onDownloadCurrent,
   currentStatus,
   onCurrentAction,
   currentActionLabel,
@@ -73,12 +74,14 @@ const FileUploadField = ({
         onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => { event.preventDefault(); setDragging(false); emitFile(event.dataTransfer.files?.[0]); }}
-        className={`mt-1 cursor-pointer rounded-sm border border-dashed px-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${dragging ? "border-[#f84525] bg-orange-50" : uploaded ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20" : "border-[#f7a08f] bg-[#fffaf8] dark:border-gray-600 dark:bg-gray-800"}`}
+        className={`mt-1 cursor-pointer rounded-lg border border-dashed p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${dragging ? "border-[#f84525] bg-orange-50" : uploaded ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20" : "border-[#f7a08f] bg-[#fffaf8] dark:border-gray-600 dark:bg-gray-800"}`}
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <label className="flex min-w-[180px] shrink-0 items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
-            <FiUploadCloud className="text-[#f84525]" />
-            <span>{label}{required ? <span className="text-red-500"> *</span> : null}</span>
+        <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
+          <label className="flex min-w-0 items-center gap-2 text-sm font-semibold leading-5 text-gray-800 dark:text-gray-100 lg:flex-1">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[#f84525] shadow-sm dark:bg-gray-900">
+              <FiUploadCloud className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">{label}{required ? <span className="text-red-500"> *</span> : null}</span>
           </label>
           <input
             ref={inputRef}
@@ -92,10 +95,12 @@ const FileUploadField = ({
             disabled={disabled}
             className="hidden"
           />
-          <span className="min-w-0 flex-1 truncate text-sm text-gray-600 dark:text-gray-300">{fileName || "No file chosen"}</span>
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="shrink-0 rounded-sm bg-[#f84525] px-3 py-2 text-sm font-medium text-white hover:bg-[#e93819] disabled:opacity-60">Choose file</button>
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:flex-1">
+            <span className="min-w-0 flex-1 truncate rounded-md bg-white px-2.5 py-2 text-xs text-gray-600 ring-1 ring-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700">{fileName || "No file chosen"}</span>
+            <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="h-9 w-full shrink-0 rounded-md bg-[#f84525] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#de391a] disabled:opacity-60 sm:w-auto">Choose file</button>
+          </div>
         </div>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+        <p className="mt-2 border-t border-[#f1d7cf] pt-2 text-[11px] leading-4 text-gray-500 dark:border-gray-700 dark:text-gray-400">{hint}</p>
         {currentFileLabel && !activePreviewUrl ? (
           <p className="mt-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300">
             {currentFileLabel}
@@ -139,9 +144,12 @@ const FileUploadField = ({
               </p>
             </div>
             {onPreviewCurrent ? (
-              <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
-                <FiEye /> Preview
-              </button>
+              <div className="flex shrink-0 gap-2">
+                <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
+                  <FiEye /> Preview
+                </button>
+                {onDownloadCurrent ? <button type="button" onClick={onDownloadCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"><FiDownload /> Download</button> : null}
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -158,9 +166,12 @@ const FileUploadField = ({
               <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{fileName || (currentFileLabel ? "Saved PDF · Preview opens in modal" : "PDF · Preview opens in modal")}</p>
             </div>
             {onPreviewCurrent ? (
-              <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
-                <FiEye /> Preview
-              </button>
+              <div className="flex shrink-0 gap-2">
+                <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
+                  <FiEye /> Preview
+                </button>
+                {onDownloadCurrent ? <button type="button" onClick={onDownloadCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"><FiDownload /> Download</button> : null}
+              </div>
             ) : null}
           </div>
         ) : null}

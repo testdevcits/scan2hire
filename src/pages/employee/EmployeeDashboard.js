@@ -179,6 +179,7 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
   const [profile, setProfile] = useState(null);
+  const [birthdayReminders, setBirthdayReminders] = useState([]);
   const [moduleAccess, setModuleAccess] = useState({});
   const [candidates, setCandidates] = useState([]);
   const [interviewLogs, setInterviewLogs] = useState([]);
@@ -250,13 +251,14 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, accessRes] = await Promise.all([
+      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, accessRes, birthdaysRes] = await Promise.all([
         employeeApi.getProfile(),
         employeeApi.getAttendance(),
         employeeApi.getLeaves(),
         employeeApi.getAssignedCandidates(),
         employeeApi.getInterviewLogs(),
         employeeApi.getMyAccess(),
+        employeeApi.getBirthdays(),
       ]);
       setProfile(profileRes.data.data);
       setModuleAccess(accessRes.data.data?.moduleAccess || {});
@@ -265,6 +267,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
       setLeaveBalance(leavesRes.data.data?.balance || null);
       setCandidates(candidatesRes.data.data || []);
       setInterviewLogs(logsRes.data.data?.logs || []);
+      setBirthdayReminders(birthdaysRes.data.data || []);
     } finally {
       setPageLoading(false);
     }
@@ -529,10 +532,19 @@ const EmployeeDashboard = ({ section = "all" }) => {
             <Card className="lg:col-span-2 flex flex-col min-h-0">
               <CardHeader title="This Month's Birthdays" subtitle={`Birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} />
               <div className="flex-1 min-h-0 p-4">
-                {profile?.dob && new Date(profile.dob).getMonth() === new Date().getMonth() ? (
-                  <div className="flex items-center justify-between rounded-xl border border-orange-100 bg-[#fff8f6] px-4 py-3 dark:border-orange-950 dark:bg-orange-950/20">
-                    <div><p className="font-semibold text-gray-900 dark:text-gray-100">{profile.name || "You"}</p><p className="text-sm text-gray-500">{new Date(profile.dob).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</p></div>
-                    <span className="text-2xl" aria-hidden="true">🎂</span>
+                {birthdayReminders.length ? (
+                  <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                    {birthdayReminders.map((employee) => (
+                      <div key={employee._id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 bg-[#fff8f6] px-3 py-2.5 dark:border-orange-950 dark:bg-orange-950/20">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{employee.name}</p>
+                          <p className="truncate text-xs text-gray-500">{employee.department || employee.designation || employee.employeeId || "Employee"}</p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-[#f84525]">
+                          {new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ) : <div className="relative flex h-full min-h-56 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"><img src="/2025-3_2025-1_Conative_Wall.jpg" alt="Conative" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 flex items-center justify-center"><span className="rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-gray-600 shadow-sm dark:bg-gray-900/95 dark:text-gray-300">No birthdays this month.</span></div></div>}
               </div>

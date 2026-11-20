@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiEdit2, FiPlus, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { authApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -15,13 +15,128 @@ const emptyForm = {
 };
 
 const MasterOptionsSection = ({ type, title, description }) => {
-  const toast = useToast(); const { confirm } = useModal(); const [items, setItems] = useState([]); const [name, setName] = useState(""); const [editing, setEditing] = useState(null); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
-  const load = async () => { setLoading(true); try { const res = await authApi.getMasterOptions(type, { includeInactive: true }); setItems(res.data.data || []); } catch (e) { toast.error(e.response?.data?.message || `Unable to load ${title}`); } finally { setLoading(false); } };
-  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  const toast = useToast();
+  const { confirm } = useModal();
+  const [items, setItems] = useState([]);
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await authApi.getMasterOptions(type, { includeInactive: true });
+      setItems(res.data.data || []);
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Unable to load ${title}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
-  const save = async (event) => { event.preventDefault(); if (!name.trim()) return; setSaving(true); try { if (editing) await authApi.updateMasterOption(type, editing._id, { name }); else await authApi.createMasterOption(type, { name }); toast.success(`${title} ${editing ? "updated" : "added"}`); setName(""); setEditing(null); await load(); } catch (e) { toast.error(e.response?.data?.message || `Unable to save ${title}`); } finally { setSaving(false); } };
-  const remove = async (item) => { if (!(await confirm({ title: `Delete ${title}`, message: `Delete ${item.name}?`, confirmText: "Delete", tone: "danger" }))) return; try { await authApi.deleteMasterOption(type, item._id); await load(); toast.success(`${title} deleted`); } catch (e) { toast.error(e.response?.data?.message || "Unable to delete option"); } };
-  return <section className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm"><div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-end md:justify-between"><div><h2 className="font-semibold">{title}</h2><p className="text-xs text-gray-500">{description}</p></div><form onSubmit={save} className="flex gap-2"><input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Add ${title}`} className="rounded-sm border px-3 py-2 text-sm" required /><Button type="submit" loading={saving}>{editing ? "Save" : "Add"}</Button>{editing && <Button type="button" variant="secondary" onClick={() => { setEditing(null); setName(""); }}>Cancel</Button>}</form></div>{loading ? <CommonLoader text={`Loading ${title}...`} /> : items.map((item) => <div key={item._id} className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>{item.name}</span><span className="flex gap-2"><button type="button" onClick={() => { setEditing(item); setName(item.name); }} className="border px-2 py-1 text-xs">Edit</button><button type="button" onClick={() => remove(item)} className="border px-2 py-1 text-xs text-red-600">Delete</button></span></div>)}</section>;
+
+  const reset = () => {
+    setEditing(null);
+    setName("");
+  };
+
+  const save = async (event) => {
+    event.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      if (editing) {
+        await authApi.updateMasterOption(type, editing._id, { name: name.trim() });
+        toast.success(`${title} updated`);
+      } else {
+        await authApi.createMasterOption(type, { name: name.trim() });
+        toast.success(`${title} added`);
+      }
+      reset();
+      await load();
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Unable to save ${title}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (item) => {
+    const ok = await confirm({
+      title: `Delete ${title}`,
+      message: `Delete “${item.name}”?`,
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    try {
+      await authApi.deleteMasterOption(type, item._id);
+      toast.success(`${title} deleted`);
+      await load();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to delete option");
+    }
+  };
+
+  return (
+    <section className="min-w-0 overflow-hidden rounded-xl border border-[#f1e7e4] bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <h2 className="font-semibold text-gray-950 dark:text-white">{title}</h2>
+        <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{description}</p>
+      </div>
+
+      <form onSubmit={save} className="flex gap-2 border-b border-gray-100 p-3 dark:border-gray-800">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder={`Add ${title.replace(" Master", "")}`}
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-[#f84525] focus:ring-2 focus:ring-[#f84525]/10 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+          required
+        />
+        <Button type="submit" loading={saving} text={editing ? "Save" : "Add"} className="shrink-0 px-3" />
+        {editing && <Button type="button" variant="secondary" text="Cancel" onClick={reset} className="shrink-0 px-3" />}
+      </form>
+
+      {loading ? (
+        <CommonLoader text={`Loading ${title}...`} />
+      ) : items.length === 0 ? (
+        <p className="p-5 text-center text-sm text-gray-500 dark:text-gray-400">No options added yet.</p>
+      ) : (
+        <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">
+          {items.map((item) => (
+            <div key={item._id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-gray-800 dark:text-gray-100">{item.name}</p>
+                {item.isActive === false && <p className="text-[11px] text-gray-400">Inactive</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => { setEditing(item); setName(item.name); }}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 px-2.5 text-xs font-semibold text-gray-600 transition hover:border-[#f84525]/40 hover:text-[#f84525] dark:border-gray-700 dark:text-gray-300"
+                >
+                  <FiEdit2 className="h-3.5 w-3.5" /> Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(item)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  <FiTrash2 className="h-3.5 w-3.5" /> Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 };
 
 const Departments = () => {
@@ -119,81 +234,101 @@ const Departments = () => {
   if (loading) return <CommonLoader text="Loading departments..." />;
 
   return (
-    <div className="space-y-5 p-2">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Organization Master Data</h1>
-          <p className="text-sm text-gray-500">Manage departments and employee master values used in forms.</p>
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-xl border border-[#f1e7e4] bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f84525]">Configuration</p>
+            <h1 className="mt-1 text-2xl font-bold text-gray-950 dark:text-white">Organization Master Data</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage departments and values used across employee forms.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={loadDepartments} text="Refresh" className="gap-2" />
+            <Button onClick={() => { resetForm(); setShowForm(true); }} text="Add Department" className="gap-2" />
+          </div>
         </div>
-        <div className="flex items-center gap-2"><Button variant="secondary" onClick={loadDepartments}><span className="inline-flex items-center gap-2"><FiRefreshCw /> Refresh</span></Button><Button onClick={() => { resetForm(); setShowForm(true); }}><span className="inline-flex items-center gap-2"><FiPlus /> Add Department</span></Button></div>
-      </div>
+      </section>
 
-      {showForm && <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/35 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) resetForm(); }}>
-        <form onSubmit={saveDepartment} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-md space-y-4 rounded-lg border-2 border-gray-300 bg-white p-5 shadow-2xl">
-          <div className="flex items-center justify-between border-b-2 border-gray-200 pb-3">
-            <h2 className="text-lg font-semibold text-gray-900">{editingId ? "Update Department" : "Add Department"}</h2>
-            <button type="button" aria-label="Close" onClick={resetForm} className="rounded px-2 py-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700">×</button>
-          </div>
-          <InputField label="Department Name" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} required />
-          <InputField label="Description" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
-          <CustomDropdown label="Status" value={form.isActive ? "active" : "inactive"} onChange={(value) => setForm((prev) => ({ ...prev, isActive: value === "active" }))} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} showPlaceholder={false} />
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
-            <Button text="Cancel" variant="secondary" onClick={resetForm} />
-            <Button type="submit" loading={saving}><span className="inline-flex items-center gap-2"><FiPlus /> {editingId ? "Save Department" : "Add Department"}</span></Button>
-          </div>
-        </form>
-      </div>}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) resetForm(); }}>
+          <form onSubmit={saveDepartment} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#f84525]">Department</p>
+                <h2 className="mt-1 text-lg font-bold text-gray-950 dark:text-white">{editingId ? "Update Department" : "Add Department"}</h2>
+              </div>
+              <button type="button" aria-label="Close" onClick={resetForm} className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">×</button>
+            </div>
+            <div className="mt-4 space-y-4">
+              <InputField label="Department Name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+              <InputField label="Description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} />
+              <CustomDropdown label="Status" value={form.isActive ? "active" : "inactive"} onChange={(value) => setForm((current) => ({ ...current, isActive: value === "active" }))} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} showPlaceholder={false} />
+            </div>
+            <div className="mt-5 flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+              <Button text="Cancel" variant="secondary" onClick={resetForm} />
+              <Button type="submit" loading={saving} text={editingId ? "Save Department" : "Add Department"} />
+            </div>
+          </form>
+        </div>
+      )}
 
-      <section className="overflow-hidden rounded-sm border border-gray-100 bg-white shadow-sm">
-        <div className="hidden md:grid grid-cols-5 bg-gray-100 text-xs uppercase text-gray-600 font-semibold">
-          {["Department", "Description", "Status", "Updated", "Action"].map((item) => (
-            <div key={item} className="px-4 py-3">{item}</div>
+      <section className="overflow-hidden rounded-xl border border-[#f1e7e4] bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+          <div>
+            <h2 className="font-semibold text-gray-950 dark:text-white">Departments</h2>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{departments.length} configured departments</p>
+          </div>
+        </div>
+
+        <div className="hidden grid-cols-[1.2fr_1.5fr_0.7fr_0.8fr_1fr] bg-gray-50 text-[11px] font-bold uppercase tracking-wide text-gray-500 md:grid dark:bg-gray-800/70 dark:text-gray-400">
+          {["Department", "Description", "Status", "Updated", "Actions"].map((heading) => (
+            <div key={heading} className="px-4 py-2.5">{heading}</div>
           ))}
         </div>
+
         {departments.length === 0 ? (
-          <p className="p-4 text-center text-sm text-gray-500">No departments added yet.</p>
+          <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">No departments added yet.</p>
         ) : (
-          departments.map((department) => (
-            <div key={department._id} className="grid grid-cols-1 md:grid-cols-5 gap-2 border-t px-4 py-3 text-sm md:items-center">
-              <span className="font-medium text-gray-900">{department.name}</span>
-              <span className="text-gray-600">{department.description || "-"}</span>
-              <span>
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {departments.map((department) => (
+              <div key={department._id} className="grid grid-cols-1 gap-3 px-4 py-3 text-sm md:grid-cols-[1.2fr_1.5fr_0.7fr_0.8fr_1fr] md:items-center">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{department.name}</p>
+                <p className="truncate text-gray-500 dark:text-gray-400">{department.description || "No description"}</p>
                 <button
                   type="button"
                   onClick={() => toggleDepartment(department)}
-                  className={`px-2.5 py-1 rounded-sm text-xs font-medium ${
-                    department.isActive
-                      ? "bg-green-50 text-green-700 border border-green-200"
-                      : "bg-gray-100 text-gray-600 border border-gray-200"
-                  }`}
+                  className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${department.isActive ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900" : "bg-gray-100 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700"}`}
                 >
                   {department.isActive ? "Active" : "Inactive"}
                 </button>
-              </span>
-              <span className="text-gray-500">
-                {department.updatedAt ? new Date(department.updatedAt).toLocaleDateString() : "-"}
-              </span>
-              <span className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => editDepartment(department)}
-                  className="inline-flex items-center gap-1 border rounded-sm px-2.5 py-1.5 text-xs text-gray-700 hover:text-[#f84525]"
-                >
-                  <FiEdit2 /> Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteDepartment(department)}
-                  className="inline-flex items-center gap-1 border rounded-sm px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50"
-                >
-                  <FiTrash2 /> Delete
-                </button>
-              </span>
-            </div>
-          ))
+                <p className="text-xs text-gray-500 dark:text-gray-400">{department.updatedAt ? new Date(department.updatedAt).toLocaleDateString("en-IN") : "-"}</p>
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={() => editDepartment(department)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 px-2.5 text-xs font-semibold text-gray-600 transition hover:border-[#f84525]/40 hover:text-[#f84525] dark:border-gray-700 dark:text-gray-300">
+                    <FiEdit2 className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  <button type="button" onClick={() => deleteDepartment(department)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                    <FiTrash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </section>
-      <div className="grid gap-5 lg:grid-cols-3"><MasterOptionsSection type="bloodGroup" title="Blood Group Master" description="Manage blood group options available in employee forms." /><MasterOptionsSection type="employeeType" title="Employment Type Master" description="Manage employment types available in employee forms." /><MasterOptionsSection type="designation" title="Designation Master" description="Manage designations available in employee forms." /></div>
+
+      <section>
+        <div className="mb-3">
+          <h2 className="font-semibold text-gray-950 dark:text-white">Employee Master Lists</h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Reusable values for employee add and update forms.</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <MasterOptionsSection type="bloodGroup" title="Blood Group Master" description="Blood groups available in employee forms." />
+          <MasterOptionsSection type="employeeType" title="Employment Type Master" description="Permanent, probation, internship, and custom types." />
+          <MasterOptionsSection type="designation" title="Designation Master" description="Job designations available in employee forms." />
+          <MasterOptionsSection type="trainingPeriod" title="Training Period Master" description="Training or provision periods such as 1, 3, or 6 months." />
+          <MasterOptionsSection type="bondPeriod" title="Bond Period Master" description="Bond durations such as 15 days, 1 month, 2 months, or 3 months." />
+        </div>
+      </section>
     </div>
   );
 };

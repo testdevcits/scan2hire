@@ -11,7 +11,7 @@ import ProfileCard from "../../components/common/ProfileCard";
 import TableToolbar from "../../components/common/TableToolbar";
 import ViewSwitcher from "../../components/common/ViewSwitcher";
 import { AuthContext } from "../../contexts/AuthContext";
-import { authApi } from "../../api";
+import { authApi, hrApi } from "../../api";
 import API from "../../api/axios";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -28,7 +28,7 @@ const ManageEmployees = () => {
   const hasEmployeeAction = (action) => user?.role === "superadmin" || (user?.role === "hr" && (typeof employeeAccess === "object" ? employeeAccess[action] === true : employeeAccess === true));
   const canAddEmployee = hasEmployeeAction("add");
   const canEditEmployee = hasEmployeeAction("edit");
-  const canDeleteEmployee = hasEmployeeAction("delete");
+  const canDeleteEmployee = user?.role === "superadmin";
   const [deletingId, setDeletingId] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [hrUsers, setHrUsers] = useState([]);
@@ -121,11 +121,11 @@ const ManageEmployees = () => {
     if (!confirmed) return;
     setDeletingId(employee._id);
     try {
-      await authApi.deleteEmployee(employee._id);
+      await hrApi.deleteEmployee(employee._id);
       toast.success("Employee deleted successfully");
       await fetchEmployees();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Unable to delete employee");
+      toast.error(err.response?.data?.message || "Only super admin can delete employees");
     } finally { setDeletingId(""); }
   };
   const employeesPath = user?.role === "superadmin" ? "/admin/employees" : "/hr/employees";
