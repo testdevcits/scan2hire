@@ -94,7 +94,7 @@ export const hrApi = {
     API.get(`/hr/attendance/employees/${employeeId}/monthly`, { params: { month } }),
   getLeaves: (params) => API.get("/hr/leaves", { params }),
   reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload, { params: { employeeId: payload.employeeId } }),
-  deleteLeave: (leaveId) => API.delete(`/hr/leaves/${leaveId}`),
+  deleteLeave: (leaveId, employeeId) => API.delete(`/hr/leaves/${leaveId}`, { params: employeeId ? { employeeId } : undefined }),
   getEmployeeLeaveBalance: (employeeId) => API.get(`/hr/leave-balances/${employeeId}`),
   adjustEmployeeLeaveBalance: (employeeId, payload) => API.patch(`/hr/leave-balances/${employeeId}/adjust`, payload, { params: { employeeId } }),
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
