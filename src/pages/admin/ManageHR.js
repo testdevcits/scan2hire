@@ -4,12 +4,12 @@ import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import EmployeeModuleAccess from "./EmployeeModuleAccess";
+import ModulePermissionMatrix from "../../components/common/ModulePermissionMatrix";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
-const moduleActions = ["view", "add", "edit", "delete"];
-const moduleOptions = [["employees", "Employees", "View and manage employee records"], ["employeeDocuments", "Employee Documents", "View, download, add and update uploaded employee documents"], ["leaveCalendar", "Leave Calendar", "View and manage company calendar"], ["candidates", "Candidates", "Manage candidate pipeline"], ["checkins", "Today Check-ins", "View daily employee check-ins"], ["attendanceReports", "Attendance Reports", "View attendance reports"], ["leaveReports", "Leave Reports", "Review leave and holiday reports"], ["documents", "Documents & Signatures", "Assign and verify company documents for employee signatures"], ["ownDocuments", "My Documents & Signatures", "Allow this HR user to view and sign documents assigned to their own account"], ["credentials", "Credentials", "Access employee credential records"], ["rolesAccess", "Roles & Access", "Manage team access"], ["systemAllotments", "System Allotments", "Manage system assignments"]];
+const moduleOptions = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
 
 const ManageHR = () => {
   const toast = useToast();
@@ -147,9 +147,9 @@ const ManageHR = () => {
 
   const openAccess = (hr) => {
     setAccessTarget(hr);
-    setModuleDraft(Object.fromEntries(moduleOptions.map(([key]) => {
+    setModuleDraft(Object.fromEntries(moduleOptions.map(([key, , actions = ["view", "add", "edit", "delete"]]) => {
       const value = hr.moduleAccess?.[key];
-      return [key, typeof value === 'object' ? value : { view: value !== false, edit: value !== false }];
+      return [key, typeof value === 'object' ? value : Object.fromEntries(actions.map((action) => [action, value !== false && action === "view"]))];
     })));
   };
   const saveAccess = async () => {
@@ -343,9 +343,9 @@ const ManageHR = () => {
         </div>
         </> : null}
       </section>
-      {accessTarget && <div className={`fixed inset-0 z-50 bg-black/20 ${drawerClosing ? "animate-fade-out" : ""}`} onClick={() => { if (!savingAccess) closeDrawer(); }}><aside className={`${drawerClosing ? "animate-slide-out-right" : "animate-slide-in-right"} absolute right-0 top-0 flex h-screen max-h-screen w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl`} onClick={(event) => event.stopPropagation()}><div className="border-b px-6 py-5"><div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold">Manage Role Access</h2><p className="mt-1 text-sm text-gray-500">Select modules for {accessTarget.name}.</p></div><button type="button" onClick={closeDrawer} className="text-xl text-gray-500">×</button></div></div><div className="flex-1 overflow-y-auto p-6">
+      {accessTarget && <div className={`fixed inset-0 z-50 bg-black/20 ${drawerClosing ? "animate-fade-out" : ""}`} onClick={() => { if (!savingAccess) closeDrawer(); }}><aside className={`${drawerClosing ? "animate-slide-out-right" : "animate-slide-in-right"} absolute right-0 top-0 flex h-screen max-h-screen w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl`} onClick={(event) => event.stopPropagation()}><div className="border-b px-6 py-5"><div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold">Manage Role Access</h2><p className="mt-1 text-sm text-gray-500">Select modules for {accessTarget.name}.</p></div><button type="button" onClick={closeDrawer} className="text-xl text-gray-500">×</button></div></div><div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-sm border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><p className="font-semibold">HR role permissions</p><p className="mt-1 text-xs">Checked modules will appear in this HR user’s panel. Unchecked modules will be hidden.</p></div>
-        <div className="grid gap-3 sm:grid-cols-2">{moduleOptions.map(([key, label, description]) => { const actions = key === "employeeDocuments" ? ["view", "download", "add", "update", "delete"] : moduleActions; return <div key={key} className="rounded-sm border border-gray-200 p-3 dark:border-gray-700"><span className="block text-sm font-semibold text-gray-900 dark:text-white">{label}</span><span className="mt-1 block text-xs text-gray-500">{description}</span><div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold">{actions.map((action) => <label key={action} className="flex items-center gap-2"><input type="checkbox" checked={Boolean(moduleDraft[key]?.[action])} onChange={(event) => setModuleDraft((current) => ({ ...current, [key]: { ...current[key], [action]: event.target.checked, ...(action !== "view" && event.target.checked ? { view: true } : {}) } }))} className="accent-[#f84525]" /> {action === "download" ? "Download" : action === "update" ? "Update" : action[0].toUpperCase() + action.slice(1)}</label>)}</div></div>; })}</div>
+        <ModulePermissionMatrix modules={moduleOptions} value={moduleDraft} onChange={(key, value) => setModuleDraft((current) => ({ ...current, [key]: value }))} />
       </div><div className="flex justify-end gap-2 border-t bg-gray-50 px-6 py-4"><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={closeDrawer} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></div></aside></div>}
     </div>
   );
