@@ -36,9 +36,9 @@ const LeaveReports = () => {
   const [moduleAccess, setModuleAccess] = useState({});
   const [accessLoaded, setAccessLoaded] = useState(user?.role !== "hr");
   const canView = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.view));
-  const canReview = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveReports?.edit));
-  const canAdjust = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveReports?.adjust === true);
-  const canDelete = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveReports?.delete === true);
+  const canReview = user?.role === "superadmin" || (user?.role === "hr" && Boolean(moduleAccess.leaveActions?.edit));
+  const canAdjust = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveActions?.adjust === true);
+  const canDelete = user?.role === "superadmin" || (user?.role === "hr" && accessLoaded && moduleAccess.leaveActions?.delete === true);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");

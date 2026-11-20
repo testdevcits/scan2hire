@@ -15,6 +15,7 @@ const CommonModal = ({
   onSubmit,
   drawer = false,
   open = true,
+  showClose = true,
 }) => {
   return createPortal(
     <div
@@ -36,9 +37,9 @@ const CommonModal = ({
             {subtitle && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
           </div>
           {headerContent}
-          <button type="button" onClick={onClose} className="rounded-sm p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100" aria-label="Close dialog">
+          {showClose && <button type="button" onClick={onClose} className="rounded-sm p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100" aria-label="Close dialog">
             <FiX />
-          </button>
+          </button>}
         </header>
         <div className={`min-h-0 flex-1 overflow-auto p-4 sm:p-5 ${bodyClassName}`}>{children}</div>
         {footer && <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-5">{footer}</footer>}

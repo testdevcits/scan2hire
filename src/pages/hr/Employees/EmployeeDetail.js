@@ -115,7 +115,7 @@ const labelize = (value = "") => String(value).replace(/_/g, " ");
 const employeeModuleActions = ["view", "add", "edit", "delete"];
 const employeeAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["attendance", "Attendance", ["view", "edit"], { view: "View Attendance", edit: "Update Attendance" }], ["interviews", "Interviews", ["view", "edit"], { view: "View Interviews", edit: "Submit Review" }], ["leaves", "Leaves", ["view", "add"], { view: "View Leaves", add: "Apply Leave" }], ["leaveCalendar", "Conative Calendar", ["view"], { view: "View Calendar" }], ["systemAllotment", "My System", employeeModuleActions, { view: "View System", add: "Add Item", edit: "Update Item", delete: "Delete Item" }], ["documents", "Documents", ["view", "edit"], { view: "View Documents", edit: "Sign Documents" }], ["credentials", "Credentials", employeeModuleActions, { view: "View Credentials", add: "Add Credential", edit: "Update Credential", delete: "Delete Credential" }], ["settings", "Settings", ["view", "edit"], { view: "View Settings", edit: "Update Settings" }]];
 const teamLeadAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["yourTeam", "My Team / Team List", ["view", "edit"], { view: "View Team", edit: "Manage Team" }], ...employeeAccessModules.slice(1)];
-const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view", "edit", "adjust", "delete"], { view: "View Reports", edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
+const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]]];
 const documentLabelMap = {
   photo: "Photo",
   aadhaarCard: "Aadhaar Card",
@@ -239,6 +239,8 @@ const EmployeeDetail = () => {
   const [savingPassword, setSavingPassword] = useState(false);
   const [loginPassword, setLoginPassword] = useState(null);
   const [loadingLoginPassword, setLoadingLoginPassword] = useState(false);
+  const [passwordViewOpen, setPasswordViewOpen] = useState(false);
+  useEffect(() => { if (!passwordViewOpen) return undefined; const timer = window.setTimeout(() => setPasswordViewOpen(false), 5000); return () => window.clearTimeout(timer); }, [passwordViewOpen]);
   const [accessDraft, setAccessDraft] = useState({});
   const [roleDraft, setRoleDraft] = useState("employee");
   const [savingAccess, setSavingAccess] = useState(false);
@@ -303,7 +305,7 @@ const EmployeeDetail = () => {
     if (!selectedEmployeeLeave) return;
     const ok = await confirm({ title: `${nextStatus === "approved" ? "Approve" : "Reject"} leave?`, message: "Confirm this leave request action.", confirmText: nextStatus === "approved" ? "Approve" : "Reject", cancelText: "Cancel", tone: nextStatus === "approved" ? "primary" : "danger" });
     if (!ok) return;
-    try { const response = await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus }); toast.success(`Leave ${nextStatus}`); closeEmployeeLeaveDrawer(); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, ...response.data.data } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
+    try { const response = await hrApi.reviewLeave(selectedEmployeeLeave._id, { status: nextStatus, employeeId }); toast.success(`Leave ${nextStatus}`); closeEmployeeLeaveDrawer(); setEmployeeLeaves((items) => items.map((item) => item._id === selectedEmployeeLeave._id ? { ...item, ...response.data.data } : item)); } catch (err) { toast.error(err.response?.data?.message || "Unable to update leave"); }
   };
 
   const changeActiveTab = (tab) => {
@@ -311,6 +313,7 @@ const EmployeeDetail = () => {
     params.set("tab", tab);
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
     setActiveTabState(tab);
+    if (user?.role === "hr") authApi.getProfile().then((response) => setHrModuleAccess(response.data.data?.moduleAccess ?? null)).catch(() => {});
   };
   const handleChecklistChange = (group, key, value) => setEditForm((current) => ({ ...current, [group]: { ...(current[group] || {}), [key]: value } }));
 
@@ -444,8 +447,7 @@ const EmployeeDetail = () => {
     || hrModuleAccess[key]?.view !== false;
   const hrCanEditModule = (key) => user?.role !== "hr"
     || hrModuleAccess === null
-    || hrModuleAccess?.[key] === undefined
-    || hrModuleAccess[key]?.edit !== false;
+    || (hrModuleAccess?.[key] === undefined ? key !== "leaveActions" : hrModuleAccess[key]?.edit !== false);
   const hrCanDownloadModule = (key) => user?.role !== "hr"
     || accessLoading
     || hrModuleAccess === null
@@ -454,9 +456,7 @@ const EmployeeDetail = () => {
     || hrModuleAccess[key]?.download === true;
   const hrCanUpdateModule = (key) => user?.role !== "hr"
     || hrModuleAccess === null
-    || hrModuleAccess?.[key] === undefined
-    || hrModuleAccess[key]?.update === true
-    || hrModuleAccess[key]?.edit === true;
+    || (hrModuleAccess?.[key] === undefined ? key !== "leaveActions" : key === "leaveActions" ? hrModuleAccess[key]?.adjust === true : hrModuleAccess[key]?.update === true || hrModuleAccess[key]?.edit === true);
   const hrCanAddModule = (key) => user?.role !== "hr"
     || hrModuleAccess === null
     || hrModuleAccess?.[key] === undefined
@@ -870,7 +870,7 @@ const EmployeeDetail = () => {
     { value: "details", label: "Details" },
     ...(canManage && hrCanEditModule("employees") ? [{ value: "edit", label: "Edit Profile" }] : []),
     { value: "attendance", label: "Attendance" },
-    { value: "leaves", label: "Leaves" },
+    ...(hrCanViewModule("leaveReports") ? [{ value: "leaves", label: "Leaves" }] : []),
     ...(hrCanViewModule("employeeDocuments") ? [{ value: "documents", label: "Documents" }] : []),
     ...(hrCanViewModule("documents") ? [{ value: "documentSignatures", label: "Documents & Signatures" }] : []),
     ...(canManage && hrCanViewModule("employeeSecurity") ? [{ value: "security", label: "Security" }] : []),
@@ -890,7 +890,7 @@ const EmployeeDetail = () => {
 
           <div className="absolute right-4 top-5 flex max-w-[calc(100%-2rem)] flex-row-reverse items-start justify-end gap-3 lg:right-5">
             <div className="flex h-36 w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-orange-200 bg-orange-50 text-2xl font-semibold text-[#f84525]">
-              {employee.documents?.photo?.url ? <img src={employee.documents.photo.url} alt={`${employee.name} passport photo`} className="h-full w-full object-cover" /> : <Avatar name={employee.name} size="h-full w-full rounded-md text-xl" alt={`${employee.name} profile`} />}
+              {employee.documents?.photo?.url ? <img src={employee.documents.photo.url} alt={employee.name} className="h-full w-full object-cover" /> : <Avatar name={employee.name} size="h-full w-full rounded-md text-xl" alt={`${employee.name} profile`} />}
             </div>
             <div className="min-w-0 text-right">
               <div className="flex flex-wrap items-center gap-2">
@@ -1293,12 +1293,13 @@ const EmployeeDetail = () => {
         <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
           <SectionHeader title="Security" subtitle="Manage this employee login securely." />
           <div className="mt-5 flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-4">
-            <div><p className="font-semibold text-gray-900">Login password</p><p className="text-sm text-gray-500">{loginPassword?.password || "Password hidden"}</p></div>
-            {hrCanViewModule("employeeSecurity") && <Button variant="secondary" loading={loadingLoginPassword} onClick={async () => { setLoadingLoginPassword(true); try { const response = await hrApi.getEmployeeLoginPassword(employeeId); setLoginPassword(response.data.data); } catch (err) { toast.error(err.response?.data?.message || "Unable to load password"); } finally { setLoadingLoginPassword(false); } }} className="inline-flex items-center gap-2 whitespace-nowrap"><FiEye /> {loginPassword ? "Refresh Password" : "View Password"}</Button>}
-            {hrCanEditModule("employeeSecurity") && <Button variant="secondary" onClick={() => setPasswordModalOpen(true)} className="inline-flex items-center gap-2 whitespace-nowrap"><FiShield /> Change Password</Button>}
+            <div><p className="font-semibold text-gray-900">Login password</p><p className="text-sm text-gray-500">Password protected</p></div>
+            {hrCanViewModule("employeeSecurity") && <Button variant="secondary" loading={loadingLoginPassword} onClick={async () => { setLoadingLoginPassword(true); try { const response = await hrApi.getEmployeeLoginPassword(employeeId); setLoginPassword(response.data.data); setPasswordViewOpen(true); } catch (err) { toast.error(err.response?.data?.message || "Unable to load password"); } finally { setLoadingLoginPassword(false); } }} className="inline-flex items-center gap-2 whitespace-nowrap"><FiEye /> View Password</Button>}
+            {hrCanUpdateModule("employeeSecurity") && <Button variant="secondary" onClick={() => setPasswordModalOpen(true)} className="inline-flex items-center gap-2 whitespace-nowrap"><FiShield /> Change Password</Button>}
           </div>
         </section>
       )}
+      {passwordViewOpen && loginPassword && <CommonModal title="Employee login password" subtitle={`Login ID: ${loginPassword.loginId || employee.email}`} className="max-w-md" showClose={false} onClose={() => setPasswordViewOpen(false)}><div className="flex items-center gap-2"><code className="flex-1 rounded border bg-gray-50 p-3 text-sm text-gray-900">{loginPassword.password}</code><button type="button" title="Copy password" aria-label="Copy password" className="rounded border border-gray-300 p-3 text-gray-700 hover:bg-gray-50" onClick={async () => { await navigator.clipboard.writeText(loginPassword.password); toast.success("Password copied"); }}><FiCopy /></button></div></CommonModal>}
 
       {canManage && hrCanEditModule("employees") && activeTab === "actions" && (
         <section className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
@@ -1332,7 +1333,7 @@ const EmployeeDetail = () => {
         <div className="p-4"><DocumentSigningList managed employeeFilterId={employeeId} moduleAccess={hrModuleAccess} /></div>
       </section>}
 
-      {activeTab === "leaves" && <section className="rounded-sm bg-white p-4 shadow dark:bg-gray-900"><h2 className="mb-4 font-semibold">Employee Leaves</h2>{employeeLeavesLoading ? <CommonLoader text="Loading leaves..." /> : <CommonTable columns={[{ accessor: "type", header: "Leave Type", render: (value) => labelize(value) }, { accessor: "fromDate", header: "From", render: (value) => formatDate(value) }, { accessor: "toDate", header: "To", render: (value) => formatDate(value) }, { accessor: "status", header: "Status" }, { accessor: "reason", header: "Reason" }]} data={employeeLeaves} actions={[{ key: "view", label: "View leave", icon: <FiEye className="h-4 w-4" />, iconOnly: true, onClick: openEmployeeLeaveDrawer, className: "border border-orange-200 text-orange-600" }]} emptyText="No leaves found." />}</section>}
+      {hrCanViewModule("leaveReports") && activeTab === "leaves" && <section className="rounded-sm bg-white p-4 shadow dark:bg-gray-900"><h2 className="mb-4 font-semibold">Employee Leaves</h2>{employeeLeavesLoading ? <CommonLoader text="Loading leaves..." /> : <CommonTable columns={[{ accessor: "type", header: "Leave Type", render: (value) => labelize(value) }, { accessor: "fromDate", header: "From", render: (value) => formatDate(value) }, { accessor: "toDate", header: "To", render: (value) => formatDate(value) }, { accessor: "status", header: "Status" }, { accessor: "reason", header: "Reason" }]} data={employeeLeaves} actions={[{ key: "view", label: "View leave", icon: <FiEye className="h-4 w-4" />, iconOnly: true, onClick: openEmployeeLeaveDrawer, className: "border border-orange-200 text-orange-600" }]} emptyText="No leaves found." />}</section>}
 
       {activeTab === "attendance" && <section id="attendance-panel" role="tabpanel" aria-labelledby="attendance-tab" className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b">
@@ -1364,7 +1365,7 @@ const EmployeeDetail = () => {
         )}
       </section>}
 
-      {selectedEmployeeLeave && <CommonModal title="Leave request" drawer open={employeeLeaveDrawerOpen} className="!h-screen !max-h-none !max-w-[672px] !rounded-none" onClose={closeEmployeeLeaveDrawer} footer={<><Button text="Close" variant="secondary" onClick={closeEmployeeLeaveDrawer} />{selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}>
+      {selectedEmployeeLeave && <CommonModal title="Leave request" drawer open={employeeLeaveDrawerOpen} className="!h-screen !max-h-none !max-w-[672px] !rounded-none" onClose={closeEmployeeLeaveDrawer} footer={<><Button text="Close" variant="secondary" onClick={closeEmployeeLeaveDrawer} />{hrCanEditModule("leaveActions") && selectedEmployeeLeave.status === "pending" && <><Button text="Reject" className="!bg-red-600" onClick={() => reviewEmployeeLeave("rejected")} /><Button text="Approve" className="!bg-green-600" onClick={() => reviewEmployeeLeave("approved")} /></>}</>}>
         <div className="grid grid-cols-3 gap-2">
           {employeeLeaveBalanceTypes.map(({ value, label }) => {
             const item = selectedLeaveBalance?.balance?.[value] || { total: 0, used: 0, remaining: 0 };
@@ -1381,12 +1382,12 @@ const EmployeeDetail = () => {
           </div>
         </div>
                <p className="mt-3 text-xs text-gray-500">ⓘ &nbsp;Urgent Leave, Half Day (0.5 day), and Full Day requests are deducted from Earned Leave.</p>
-        <form onSubmit={(event) => { event.preventDefault(); adjustSelectedLeave(); }} className="mt-4 grid grid-cols-1 gap-3 border-y border-gray-100 py-3 dark:border-gray-800 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_auto] xl:items-end">
+        {hrCanUpdateModule("leaveActions") && <form onSubmit={(event) => { event.preventDefault(); adjustSelectedLeave(); }} className="mt-4 grid grid-cols-1 gap-3 border-y border-gray-100 py-3 dark:border-gray-800 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_auto] xl:items-end">
           <div className="min-w-0"><span className="block text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Leave type</span><CustomDropdown className="mt-1" buttonClassName="!h-10 !min-h-10 w-full" value={adjustType} onChange={setAdjustType} options={employeeLeaveBalanceTypes} searchable={false} showPlaceholder={false} portalMenu /></div>
           <label className="block min-w-0 text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Adjust days<input type="number" step="0.5" min="-365" max="365" value={adjustDays} onChange={(event) => setAdjustDays(event.target.value)} placeholder="e.g. 2 or -1" className="mt-1 block h-10 w-full box-border rounded-sm border border-gray-300 bg-white px-3 text-sm font-normal dark:border-gray-700 dark:bg-gray-800" required /></label>
           <label className="block min-w-0 text-sm font-medium leading-5 text-gray-700 dark:text-gray-200">Reason<input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} maxLength={500} placeholder="Why adjusting these leaves?" className="mt-1 block h-10 w-full box-border rounded-sm border border-gray-300 bg-white px-3 text-sm font-normal dark:border-gray-700 dark:bg-gray-800" required /></label>
           <Button text="Adjust leaves" type="submit" className="h-10 whitespace-nowrap self-end" />
-        </form>
+        </form>}
         {selectedLeaveBalance && <section className="mt-3"><h3 className="text-sm font-semibold">Leave adjustments</h3>{selectedLeaveBalance.adjustments?.length ? <div className="mt-2 space-y-2">{selectedLeaveBalance.adjustments.map((item, index) => <div key={`${item._id || item.adjustedAt}-${index}`} className="flex flex-col gap-1 rounded-sm border border-gray-100 px-3 py-2 text-xs dark:border-gray-800 sm:flex-row sm:justify-between"><span className="font-medium">{item.days > 0 ? "+" : ""}{item.days} days · {labelize(item.type)}</span><span className="text-gray-500">{item.adjustedBy?.name || item.adjustedBy?.email || "Admin"} · {item.reason}</span></div>)}</div> : <p className="mt-1 text-sm text-gray-500">No leave adjustments yet.</p>}</section>}
         <p className="mt-4 rounded-sm border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-800"><span className="font-semibold">Reason</span><br />{selectedEmployeeLeave.reason || selectedEmployeeLeave.content || "-"}</p>
         <LeaveReviewDetails leave={selectedEmployeeLeave} />
