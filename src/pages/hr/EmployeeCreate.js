@@ -41,6 +41,7 @@ const initialForm = {
   leavingChecklist: { idCardNotepadPen: false, credentials: false, tshirtBag: false, officeKeyPhoneSystem: false },
   noDuesChecklist: { teamLeadProjectManager: false, itHead: false, hrHead: false },
 };
+const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 const EmployeeCreate = () => {
   const [form, setForm] = useState(initialForm);
@@ -110,31 +111,31 @@ const EmployeeCreate = () => {
 
   const fileToPayload = async (file) => {
     if (!file) return null;
+    if (file.size > MAX_UPLOAD_SIZE) {
+      toast.error(`${file.name || "This file"} is too large. Maximum allowed size is 5 MB.`);
+      return null;
+    }
     const dataUri = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
     return { dataUri, name: file.name, type: file.type };
   };
   const handleProof = async (key, file) => {
     if (!file) return;
-    try { const payload = await fileToPayload(file); setForm((current) => ({ ...current, documents: { ...current.documents, [key]: payload } })); }
+    try { const payload = await fileToPayload(file); if (!payload) return; setForm((current) => ({ ...current, documents: { ...current.documents, [key]: payload } })); }
     catch { toast.error("Unable to read the selected file"); }
   };
   const handlePhoto = async (file) => {
     if (!file) return;
     try {
-      const dataUri = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      setForm((current) => ({ ...current, photo: { dataUri, name: file.name, type: file.type } }));
+      const payload = await fileToPayload(file);
+      if (payload) setForm((current) => ({ ...current, photo: payload }));
     } catch {
       toast.error("Unable to read the selected photo");
     }
   };
   const handleSalarySlips = async (files) => {
     try {
-      const selectedFiles = Array.from(files || []).slice(0, 10);
+      const selectedFiles = Array.from(files || []).slice(0, 10).filter((file) => file.size <= MAX_UPLOAD_SIZE);
+      if (selectedFiles.length < Array.from(files || []).length) toast.error("One or more salary slips exceed the 5 MB limit.");
       const salarySlips = await Promise.all(selectedFiles.map(fileToPayload));
       setForm((current) => ({ ...current, salarySlips }));
     } catch {
