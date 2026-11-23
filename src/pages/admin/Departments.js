@@ -325,7 +325,7 @@ const Departments = () => {
           <MasterOptionsSection type="bloodGroup" title="Blood Group Master" description="Blood groups available in employee forms." />
           <MasterOptionsSection type="employeeType" title="Employment Type Master" description="Permanent, probation, internship, and custom types." />
           <MasterOptionsSection type="designation" title="Designation Master" description="Job designations available in employee forms." />
-          <MasterOptionsSection type="trainingPeriod" title="Training Period Master" description="Training or provision periods such as 1, 3, or 6 months." />
+          <MasterOptionsSection type="trainingPeriod" title="Probation Period Master" description="Probation periods such as 1, 3, or 6 months." />
           <MasterOptionsSection type="bondPeriod" title="Bond Period Master" description="Bond durations such as 15 days, 1 month, 2 months, or 3 months." />
         </div>
       </section>

@@ -210,7 +210,7 @@ const EmployeeCreate = () => {
             <CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu />
             <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation} searchable portalMenu />
             <CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} />
-            <CustomDropdown label="Training / Provision Period" value={form.trainingPeriod} onChange={handleSelect("trainingPeriod")} options={masterOptions.trainingPeriod.length ? masterOptions.trainingPeriod : ["1 Month", "3 Months", "6 Months"]} />
+            <CustomDropdown label="Probation Period" value={form.trainingPeriod} onChange={handleSelect("trainingPeriod")} options={masterOptions.trainingPeriod.length ? masterOptions.trainingPeriod : ["1 Month", "3 Months", "6 Months"]} />
             <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
             <CustomDropdown
               label="Reporting Manager"

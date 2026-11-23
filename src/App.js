@@ -43,6 +43,7 @@ import EmployeeSettings from "./pages/employee/EmployeeSettings";
 import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials";
 import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
 import EmployeeLeaveCalendar from "./pages/employee/EmployeeLeaveCalendar";
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -92,6 +93,7 @@ function App() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         {/* Protected HR routes using HRLayout */}
@@ -127,6 +129,7 @@ function App() {
           <Route path="settings" element={<EmployeeSettings />} />
           <Route path="documents" element={<Navigate to="settings" replace />} />
           <Route path="profile" element={<Navigate to="settings" replace />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         <Route
@@ -149,6 +152,7 @@ function App() {
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
+          <Route path="notifications" element={<Notifications />} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
 

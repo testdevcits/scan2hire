@@ -277,8 +277,8 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
             </div>
             <button
               onClick={() => {
-                setNotificationOpen((prev) => !prev);
-                loadNotifications();
+                setNotificationOpen(false);
+                navigate("notifications");
               }}
               className={`relative w-10 h-10 rounded-[14px] border flex items-center justify-center hover:text-[#f84525] ${mode === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-white text-gray-800"}`}
               aria-label="Notifications"
