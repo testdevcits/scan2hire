@@ -104,6 +104,12 @@ export default function AuditLogs() {
     const lowerDescription = description.toLowerCase();
     const lowerPath = (log.path || "").toLowerCase();
 
+    if (log.method === "GET" && /^\/api\/employees\//.test(lowerPath)) {
+      const resource = lowerPath.split("?")[0].replace("/api/employees/", "");
+      const resources = { me: "their own profile", "me/access": "their access permissions", attendance: "their attendance", leaves: "their leave requests and balance", "leave-drafts": "their saved leave drafts", candidates: "their assigned interviews", "interview-logs": "their interview history", birthdays: "birthday reminders" };
+      if (resources[resource]) return `${actorName} loaded ${resources[resource]}.`;
+    }
+
     let subject = "a record";
     if (lowerPath.includes("/password") || lowerDescription.includes("employee login password") || lowerDescription.includes("password verification") || lowerDescription.includes("password setup") || lowerDescription.includes("password")) {
       subject = "the employee login password";
@@ -135,9 +141,7 @@ export default function AuditLogs() {
 
     const employeeContext = log.targetName
       ? ` for ${log.targetName}`
-      : log.module === "employees" || log.entityId
-        ? " for this employee"
-        : "";
+      : log.entityId ? ` (record ${log.entityId})` : "";
 
     return `${actorName} ${action} ${subject}${employeeContext}.`;
   };
@@ -318,6 +322,7 @@ export default function AuditLogs() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => load(1)} disabled={Boolean(from && to && from > to)} className="h-10 rounded-xl border border-gray-300 px-5 text-sm font-semibold text-gray-700 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">Apply filter</button>
+          <button type="button" onClick={clearRange} className="h-10 rounded-xl border border-gray-300 px-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">Clear dates</button>
           <div className="flex w-full gap-2 overflow-x-auto pb-1 sm:w-auto">
             {[["all", "All"], ["create", "Created"], ["update", "Updated"], ["delete", "Deleted"], ["view", "Viewed"]].map(([value, label]) => (
               <button key={value} type="button" onClick={() => setActionFilter(value)} className={`h-9 shrink-0 rounded-lg border px-4 text-sm font-semibold ${actionFilter === value ? "border-[#f84525]/40 bg-[#fff5f2] text-[#d93a1e] dark:bg-orange-950/20 dark:text-orange-300" : "border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"}`}>{label}</button>
@@ -384,6 +389,7 @@ export default function AuditLogs() {
                             <div className="min-w-0">
                               <p className="text-sm font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-base">{getActivitySentence(log)}</p>
                               <div className="mt-2 flex flex-wrap gap-2">
+                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">{actionNames[action] || action}</span>
                                 <span className="rounded-md bg-[#fff5f2] px-2 py-1 text-xs text-[#d84a2f] dark:bg-orange-950/30 dark:text-orange-300">
                                   {moduleNames[log.module] || log.module || "System"}
                                 </span>
