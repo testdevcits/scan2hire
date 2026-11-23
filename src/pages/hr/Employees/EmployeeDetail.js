@@ -325,7 +325,7 @@ const EmployeeDetail = () => {
       const requests = [hrApi.getEmployee(employeeId)];
       if (includeReport) requests.push(hrApi.getEmployeeMonthlyReport(employeeId, month));
       if (canManage) {
-        requests.push(hrApi.getEmployees());
+        requests.push(hrApi.getReportingManagers());
         requests.push(authApi.getDepartments());
       }
       if (user?.role === "hr") requests.push(authApi.getProfile());
@@ -400,7 +400,7 @@ const EmployeeDetail = () => {
         gender: employeeData.gender || "Other",
         employeeType: employeeData.employeeType || "Probation",
         attendanceMode: employeeData.attendanceMode || "office",
-        teamLead: employeeData.teamLead?._id || employeeData.teamLead || "",
+        teamLead: employeeData.reportingManagerUser ? `hr:${employeeData.reportingManagerUser._id || employeeData.reportingManagerUser}` : employeeData.teamLead?._id || employeeData.teamLead || "",
         reportingManager: employeeData.reportingManager || "",
         resignationDate: employeeData.resignationDate ? employeeData.resignationDate.slice(0, 10) : "",
         leavingDate: employeeData.leavingDate ? employeeData.leavingDate.slice(0, 10) : "",
@@ -604,6 +604,8 @@ const EmployeeDetail = () => {
     try {
       const payload = {
         ...editForm,
+        reportingManagerUser: editForm.teamLead.startsWith("hr:") ? editForm.teamLead.slice(3) : null,
+        teamLead: editForm.teamLead.startsWith("hr:") ? "" : editForm.teamLead,
         employeeId: editForm.employeeId.trim(),
         name: `${editForm.firstName.trim()} ${editForm.lastName.trim()}`.trim(),
         mobile: editForm.mobile.trim(),
@@ -769,7 +771,7 @@ const EmployeeDetail = () => {
   const teamLeadOptions = useMemo(
     () =>
       employeeOptions
-        .filter((item) => (item.workRole === "teamlead" || item.user?.role === "teamlead") && String(item._id) !== String(employeeId))
+        .filter((item) => String(item.employeeProfile) !== String(employeeId))
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
     [employeeId, employeeOptions]
   );
@@ -931,18 +933,22 @@ const EmployeeDetail = () => {
         <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm xl:col-span-2">
           <SectionHeader title="Employee Details" subtitle="Basic information HR/admin needs before making changes." />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <DetailItem icon={<FiBriefcase />} label="Employee ID" value={detailFallback(employee.employeeId)} />
+            <DetailItem icon={<FiBriefcase />} label="HR File No." value={detailFallback(employee.hrFileNo)} />
+            <DetailItem icon={<FiUser />} label="First Name" value={detailFallback(employee.firstName)} />
+            <DetailItem icon={<FiUser />} label="Last Name" value={detailFallback(employee.lastName)} />
+            <DetailItem icon={<FiUser />} label="Blood Group" value={detailFallback(employee.bloodGroup)} />
             <DetailItem icon={<FiMail />} label="Email" value={detailFallback(employee.email)} />
             <DetailItem icon={<FiPhone />} label="Mobile" value={detailFallback(employee.mobile)} />
             <DetailItem icon={<FiPhone />} label="Alternate Mobile" value={detailFallback(employee.altMobile)} />
             <DetailItem icon={<FiUser />} label="Father / Husband Name" value={detailFallback(employee.fatherOrHusbandName)} />
             <DetailItem icon={<FiPhone />} label="Emergency Number" value={detailFallback(employee.emergencyNumber)} />
             <DetailItem icon={<FiUser />} label="Gender" value={detailFallback(employee.gender)} />
-            <DetailItem icon={<FiBriefcase />} label="HR File No." value={detailFallback(employee.hrFileNo)} />
             <DetailItem icon={<FiBriefcase />} label="Department" value={detailFallback(employee.department)} />
             <DetailItem icon={<FiUser />} label="Designation" value={detailFallback(employee.designation)} />
             <DetailItem icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
             <DetailItem icon={<FiCalendar />} label="Joining Date" value={formatDate(employee.dateOfJoining)} />
-            <DetailItem icon={<FiUserCheck />} label="Reporting Manager" value={detailFallback(employee.reportingManager)} />
+            <DetailItem icon={<FiUserCheck />} label="Reporting Manager" value={employee.reportingManagerUser?.name || (employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : detailFallback(employee.reportingManager))} />
             <DetailItem
               icon={<FiUserCheck />}
               label="Team Lead"
@@ -1077,7 +1083,7 @@ const EmployeeDetail = () => {
         />
         <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
         <CustomDropdown
-          label="Team Lead"
+          label="Reporting Manager"
           value={editForm.teamLead}
           placeholder="No Reporting Manager"
           searchable
@@ -1093,7 +1099,7 @@ const EmployeeDetail = () => {
           error={editErrors.teamLead}
           options={teamLeadOptions.map((teamLead) => ({
             value: teamLead._id,
-            label: `${teamLead.employeeId || "-"} - ${teamLead.name}`,
+            label: `${teamLead.employeeId ? `${teamLead.employeeId} - ` : ""}${teamLead.name} — ${teamLead.role}`,
           }))}
         />
         <CustomDropdown

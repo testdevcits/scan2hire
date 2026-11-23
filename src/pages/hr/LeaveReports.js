@@ -1,7 +1,7 @@
 import LeaveReviewDetails from "../../components/common/LeaveReviewDetails";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FiCheckCircle, FiClock, FiEye, FiFileText, FiXCircle } from "react-icons/fi";
+import { FiCheckCircle, FiClock, FiEye, FiFileText, FiTrash2, FiXCircle } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
@@ -329,6 +329,7 @@ const LeaveReports = () => {
   ];
   const actions = canView ? [
     { key: "leaves", label: "View employee leaves", icon: <FiEye className="h-4 w-4" />, iconOnly: true, title: "View employee leaves", onClick: openBalanceModal, className: "border border-[#f84525]/30 bg-[#fff5f3] text-[#d93a1e] hover:bg-[#ffebe6] dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/60" },
+    ...(canDelete ? [{ key: "delete", label: "Delete leave request", icon: <FiTrash2 className="h-4 w-4" />, iconOnly: true, title: "Delete leave request", onClick: openBalanceModal, className: "border border-red-200 bg-white text-red-600 hover:bg-red-50" }] : []),
   ] : undefined;
 
   return (
