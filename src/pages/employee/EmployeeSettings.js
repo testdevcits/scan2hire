@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FiCamera, FiLock, FiShield } from "react-icons/fi";
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { authApi, employeeApi } from "../../api";
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -29,10 +29,12 @@ const getPastedImage = (event) =>
     .find((item) => item.kind === "file" && item.type.startsWith("image/"))
     ?.getAsFile();
 
-const EmployeeSettings = () => {
+const EmployeeSettings = ({ requireProfileAccess = false }) => {
   const toast = useToast();
   const location = useLocation();
   const isHrSettings = location.pathname.startsWith("/hr/");
+  const isProfilePage = location.pathname.endsWith("/profile");
+  const showProfileTabs = isProfilePage || isHrSettings;
   const [profile, setProfile] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [profileImagePreview, setProfileImagePreview] = useState("");
@@ -45,12 +47,27 @@ const EmployeeSettings = () => {
   const [docs, setDocs] = useState({});
   const [documentsSaving, setDocumentsSaving] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [activeProfileTab, setActiveProfileTab] = useState(isProfilePage ? "overview" : "password");
+  const [profileDenied, setProfileDenied] = useState(false);
+  const deniedNotified = useRef(false);
 
   const loadProfile = useCallback(async () => {
     setPageLoading(true);
     try {
       const res = isHrSettings ? await authApi.getProfile() : await employeeApi.getProfile();
-      const data = res.data.data;
+      let data = res.data.data;
+      // Keep permissions from the user profile as a fallback for older employee
+      // profile responses that contain employee fields but omit moduleAccess.
+      if (!isHrSettings) {
+        const accessRes = await authApi.getProfile();
+        const authData = accessRes.data.data;
+        const authDocs = authData?.employeeProfile?.documents || authData?.documents;
+        data = {
+          ...data,
+          moduleAccess: authData?.moduleAccess || data?.moduleAccess,
+          documents: data?.documents && Object.keys(data.documents).length ? data.documents : authDocs,
+        };
+      }
       setProfile(data);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load settings");
@@ -62,6 +79,17 @@ const EmployeeSettings = () => {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (!requireProfileAccess || isHrSettings || pageLoading || !profile) return;
+    if (profile?.moduleAccess?.profile?.view === false) {
+      if (!deniedNotified.current) {
+        deniedNotified.current = true;
+        toast.error("You do not have access for this page");
+      }
+      setProfileDenied(true);
+    }
+  }, [requireProfileAccess, isHrSettings, pageLoading, profile, toast]);
 
   const handleProfileImageFile = async (file) => {
     if (isHrSettings) return;
@@ -136,11 +164,16 @@ const EmployeeSettings = () => {
 
   const canUpdateAvatar = !isHrSettings;
   const profileDetails = profile?.employeeProfile || profile;
+  const profileAccess = profile?.moduleAccess || {};
+  const canViewProfileGroup = (key) => isHrSettings || profileAccess?.[key]?.view === true;
+  const canDownloadProfileDocuments = isHrSettings || profileAccess?.profileDocuments?.download === true;
+  const getDocumentUrl = (value) => Array.isArray(value) ? value.find((item) => item?.url)?.url : value?.url;
   const profilePhotoUrl = isHrSettings
     ? profile?.documents?.photo?.url || profileDetails?.documents?.photo?.url || ""
     : profileDetails?.documents?.photo?.url || profile?.documents?.photo?.url || "";
 
   if (pageLoading) return <CommonLoader text="Loading settings..." />;
+  if (profileDenied) return <Navigate to="/employee/dashboard" replace />;
 
   return (
     <div className="space-y-5">
@@ -178,19 +211,57 @@ const EmployeeSettings = () => {
             />
           </label>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{isProfilePage ? "My Profile" : "Settings"}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {canUpdateAvatar ? "Update your avatar and account password." : "Update your account password."}
+              {canUpdateAvatar ? "View your profile details and manage your account." : "View your profile details."}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-sm">
-              <p><b>Name:</b> {profileDetails?.name || profile?.name || "N/A"}</p>
-              <p><b>Email:</b> {profileDetails?.email || profile?.email || "N/A"}</p>
-              <p><b>Department:</b> {profileDetails?.department || "N/A"}</p>
-              <p><b>Designation:</b> {profileDetails?.designation || profile?.designation || "N/A"}</p>
-            </div>
           </div>
         </div>
       </section>
+      {showProfileTabs && <section className="rounded-sm bg-white p-2 shadow">
+            <div className="grid grid-cols-1 gap-2 border-b pb-3 sm:grid-cols-3">
+              {[{ key: "overview", label: "Overview", show: true }, { key: "profileDocuments", label: "Documents", show: canViewProfileGroup("profileDocuments") || Object.keys(profileDetails?.documents || profile?.documents || {}).some((key) => key !== "photo" && key !== "drivingLicence") }, { key: "password", label: "Update Password", show: true }].filter((tab) => tab.show).map((tab) => <button type="button" key={tab.key} onClick={() => setActiveProfileTab(tab.key)} className={`relative flex min-h-16 w-full items-center justify-center rounded-lg border px-4 py-3 text-base font-semibold transition-colors ${activeProfileTab === tab.key ? "border-[#f84525] bg-[#fff5f3] text-[#f84525] after:absolute after:bottom-0 after:left-1/2 after:h-1 after:w-2/3 after:-translate-x-1/2 after:rounded-t-full after:bg-[#f84525]" : "border-gray-200 bg-white text-gray-600 hover:border-[#f84525] hover:bg-[#fffaf8]"}`}>{tab.label}</button>)}
+            </div>
+      </section>}
+
+      {showProfileTabs && activeProfileTab !== "password" && (
+        <section className="rounded-sm bg-white p-0 shadow-none">
+              <div className="grid grid-cols-1 gap-4 rounded-sm bg-white p-2 text-sm lg:grid-cols-2">
+                {activeProfileTab === "profileDocuments" && <div className="w-full flex flex-col gap-2">
+                  {Object.entries(profileDetails?.documents || profile?.documents || {}).filter(([key]) => key !== "photo" && key !== "drivingLicence" && key !== "drivingLicense").map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between rounded border bg-white px-3 py-2">
+                      <span className="capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
+                      {getDocumentUrl(value) ? <span className="flex items-center gap-3"><button type="button" className="font-semibold text-[#f84525]" onClick={() => setPreview({ title: key, url: getDocumentUrl(value) })}>View</button>{canDownloadProfileDocuments && <a href={getDocumentUrl(value)} target="_blank" rel="noreferrer" download className="font-semibold text-blue-600">Download</a>}</span> : <span className="text-gray-400">Not uploaded</span>}
+                    </div>
+                  ))}
+                </div>}
+                {activeProfileTab === "overview" && <div className="contents">
+                  <div className="rounded-xl border bg-white shadow-sm lg:col-span-1"><div className="border-b px-5 py-4 text-lg font-semibold">Basic Details</div><div className="grid gap-4 p-5 sm:grid-cols-2">
+                    <p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Employee ID</b><span className="text-base text-gray-900">{profileDetails?.employeeId || profile?.employeeId || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Name</b><span className="text-base text-gray-900">{profileDetails?.name || profile?.name || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Email</b><span className="text-base text-gray-900">{profileDetails?.email || profile?.email || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Department</b><span className="text-base text-gray-900">{profileDetails?.department || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Designation</b><span className="text-base text-gray-900">{profileDetails?.designation || "N/A"}</span></p>
+                  </div></div>
+                  {canViewProfileGroup("profilePersonal") && <div className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4 text-lg font-semibold">Personal Details</div><div className="grid gap-4 p-5 sm:grid-cols-2"><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Alternate Mobile</b><span className="text-base text-gray-900">{profileDetails?.altMobile || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Blood Group</b><span className="text-base text-gray-900">{profileDetails?.bloodGroup || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Emergency Contact</b><span className="text-base text-gray-900">{profileDetails?.emergencyNumber || "N/A"}</span></p></div></div>}
+                  {canViewProfileGroup("profileWork") && <div className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4 text-lg font-semibold">Work Details</div><div className="grid gap-4 p-5 sm:grid-cols-2"><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Joining Date</b><span className="text-base text-gray-900">{profileDetails?.dateOfJoining ? new Date(profileDetails.dateOfJoining).toLocaleDateString() : "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Team Lead</b><span className="text-base text-gray-900">{profileDetails?.teamLead?.name || profileDetails?.reportingManager || "N/A"}</span></p></div></div>}
+                  {canViewProfileGroup("profileBank") && <div className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4 text-lg font-semibold">Bank Details</div><div className="grid gap-4 p-5 sm:grid-cols-2"><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Bank Name</b><span className="text-base text-gray-900">{profileDetails?.bankName || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">IFSC Code</b><span className="text-base text-gray-900">{profileDetails?.bankIfscCode || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Account Number</b><span className="text-base text-gray-900">{profileDetails?.bankAccountNumber || "N/A"}</span></p><p className="flex flex-col gap-1"><b className="text-xs uppercase tracking-wide text-gray-400">Cheque Account Number</b><span className="text-base text-gray-900">{profileDetails?.chequeAccountNumber || "N/A"}</span></p></div></div>}
+                </div>}
+                {activeProfileTab === "profileWork" && canViewProfileGroup("profileWork") && <>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Joining Date:</b> {profileDetails?.dateOfJoining ? new Date(profileDetails.dateOfJoining).toLocaleDateString() : "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Team Lead:</b> {profileDetails?.teamLead?.name || profileDetails?.reportingManager || "N/A"}</p>
+                </>}
+                {activeProfileTab === "profilePersonal" && canViewProfileGroup("profilePersonal") && <>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Alternate Mobile:</b> {profileDetails?.altMobile || "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Blood Group:</b> {profileDetails?.bloodGroup || "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Emergency Contact:</b> {profileDetails?.emergencyNumber || "N/A"}</p>
+                </>}
+                {activeProfileTab === "profileSalary" && canViewProfileGroup("profileSalary") && <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Salary:</b> {profileDetails?.salary || "N/A"}</p>}
+                {activeProfileTab === "profileBank" && canViewProfileGroup("profileBank") && <>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Bank Name:</b> {profileDetails?.bankName || "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Account Number:</b> {profileDetails?.bankAccountNumber || "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">IFSC Code:</b> {profileDetails?.bankIfscCode || "N/A"}</p>
+                  <p className="flex w-full items-center justify-between gap-4 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-[#f84525] hover:bg-[#fff5f3]"><b className="min-w-[180px]">Cheque Account Number:</b> {profileDetails?.chequeAccountNumber || "N/A"}</p>
+                </>}
+              </div>
+        </section>
+      )}
 
       {isHrSettings && (
         <>
@@ -238,7 +309,7 @@ const EmployeeSettings = () => {
         </>
       )}
 
-      <form onSubmit={changePassword} className="bg-white rounded-sm shadow overflow-hidden">
+      {activeProfileTab === "password" && <form onSubmit={changePassword} className="bg-white rounded-sm shadow overflow-hidden">
         <div className="border-b border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center shrink-0">
@@ -294,7 +365,7 @@ const EmployeeSettings = () => {
             />
           </div>
         </div>
-      </form>
+      </form>}
 
       {preview && (
         <FilePreviewModal

@@ -5,12 +5,13 @@ import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
 import CustomDropdown from "../../components/common/CustomDropdown";
 
-const employeeModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ["credentials", "Credentials"], ["settings", "Settings"]];
-const teamLeadModules = [["dashboard", "Dashboard"], ["yourTeam", "Your Team"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendance", "Attendance"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "System Allotments"], ["tasks", "Tasks"], ["documents", "Documents"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["settings", "Settings"]];
+const profileModules = [["profile", "Profile", ["view"], { view: "View Profile" }], ["profilePersonal", "Personal Details", ["view"], { view: "View Personal Details" }], ["profileWork", "Work Details", ["view"], { view: "View Work Details" }], ["profileSalary", "Salary Details", ["view"], { view: "View Salary Details" }], ["profileBank", "Bank Details", ["view"], { view: "View Bank Details" }], ["profileDocuments", "Employee Documents", ["view", "download"], { view: "View Employee Documents", download: "Download Documents" }]];
+const employeeModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "My System"], ["documents", "Documents"], ...profileModules, ["credentials", "Credentials"], ["settings", "Settings"]];
+const teamLeadModules = [["dashboard", "Dashboard"], ["yourTeam", "Your Team"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendance", "Attendance"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "System Allotments"], ["tasks", "Tasks"], ...profileModules, ["documents", "Documents"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["settings", "Settings"]];
 
 export default function EmployeeModuleAccess({ role = "employee", title = "Employee Role & Access" }) {
   const modules = role === "teamlead" ? teamLeadModules : employeeModules;
-  const initial = Object.fromEntries(modules.map(([key]) => [key, { view: true, edit: true }]));
+  const initial = Object.fromEntries(modules.map(([key]) => [key, key === "profile" ? { view: true } : key.startsWith("profile") ? { view: false } : { view: true, edit: true }]));
   const [permissions, setPermissions] = useState(initial);
   const [savedPermissions, setSavedPermissions] = useState(initial);
   const [saving, setSaving] = useState(false);

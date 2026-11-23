@@ -52,7 +52,8 @@ const EmployeeLayout = () => {
     ? "Project Coordinator Panel"
     : "Employee Panel";
 
-  return <SidebarLayout title={title} navItems={navItems} navLoading={accessLoading} />;
+  const canOpenProfile = accessLoading || access.moduleAccess?.profile?.view !== false;
+  return <SidebarLayout title={title} navItems={navItems} navLoading={accessLoading} canOpenProfile={canOpenProfile} />;
 };
 
 export default EmployeeLayout;

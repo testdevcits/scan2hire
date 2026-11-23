@@ -7,7 +7,7 @@ import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import logo from "../assets/logo.png";
 
-const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false }) => {
+const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false, canOpenProfile = true }) => {
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
   const toast = useToast();
@@ -22,6 +22,7 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const handleLogout = () => {
+    if (!window.confirm("Are you sure you want to logout?")) return;
     setProfileMenuOpen(false);
     logout();
     navigate("/login");
@@ -30,7 +31,7 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
   const getProfilePath = () => {
     const effectiveRole = user?.effectiveRole || user?.role;
     if (user?.role === "superadmin") return "/admin/settings";
-    if (effectiveRole === "employee" || effectiveRole === "tester") return "/employee/settings";
+    if (effectiveRole === "employee" || effectiveRole === "tester") return "/employee/profile";
     return "/hr/settings";
   };
 
@@ -108,6 +109,10 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
     user?.effectiveRole ||
     user?.role;
   const departmentLabel = employeeProfile?.department || user?.department || "";
+  const employeeRole = ["employee", "teamlead", "tester", "project_coordinator"].includes(user?.role);
+  const profilePermissionAllowed = employeeRole
+    ? profileSummary?.moduleAccess?.profile?.view !== false
+    : canOpenProfile;
 
   const deleteNotification = async (notificationId) => {
     try {
@@ -162,6 +167,7 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
             <div>
               <h1 className={`text-lg font-bold ${isAdmin ? "text-white" : "text-header"}`}>{title}</h1>
               <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>{designationLabel}</p>
+              {employeeProfile?.employeeId && <p className={`text-[11px] ${isAdmin ? "text-gray-500" : "text-gray-400"}`}>ID: {employeeProfile.employeeId}</p>}
             </div>
           </div>
         </div>
@@ -193,22 +199,22 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
         </nav>
 
         <div className={`shrink-0 space-y-2 pt-3 mt-3 border-t ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-          <button
+                <button
             onClick={toggleMode}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
               isAdmin ? "bg-zinc-900 hover:bg-zinc-800 text-white" : "bg-gray-100 hover:bg-gray-200"
             }`}
           >
             {mode === "light" ? <FiMoon /> : <FiSun />} Theme
-          </button>
-          <button
+                </button>
+                <button
             onClick={handleLogout}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
               isAdmin ? "bg-white text-black hover:bg-gray-200" : "text-red-600 bg-red-50 hover:bg-red-100"
             }`}
           >
             <FiLogOut /> Logout
-          </button>
+                </button>
         </div>
       </aside>
 
@@ -258,13 +264,13 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
-                  <button
+                  {profilePermissionAllowed && <button
                     type="button"
                     onClick={openProfile}
                     className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
                   >
                     <FiUser /> Profile
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -299,13 +305,13 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
-                  <button
+                  {profilePermissionAllowed && <button
                     type="button"
                     onClick={openProfile}
                     className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
                   >
                     <FiUser /> Profile
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={handleLogout}

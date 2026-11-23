@@ -5,8 +5,8 @@ const ModulePermissionMatrix = ({ modules, value, onChange, actions = ["view", "
   <div className="divide-y rounded border border-gray-200 dark:border-gray-700">
     {modules.map((item, index) => {
       const [key, label, moduleActions, actionLabels = {}] = item;
-      if (["employeeDocuments", "employeeSecurity", "documents", "leaveActions"].includes(key)) return null;
-      const children = key === "employees" ? modules.filter(([childKey]) => ["employeeDocuments", "employeeSecurity", "documents"].includes(childKey)) : key === "leaveReports" ? modules.filter(([childKey]) => childKey === "leaveActions") : [];
+      if (["employeeDocuments", "employeeSecurity", "documents", "leaveActions", "profilePersonal", "profileWork", "profileSalary", "profileBank", "profileDocuments"].includes(key)) return null;
+      const children = key === "employees" ? modules.filter(([childKey]) => ["employeeDocuments", "employeeSecurity", "documents"].includes(childKey)) : key === "leaveReports" ? modules.filter(([childKey]) => childKey === "leaveActions") : key === "profile" ? modules.filter(([childKey]) => ["profilePersonal", "profileWork", "profileSalary", "profileBank", "profileDocuments"].includes(childKey)) : [];
       return <PermissionRow key={key} itemKey={key} label={label} moduleActions={moduleActions || actions} actionLabels={actionLabels} value={value[key] || {}} onChange={(next) => onChange(key, next)} children={children} childValues={Object.fromEntries(children.map(([childKey]) => [childKey, value[childKey] || {}]))} onChildChange={(childKey, next) => onChange(childKey, next)} />;
     })}
   </div>
@@ -17,7 +17,7 @@ const PermissionRow = ({ itemKey, label, moduleActions, actionLabels, value, onC
   const collapsible = children.length > 0;
   const toggle = () => { if (collapsible) setExpanded((current) => !current); };
   const controls = <div onClick={(event) => event.stopPropagation()} className="flex min-w-0 max-w-full flex-nowrap items-center justify-end gap-x-4 overflow-x-auto text-xs font-medium text-gray-800 dark:text-gray-100">{moduleActions.map((action) => <label key={action} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap"><input type="checkbox" checked={Boolean(value[action])} onChange={(e) => onChange({ ...value, [action]: e.target.checked, ...(action !== "view" && e.target.checked ? { view: true } : {}) })} className="accent-[#f84525]" /> <span>{actionLabels[action] || action[0].toUpperCase() + action.slice(1)}</span></label>)}</div>;
-  const childHint = itemKey === "leaveReports" ? "action permissions" : "employee permissions";
+  const childHint = itemKey === "leaveReports" ? "action permissions" : itemKey === "profile" ? "profile field permissions" : "employee permissions";
   return <div>
     <div onClick={toggle} className={`grid grid-cols-[minmax(160px,1fr)_minmax(0,auto)] items-center gap-3 px-3 py-2.5 ${collapsible ? "cursor-pointer bg-gray-50/70 dark:bg-gray-800/40" : ""}`}>
       {collapsible ? <button type="button" aria-expanded={expanded} onClick={(event) => { event.stopPropagation(); toggle(); }} className="inline-flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm font-semibold transition hover:bg-gray-100 dark:hover:bg-gray-700"><span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">{expanded ? <FiChevronDown /> : <FiChevronRight />}</span><span className="whitespace-nowrap">{label}</span><span className="whitespace-nowrap text-xs font-normal text-gray-500">{expanded ? `Hide ${childHint}` : `Show ${childHint}`}</span></button> : <span className="whitespace-nowrap text-sm font-medium">{label}</span>}

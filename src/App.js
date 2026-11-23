@@ -127,8 +127,8 @@ function App() {
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="profile" element={<EmployeeSettings requireProfileAccess />} />
           <Route path="documents" element={<Navigate to="settings" replace />} />
-          <Route path="profile" element={<Navigate to="settings" replace />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 
@@ -143,6 +143,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<EmployeeDashboard section="all" />} />
           <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="profile" element={<EmployeeSettings requireProfileAccess />} />
           <Route path="documents" element={<EmployeeDocuments />} />
           <Route path="credentials" element={<EmployeeSavedCredentials />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
@@ -153,7 +154,9 @@ function App() {
           <Route path="leaves" element={<EmployeeDashboard section="leaves" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />
           <Route path="notifications" element={<Notifications />} />
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
+          {/* Always use an absolute path for invalid deep employee URLs. A relative
+              redirect here would append `dashboard` repeatedly to the current URL. */}
+          <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
         </Route>
 
         {/* Unauthorized route */}

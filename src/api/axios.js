@@ -33,8 +33,14 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      console.log("Unauthorized, token issue...");
+    const status = error.response?.status;
+    const message = String(error.response?.data?.message || "").toLowerCase();
+    if (status === 401 && (message.includes("inactive") || message.includes("not authorized") || message.includes("token"))) {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login?reason=session-expired");
+      }
     }
     return Promise.reject(error);
   }
