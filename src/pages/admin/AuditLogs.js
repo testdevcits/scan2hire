@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { authApi } from "../../api";
 import CommonLoader from "../../components/common/CommonLoader";
+import DateRangePicker from "../../components/common/DateRangePicker";
 import { FiRefreshCw, FiSearch, FiTrash2 } from "react-icons/fi";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -74,14 +75,6 @@ export default function AuditLogs() {
     setFrom("");
     setTo("");
     setPage(1);
-    setLoading(true);
-    authApi
-      .getAuditLogs({ page: 1, limit })
-      .then((response) => {
-        setLogs(response.data.data || []);
-        setPagination(response.data.pagination || { total: 0, totalPages: 1 });
-      })
-      .finally(() => setLoading(false));
   };
 
   const changePage = (nextPage) => {
@@ -110,12 +103,20 @@ export default function AuditLogs() {
       if (resources[resource]) return `${actorName} loaded ${resources[resource]}.`;
     }
 
+    const selfPath = lowerPath.split("?")[0];
+    if (/^\/api\/(employees|users)\/me\/documents\/request\/?$/.test(selfPath)) return `${actorName} requested an update to their own documents.`;
+    if (/^\/api\/(employees|users)\/me\/documents\/?$/.test(selfPath)) return `${actorName} updated their own documents.`;
+    if (/^\/api\/employees\/me\/profile-image\/?$/.test(selfPath)) return `${actorName} updated their own profile photo.`;
+    if (/^\/api\/(employees|users)\/me\/account-credentials/.test(selfPath)) return `${actorName} ${log.action === "delete" ? "deleted" : ["create", "add"].includes(log.action) ? "added" : "viewed"} their own saved credential.`;
+    if (/^\/api\/(employees|users)\/me\/change-password\/?$/.test(selfPath)) return `${actorName} changed their own password.`;
+    if (/^\/api\/(employees|users)\/me\/?$/.test(selfPath)) return `${actorName} ${log.method === "GET" ? "viewed" : "updated"} their own profile.`;
+
     let subject = "a record";
     if (lowerPath.includes("/password") || lowerDescription.includes("employee login password") || lowerDescription.includes("password verification") || lowerDescription.includes("password setup") || lowerDescription.includes("password")) {
       subject = "the employee login password";
     } else if (lowerDescription.includes("module access") || lowerDescription.includes("mobile access") ) {
       subject = "module and mobile access settings";
-    } else if (lowerDescription.includes("employee profile") || lowerDescription.includes("employee")) {
+    } else if (lowerDescription.includes("employee profile") || (lowerDescription.includes("employee") && !lowerDescription.includes("document") && !lowerDescription.includes("credential"))) {
       subject = "the employee profile";
     } else if (lowerDescription.includes("candidate profile") || lowerDescription.includes("candidate")) {
       subject = "the candidate profile";
@@ -144,6 +145,18 @@ export default function AuditLogs() {
       : log.entityId ? ` (record ${log.entityId})` : "";
 
     return `${actorName} ${action} ${subject}${employeeContext}.`;
+  };
+
+  const renderActivitySentence = (log) => {
+    const actorName = log.actorName || log.actor?.name || log.actor?.email || "Unknown user";
+    const role = log.actorRole || log.actor?.role || "";
+    const sentence = getActivitySentence(log);
+    const remainder = sentence.startsWith(actorName) ? sentence.slice(actorName.length) : sentence;
+    const targetIndex = log.targetName ? remainder.indexOf(log.targetName) : -1;
+    const actorColor = role === "hr"
+      ? "text-blue-700 dark:text-blue-300"
+      : role === "superadmin" ? "text-purple-700 dark:text-purple-300" : "text-amber-700 dark:text-amber-300";
+    return <><span className={`font-semibold ${actorColor}`} title={`Action by: ${actorName} (${role || "user"})`}>{actorName}</span>{targetIndex >= 0 ? <>{remainder.slice(0, targetIndex)}<span className="font-semibold text-emerald-700 dark:text-emerald-300" title={`Affected employee: ${log.targetName}`}>{log.targetName}</span>{remainder.slice(targetIndex + log.targetName.length)}</> : remainder}</>;
   };
 
   const toggleSelect = (id) => {
@@ -233,16 +246,16 @@ export default function AuditLogs() {
     const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
     const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-    if (sameDay(date, today)) return "Today";
-    if (sameDay(date, yesterday)) return "Yesterday";
+    if (sameDay(date, today)) return `Today, ${date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
+    if (sameDay(date, yesterday)) return `Yesterday, ${date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
     return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
   };
 
   const getActionStyle = (action) => {
     if (action === "create" || action === "add") return "bg-emerald-500";
     if (action === "delete") return "bg-[#ef5b46]";
-    if (action === "view") return "bg-sky-500";
-    return "bg-[#9fb5cc]";
+    if (action === "view") return "bg-gray-400";
+    return "bg-blue-400";
   };
 
   const groupedLogs = visibleLogs.reduce((groups, log) => {
@@ -253,8 +266,8 @@ export default function AuditLogs() {
   }, {});
 
   return (
-    <div className="space-y-4 p-1 sm:p-2">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+    <div className="activity-logs-page space-y-5 rounded-2xl bg-[#f0f0f0] p-4 dark:bg-gray-950 sm:p-6">
+      <div className="flex flex-col justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Activity Logs</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">A readable history of who viewed, created, updated or deleted information.</p>
@@ -264,7 +277,7 @@ export default function AuditLogs() {
             type="button"
             onClick={() => load(page)}
             disabled={loading}
-            className="inline-flex h-10 flex-none items-center gap-2 rounded-md border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            className="inline-flex h-10 flex-none items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             title="Refresh latest activity logs"
           >
             <FiRefreshCw className={loading ? "animate-spin" : ""} />
@@ -276,7 +289,7 @@ export default function AuditLogs() {
               type="button"
               onClick={deleteSelected}
               disabled={loading || deleting}
-              className="inline-flex h-10 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800"
             >
               <FiTrash2 className={deleting ? "animate-pulse" : ""} />
               {deleting ? "Deleting..." : `Delete selected (${selectedIds.length})`}
@@ -287,7 +300,7 @@ export default function AuditLogs() {
             type="button"
             onClick={deleteAll}
             disabled={loading || deleting || pagination.total === 0}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/30"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/30"
             title="Delete all matching activity logs"
           >
             <FiTrash2 className={deleting ? "animate-pulse" : ""} />
@@ -296,8 +309,22 @@ export default function AuditLogs() {
         </div>
       </div>
 
+      {!loading && (
+        <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 sm:grid-cols-4">
+          <div className="flex items-center justify-between border-b border-r border-gray-200 px-5 py-5 sm:border-b-0 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
+            <div><span className="text-3xl font-medium">{pagination.total}</span><p className="mt-1 text-xs text-gray-500">Total activities</p></div>
+          </div>
+          {[{ key: "create", label: "Created · this page", color: "text-emerald-600" }, { key: "update", label: "Updated · this page", color: "text-blue-600" }, { key: "delete", label: "Deleted · this page", color: "text-[#c55344]" }].map((item) => {
+            const count = logs.filter((log) => item.key === "update" ? ["update", "edit"].includes(log.action) : log.action === item.key).length;
+            return <div key={item.key} className="flex items-center justify-between border-b border-r border-gray-200 px-5 py-5 sm:border-b-0 dark:border-gray-800 dark:bg-gray-900"><div><span className={`text-3xl font-medium ${item.color}`}>{count}</span><p className="mt-1 text-xs text-gray-500">{item.label}</p></div></div>;
+          })}
+        </div>
+      )}
+
+
       <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="relative">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="relative min-w-0 flex-1">
           <FiSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -309,39 +336,25 @@ export default function AuditLogs() {
           />
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-            From
-            <input type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
-          </label>
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-            To
-            <input type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
-        </label>
+        <div className="flex shrink-0 items-end gap-3">
+          <div className="min-w-0 flex-1 lg:w-80 lg:flex-none">
+            <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Date range</p>
+            <DateRangePicker value={{ start: from, end: to }} onApply={({ start, end }) => { setPage(1); setFrom(start); setTo(end); }} className="w-full [&>button]:!h-12 [&>button]:!w-full" />
+          </div>
+          <button type="button" onClick={clearRange} disabled={!from && !to} className="h-12 shrink-0 rounded-xl border border-gray-300 px-4 text-sm text-gray-600 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300">Clear dates</button>
+        </div>
+
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => load(1)} disabled={Boolean(from && to && from > to)} className="h-10 rounded-xl border border-gray-300 px-5 text-sm font-semibold text-gray-700 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">Apply filter</button>
-          <button type="button" onClick={clearRange} className="h-10 rounded-xl border border-gray-300 px-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">Clear dates</button>
-          <div className="flex w-full gap-2 overflow-x-auto pb-1 sm:w-auto">
+          <div className="mt-2 flex w-full flex-wrap gap-2">
             {[["all", "All"], ["create", "Created"], ["update", "Updated"], ["delete", "Deleted"], ["view", "Viewed"]].map(([value, label]) => (
-              <button key={value} type="button" onClick={() => setActionFilter(value)} className={`h-9 shrink-0 rounded-lg border px-4 text-sm font-semibold ${actionFilter === value ? "border-[#f84525]/40 bg-[#fff5f2] text-[#d93a1e] dark:bg-orange-950/20 dark:text-orange-300" : "border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"}`}>{label}</button>
+              <button key={value} type="button" onClick={() => setActionFilter(value)} className={`h-11 shrink-0 rounded-xl border px-5 text-sm font-semibold ${actionFilter === value ? "border-[#f84525]/40 bg-[#fff5f2] text-[#d93a1e] dark:bg-orange-950/20 dark:text-orange-300" : "border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"}`}>{label}</button>
             ))}
           </div>
         </div>
       </div>
 
-      {!loading && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-4 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
-            <div><span className="text-2xl font-bold">{pagination.total}</span><p className="mt-1 text-xs text-gray-500">Total activities</p></div>
-          </div>
-          {[{ key: "create", label: "Created", color: "text-emerald-600" }, { key: "update", label: "Updated", color: "text-blue-600" }, { key: "delete", label: "Deleted", color: "text-[#c55344]" }].map((item) => {
-            const count = logs.filter((log) => item.key === "update" ? ["update", "edit"].includes(log.action) : log.action === item.key).length;
-            return <div key={item.key} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"><div><span className={`text-2xl font-bold ${item.color}`}>{count}</span><p className="mt-1 text-xs text-gray-500">{item.label}</p></div></div>;
-          })}
-        </div>
-      )}
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         {loading ? (
@@ -351,7 +364,11 @@ export default function AuditLogs() {
         ) : (
           <div className="p-3 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <span className="text-xs text-gray-500 dark:text-gray-400">{pagination.total} activities</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>{pagination.total} activities</span>
+                <span><span className="font-semibold text-blue-700 dark:text-blue-300">HR</span> / <span className="font-semibold text-purple-700 dark:text-purple-300">Admin</span> = action by; <span className="font-semibold text-amber-700 dark:text-amber-300">Employee / Team Lead</span> = action by</span>
+                <span><span className="font-semibold text-emerald-700 dark:text-emerald-300">Employee name</span> = action on</span>
+              </div>
               <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                 <input
                   type="checkbox"
@@ -367,7 +384,7 @@ export default function AuditLogs() {
             {Object.entries(groupedLogs).map(([label, grouped]) => (
               <section key={label} className="mb-5 last:mb-0">
                 <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</h2>
-                <div className="space-y-3">
+                <div className="ml-3 space-y-4 border-l border-gray-200 dark:border-gray-700 sm:ml-4">
                   {grouped.map((log) => {
                     const action = log.action || "update";
                     const actorName = log.actorName || log.actor?.name || log.actor?.email || "Unknown user";
@@ -375,23 +392,23 @@ export default function AuditLogs() {
                     const time = new Date(log.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
                     return (
-                      <article key={log._id} className="relative ml-2 flex gap-3 border-l-2 border-[#cfe2fb] pl-3 sm:ml-4 sm:gap-4 sm:pl-5">
+                      <article key={log._id} className="relative flex gap-3 pl-6 sm:pl-8">
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(log._id)}
                           onChange={() => toggleSelect(log._id)}
-                          className="absolute -left-[9px] top-5 h-4 w-4 rounded-full border-0 bg-white text-[#f84525] shadow-sm ring-2 ring-[#dceafa]"
+                          className="absolute -left-2 top-6 z-10 h-4 w-4 cursor-pointer rounded-full border-gray-300 bg-white accent-[#f84525] opacity-70 hover:opacity-100"
                           aria-label={`Select log from ${actorName}`}
                         />
-                        <div className={`absolute -left-[13px] top-3 h-6 w-6 rounded-full ${getActionStyle(action)} opacity-20`} />
-                        <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-700 dark:bg-gray-800 sm:px-5">
+                        <div className={`pointer-events-none absolute -left-4 top-4 h-8 w-8 rounded-full ${getActionStyle(action)} opacity-20`} />
+                        <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-none dark:border-gray-700 dark:bg-gray-800 sm:px-5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-base">{getActivitySentence(log)}</p>
+                              <p className="text-sm font-medium leading-6 text-gray-900 dark:text-gray-100 sm:text-base">{renderActivitySentence(log)}</p>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">{actionNames[action] || action}</span>
-                                <span className="rounded-md bg-[#fff5f2] px-2 py-1 text-xs text-[#d84a2f] dark:bg-orange-950/30 dark:text-orange-300">
-                                  {moduleNames[log.module] || log.module || "System"}
+                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-orange-950/30 dark:text-orange-300">
+                                  {(log.path || "").includes("/documents") ? "Documents" : (log.path || "").includes("/account-credentials") ? "Credentials" : moduleNames[log.module] || log.module || "System"}
                                 </span>
                                 <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
                                   {actorRole}
@@ -411,30 +428,16 @@ export default function AuditLogs() {
         )}
       </div>
 
-      {!loading && logs.length > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/60 dark:bg-blue-950/30">
-          <span className="mt-1 h-2.5 w-2.5 flex-none rounded-full bg-[#f84525]" />
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-              Latest activity{from || to ? " in selected date range" : ""}
-            </p>
-            <p className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
-              {getActivitySentence(logs[0])}
-            </p>
-          </div>
-        </div>
-      )}
-
       {!loading && (
         <div className="flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col items-start gap-3 text-gray-600 dark:text-gray-400">
             <span>
               Showing {pagination.total === 0 ? 0 : (page - 1) * limit + 1}–{Math.min(page * limit, pagination.total)} of {pagination.total} activities
             </span>
             <select
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value))}
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-[#f84525] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+              className="w-full min-w-48 rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-[#f84525] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
               aria-label="Rows per page"
             >
               {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size} per page</option>)}
@@ -446,7 +449,7 @@ export default function AuditLogs() {
               type="button"
               onClick={() => changePage(page - 1)}
               disabled={page <= 1}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400"
+              className="rounded-xl border border-gray-300 px-3 py-1.5 text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400"
             >
               Previous
             </button>
@@ -470,7 +473,7 @@ export default function AuditLogs() {
               type="button"
               onClick={() => changePage(page + 1)}
               disabled={page >= pagination.totalPages}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400"
+              className="rounded-xl border border-gray-300 px-3 py-1.5 text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400"
             >
               Next
             </button>

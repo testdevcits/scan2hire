@@ -129,3 +129,8 @@ canvas.signature-pad {
 .admin-settings-page .rounded-2xl { border-radius: 18px !important; }
 .admin-settings-page .rounded-xl { border-radius: 12px !important; }
 .admin-settings-page .rounded-lg { border-radius: 10px !important; }
+
+/* Rounded Activity Logs cards and controls stay local to this page. */
+.activity-logs-page, .activity-logs-page .rounded-2xl { border-radius: 18px !important; }
+.activity-logs-page .rounded-xl { border-radius: 12px !important; }
+.activity-logs-page .rounded-lg { border-radius: 10px !important; }
