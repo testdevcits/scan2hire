@@ -11,7 +11,7 @@ const Home = () => {
       <Header />
 
       <main className="flex flex-col flex-1 items-center justify-center px-4 py-16 text-center space-y-8">
-        <h1 className="text-4xl md:text-5xl font-bold animate-slide-fade-in">
+        <h1 className="text-4xl md:text-5xl font-bold animate-slide-fade-in ">
           Welcome to Conative IT Solutions
         </h1>
 

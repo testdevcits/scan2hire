@@ -13,7 +13,12 @@ body {
   background: #030712;
   color: #f9fafb;
 }
-
+:root {
+  --customer-danger: #ef4444;
+}
+.d {
+  border: 1px solid var(--customer-danger) !important;
+}
 .dark .bg-white {
   background-color: #111827 !important;
   color: #f9fafb;
