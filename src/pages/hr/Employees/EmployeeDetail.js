@@ -1,3 +1,4 @@
+import { employeeRecordPermissions } from "../../../config/employeeRecordPermissions";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
@@ -116,7 +117,7 @@ const employeeModuleActions = ["view", "add", "edit", "delete"];
 const profileAccessModules = [["profile", "Profile", ["view"], { view: "View Profile" }], ["profilePersonal", "Personal Details", ["view"], { view: "View Personal Details" }], ["profileWork", "Work Details", ["view"], { view: "View Work Details" }], ["profileSalary", "Salary Details", ["view"], { view: "View Salary Details" }], ["profileBank", "Bank Details", ["view"], { view: "View Bank Details" }], ["profileDocuments", "Employee Documents", ["view", "download"], { view: "View Employee Documents", download: "Download Documents" }]];
 const employeeAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["attendance", "Attendance", ["view", "edit"], { view: "View Attendance", edit: "Update Attendance" }], ["interviews", "Interviews", ["view", "edit"], { view: "View Interviews", edit: "Submit Review" }], ["leaves", "Leaves", ["view", "add"], { view: "View Leaves", add: "Apply Leave" }], ["leaveCalendar", "Conative Calendar", ["view"], { view: "View Calendar" }], ["systemAllotment", "My System", employeeModuleActions, { view: "View System", add: "Add Item", edit: "Update Item", delete: "Delete Item" }], ["documents", "Documents", ["view", "edit"], { view: "View Documents", edit: "Sign Documents" }], ...profileAccessModules, ["credentials", "Credentials", employeeModuleActions, { view: "View Credentials", add: "Add Credential", edit: "Update Credential", delete: "Delete Credential" }], ["settings", "Settings", ["view", "edit"], { view: "View Settings", edit: "Update Settings" }]];
 const teamLeadAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["yourTeam", "My Team / Team List", ["view", "edit"], { view: "View Team", edit: "Manage Team" }], ...employeeAccessModules.slice(1)];
-const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]], ["notifications", "Notifications", ["view"], { view: "View Notifications" }]];
+const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]], ["notifications", "Notifications", ["view"], { view: "View Notifications" }], ...employeeRecordPermissions];
 const documentLabelMap = {
   photo: "Photo",
   aadhaarCard: "Aadhaar Card",
@@ -143,6 +144,7 @@ const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested
   if (isSuperAdmin) availableTabs.push("credentials", "access");
   if (canManage) availableTabs.push("security");
   if (canManage) availableTabs.push("actions");
+  if (canManage) availableTabs.push("reviewsSalary");
   if (availableTabs.includes(requestedTab)) return requestedTab;
   if (editRequested && canManage) return "edit";
   return "details";
@@ -247,6 +249,10 @@ const EmployeeDetail = () => {
   const [savingAccess, setSavingAccess] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
   const [hrModuleAccess, setHrModuleAccess] = useState(null);
+  const [recordEditor, setRecordEditor] = useState(null);
+  const [activeRecord, setActiveRecord] = useState("current");
+  const [recordDraft, setRecordDraft] = useState({});
+  const [savingRecord, setSavingRecord] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
     return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
@@ -356,6 +362,7 @@ const EmployeeDetail = () => {
           ? { salarySlips: `${employeeData.documents.salarySlips.length} file(s) saved` }
           : {}),
       });
+      setRecordDraft(employeeData.employeeRecords || {});
       const detectedRole = employeeData.workRole === "teamlead" || employeeData.user?.role === "teamlead"
         ? "teamlead"
         : employeeData.user?.role === "hr" || employeeData.workRole === "hr" ? "hr" : "employee";
@@ -493,6 +500,13 @@ const EmployeeDetail = () => {
 
   useEffect(() => {
     if (user?.role === "hr" && hrModuleAccess && activeTab === "documentSignatures" && !hrCanViewModule("documents")) {
+      changeActiveTab("details");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, hrModuleAccess, user?.role]);
+
+  useEffect(() => {
+    if (user?.role === "hr" && hrModuleAccess && activeTab === "reviewsSalary" && !hrCanViewModule("employeeRecordGroup")) {
       changeActiveTab("details");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -879,7 +893,31 @@ const EmployeeDetail = () => {
     ...(canManage && hrCanViewModule("employeeSecurity") ? [{ value: "security", label: "Security" }] : []),
     ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }] : []),
     ...(canManage && hrCanEditModule("employees") ? [{ value: "actions", label: "Actions" }] : []),
+    ...(canManage && hrCanViewModule("employeeRecordGroup") ? [{ value: "reviewsSalary", label: "Reviews & Salary History" }] : []),
   ];
+
+  const recordDefinitions = {
+    current: { title: "Joining / Current Record", fields: [["nextIncrementDate", "Next Increment Date", "date"], ["bondEndDate", "Bond End Date", "date"], ["salary", "Salary"]] },
+    nextReview: { title: "Next Review", fields: [["incrementDate", "Increment Date", "date"], ["incrementSalary", "Increment Salary"], ["bondEndDate", "Bond End Date", "date"], ["nextIncrementDate", "Next Increment Date", "date"], ["salary", "Salary"]] },
+    leaving: { title: "Leaving Process", fields: [["dateOfJoining", "Date of Joining", "date"], ["bondEndDate", "Bond End Date", "date"], ["resignationDate", "Resignation Date", "date"], ["noticePeriodDays", "Notice Period Days"], ["lastWorkingDate", "Last Working Date", "date"], ["salary", "Salary"]] },
+    naf: { title: "NAF Process", fields: [["idCardStatus", "ID card status"], ["nafStatus", "NAF status"]] },
+    documentsProvided: { title: "Documents Provided", fields: [["leavingLetter", "Leaving letter"], ["salarySlip", "Salary slip"], ["otherDocuments", "Other documents"]] },
+    salaryRelease: { title: "Salary Release", fields: [["holdSalary", "Held salary"], ["finalSalary", "Full & final salary"], ["releaseDate", "Release date", "date"]] },
+  };
+  const recordCanView = (key) => user?.role !== "hr" || hrModuleAccess?.employeeRecordGroup?.[`${key}View`] === true;
+  const recordCanUpdate = (key) => user?.role !== "hr" || hrModuleAccess?.employeeRecordGroup?.[key] === true;
+  const openRecordEditor = (key) => { setRecordEditor(key); setRecordDraft((current) => ({ ...current, [key]: { ...(current[key] || {}) } })); };
+  const saveRecord = async (event) => {
+    event.preventDefault();
+    setSavingRecord(true);
+    try {
+      await hrApi.updateEmployee(employeeId, { employeeRecords: recordDraft });
+      setEmployee((current) => ({ ...current, employeeRecords: recordDraft }));
+      setRecordEditor(null);
+      toast.success("Record saved");
+    } catch (err) { toast.error(err.response?.data?.message || "Unable to save record"); }
+    finally { setSavingRecord(false); }
+  };
 
   return (
     <div className="space-y-5">
@@ -1322,6 +1360,49 @@ const EmployeeDetail = () => {
             {employee.isActive ? <Button variant="danger" onClick={deactivateEmployee} className="inline-flex items-center gap-2"><FiUserX /> Deactivate</Button> : <Button variant="success" onClick={activateEmployee} className="inline-flex items-center gap-2"><FiUserCheck /> Activate</Button>}
             {user?.role === "superadmin" && <Button variant="danger" loading={deletingEmployee} disabled={deletingEmployee} onClick={deleteEmployee} className="inline-flex items-center gap-2"><FiTrash2 /> {deletingEmployee ? "Deleting..." : "Delete Employee"}</Button>}
           </div>
+        </section>
+      )}
+
+      {canManage && hrCanViewModule("employeeRecordGroup") && activeTab === "reviewsSalary" && (
+        <section id="reviews-salary-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
+          <SectionHeader title="Reviews & Salary History" subtitle="View this employee's current record, reviews, and lifecycle records." />
+          <div className="mt-5 flex flex-wrap gap-2 rounded border border-gray-200 bg-gray-50 p-2">
+            {[
+              ["current", "Joining / Current Record", "Current salary, bond and next increment details."],
+              ["nextReview", "Next Review", "Annual or subsequent review records."],
+              ["leaving", "Leaving Process", "Notice, last working date and exit record."],
+              ["naf", "NAF Process", "NAF and ID card process details."],
+              ["documentsProvided", "Documents Provided", "Leaving documents and handover status."],
+              ["salaryRelease", "Salary Release", "Salary hold and full-and-final release details."],
+            ].filter(([key]) => recordCanView(key)).map(([key, title]) => {
+              return <button type="button" key={key} onClick={() => setActiveRecord(key)} className={`rounded px-4 py-2 text-sm font-semibold transition ${activeRecord === key ? "bg-[#f84525] text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-orange-300"}`}>
+                {title}
+              </button>;
+            })}
+          </div>
+          {recordEditor && recordDefinitions[recordEditor] && activeRecord === recordEditor && (
+            <form onSubmit={saveRecord} className="mt-6 rounded border border-orange-200 bg-orange-50 p-4">
+              <h3 className="font-semibold text-gray-900">{recordDefinitions[recordEditor].title}</h3>
+              <div className="mt-4 grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+                {recordDefinitions[recordEditor].fields.map(([field, label, type = "text"]) => (
+                  type === "date"
+                    ? <CalendarPicker key={field} label={label} mode="date" labelClassName="text-sm font-medium leading-5 text-gray-700" className="h-10 w-full" value={recordDraft?.[recordEditor]?.[field] || ""} onChange={(value) => setRecordDraft((current) => ({ ...current, [recordEditor]: { ...(current[recordEditor] || {}), [field]: value } }))} />
+                    : <label key={field} className="block text-sm font-medium leading-5 text-gray-700">{label}
+                      <input type={type} value={recordDraft?.[recordEditor]?.[field] || ""} onChange={(event) => setRecordDraft((current) => ({ ...current, [recordEditor]: { ...(current[recordEditor] || {}), [field]: event.target.value } }))} className="mt-1 block h-10 w-full rounded border border-gray-300 bg-white px-3 py-2" />
+                    </label>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setRecordEditor(null)} text="Cancel" /><Button type="submit" loading={savingRecord} text="Save record" /></div>
+            </form>
+          )}
+          {!recordEditor && recordDefinitions[activeRecord] && recordCanView(activeRecord) && (
+            <div className="mt-6 rounded border border-gray-200 bg-white p-4">
+              <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">{recordDefinitions[activeRecord].title} details</h3>{recordCanUpdate(activeRecord) && <Button variant="secondary" onClick={() => openRecordEditor(activeRecord)} text="Add / Update" />}</div>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                {recordDefinitions[activeRecord].fields.map(([field, label]) => <div key={field} className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{label}</p><p className="mt-1 font-medium text-gray-900">{recordDraft?.[activeRecord]?.[field] || "Not added"}</p></div>)}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
