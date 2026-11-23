@@ -5,12 +5,14 @@ import { authApi } from "../api";
 import { AuthContext } from "../contexts/AuthContext";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
+import { useModal } from "../contexts/ModalContext";
 import logo from "../assets/logo.png";
 
 const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false, canOpenProfile = true }) => {
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
   const toast = useToast();
+  const { confirm } = useModal();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -21,8 +23,15 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
   const [profileSummary, setProfileSummary] = useState(null);
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
-  const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to logout?")) return;
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: "Confirm logout",
+      message: "Are you sure you want to logout?",
+      confirmText: "Logout",
+      cancelText: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setProfileMenuOpen(false);
     logout();
     navigate("/login");

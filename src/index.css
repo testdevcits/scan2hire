@@ -123,3 +123,9 @@ canvas.signature-pad {
 .birthday-balloons{position:absolute;inset:0;overflow:hidden;pointer-events:none}.birthday-balloons::before,.birthday-balloons::after{content:"";position:absolute;top:8%;width:150px;height:90px;border-top:10px solid rgba(255,255,255,.7);border-radius:50%;transform:rotate(18deg)}.birthday-balloons::before{left:-35px}.birthday-balloons::after{right:-35px;transform:rotate(-18deg)}.birthday-balloon{position:absolute;font-size:2.4rem;animation:balloon-rise 5s ease-in infinite;will-change:transform,opacity;z-index:1;text-shadow:0 4px 8px #0003}.birthday-balloon:nth-child(3n){font-size:1.8rem}.birthday-balloon:nth-child(4n){font-size:3rem}.birthday-balloon:nth-child(even){animation-name:balloon-rise-drift}.birthday-theme-1{background:linear-gradient(135deg,#5b21b6ee,#ec4899ee)!important}.birthday-theme-2{background:linear-gradient(135deg,#0369a1ee,#22d3ee)!important}.birthday-theme-3{background:linear-gradient(135deg,#047857ee,#facc15ee)!important}.birthday-theme-4{background:linear-gradient(135deg,#be123cee,#fb7185ee)!important}@keyframes balloon-rise{0%{transform:translateY(0) rotate(-8deg);opacity:0}15%{opacity:1}100%{transform:translateY(-115vh) rotate(12deg);opacity:0}}
 
 @keyframes balloon-rise-drift{0%{transform:translate(0,0) rotate(8deg);opacity:0}15%{opacity:1}50%{transform:translate(45px,-55vh) rotate(-14deg)}100%{transform:translate(-35px,-115vh) rotate(18deg);opacity:0}}
+
+/* Preserve the rounded card layout within Admin Settings. */
+.admin-settings-page,
+.admin-settings-page .rounded-2xl { border-radius: 18px !important; }
+.admin-settings-page .rounded-xl { border-radius: 12px !important; }
+.admin-settings-page .rounded-lg { border-radius: 10px !important; }

@@ -15,12 +15,14 @@ const Button = ({
   disabled = false,
   loading = false,
   type = "button",
+  form,
   variant = "primary",
   title,
 }) => {
   return (
     <button
       type={type}
+      form={form}
       onClick={onClick}
       disabled={disabled || loading}
       title={title}
