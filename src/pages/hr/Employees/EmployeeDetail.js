@@ -1076,7 +1076,7 @@ const EmployeeDetail = () => {
         />
         <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
         <CustomDropdown
-          label="Reporting Manager"
+          label="Team Lead"
           value={editForm.teamLead}
           placeholder="No Reporting Manager"
           searchable
