@@ -182,6 +182,7 @@ const EmployeeDetail = () => {
     employeeId: "",
     hrFileNo: "",
     firstName: "",
+    middleName: "",
     lastName: "",
     name: "",
     email: "",
@@ -392,6 +393,7 @@ const EmployeeDetail = () => {
         employeeId: employeeData.employeeId || "",
         hrFileNo: employeeData.hrFileNo || "",
         firstName: employeeData.firstName || "",
+        middleName: employeeData.middleName || "",
         lastName: employeeData.lastName || "",
         name: employeeData.name || "",
         email: employeeData.email || "",
@@ -621,7 +623,8 @@ const EmployeeDetail = () => {
         reportingManagerUser: editForm.teamLead.startsWith("hr:") ? editForm.teamLead.slice(3) : null,
         teamLead: editForm.teamLead.startsWith("hr:") ? "" : editForm.teamLead,
         employeeId: editForm.employeeId.trim(),
-        name: `${editForm.firstName.trim()} ${editForm.lastName.trim()}`.trim(),
+        name: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
+        bankHolderName: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
         mobile: editForm.mobile.trim(),
         altMobile: editForm.altMobile.trim(),
         department: editForm.department.trim(),
@@ -1067,6 +1070,7 @@ const EmployeeDetail = () => {
           ["employeeId", "Employee ID", "text"],
           ["hrFileNo", "HR File Number", "text"],
           ["firstName", "First Name", "text"],
+          ["middleName", "Middle Name", "text"],
           ["lastName", "Last Name", "text"],
           ["email", "Email", "email"],
           ["mobile", "Mobile", "text"],
@@ -1266,7 +1270,7 @@ const EmployeeDetail = () => {
           <h3 className="mb-3 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
             <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
-            <InputField label="Bank Holder Name" name="bankHolderName" value={editForm.bankHolderName} onChange={handleEditFieldChange} />
+            <InputField label="Bank Holder Name" name="bankHolderName" value={`${editForm.firstName} ${editForm.middleName} ${editForm.lastName}`.replace(/\s+/g, " ").trim()} disabled />
             <InputField label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditFieldChange} />
             <InputField label="Bank Account Number" name="bankAccountNumber" value={editForm.bankAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Bank IFSC Code" name="bankIfscCode" value={editForm.bankIfscCode} onChange={handleEditFieldChange} />
@@ -1281,7 +1285,7 @@ const EmployeeDetail = () => {
 
         <div className="mt-5 border-t border-gray-100 pt-4">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Address</h3>
-          <div className="space-y-5"><div><h3 className="mb-2 font-semibold">Permanent Address</h3><AddressFields value={editForm.permanentAddress} onChange={(event) => handleAddressChange(event, "permanentAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={editForm.alternateAddress} onChange={(event) => handleAddressChange(event, "alternateAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div></div>
+          <div className="space-y-5"><div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Permanent Address</h3><label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600"><input type="checkbox" checked={JSON.stringify(editForm.alternateAddress || {}) === JSON.stringify(editForm.permanentAddress || {})} onChange={(event) => { if (event.target.checked) setEditForm((current) => ({ ...current, alternateAddress: { ...(current.permanentAddress || {}) } })); }} /> Set as Alternative / Current Address</label></div><AddressFields value={editForm.permanentAddress} onChange={(event) => handleAddressChange(event, "permanentAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={editForm.alternateAddress} onChange={(event) => handleAddressChange(event, "alternateAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div></div>
         </div>
         <div className="mt-5 border-t border-gray-100 pt-4">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Employee Checklists</h3>
