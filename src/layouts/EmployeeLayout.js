@@ -30,19 +30,19 @@ const EmployeeLayout = () => {
   const navItems = accessLoading ? [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },
   ] : [
-    ...(!access.moduleAccess || access.moduleAccess.dashboard?.view !== false ? [{ label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.attendance?.view !== false ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.interviews?.view !== false ? [{ label: "Interviews", path: "/employee/interviews", icon: <FiBriefcase /> }] : []),
+    ...(access.moduleAccess?.dashboard?.view === true ? [{ label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> }] : []),
+    ...(access.moduleAccess?.attendance?.view === true ? [{ label: "Attendance", path: "/employee/attendance", icon: <FiClock /> }] : []),
+    ...(access.moduleAccess?.interviews?.view === true ? [{ label: "Interviews", path: "/employee/interviews", icon: <FiBriefcase /> }] : []),
     // { label: "Tasks", path: "/employee/tasks", icon: <FiCheckSquare /> },
-    ...(!access.moduleAccess || access.moduleAccess.leaves?.view !== false ? [{ label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.leaveCalendar?.view !== false ? [{ label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.systemAllotment?.view !== false ? [{ label: "My System", path: "/employee/my-system", icon: <FiMonitor /> }] : []),
-    ...(access.systemAllotmentManage && (!access.moduleAccess || access.moduleAccess.systemAllotment?.view !== false)
+    ...(access.moduleAccess?.leaves?.view === true ? [{ label: "Leaves", path: "/employee/leaves", icon: <FiCalendar /> }] : []),
+    ...(access.moduleAccess?.leaveCalendar?.view === true ? [{ label: "Conative Calendar", path: "/employee/leave-calendar", icon: <FiCalendar /> }] : []),
+    ...(access.moduleAccess?.systemAllotment?.view === true ? [{ label: "My System", path: "/employee/my-system", icon: <FiMonitor /> }] : []),
+    ...(access.systemAllotmentManage && (access.moduleAccess?.systemAllotment?.view === true)
       ? [{ label: "System Allotments", path: "/employee/system-allotments", icon: <FiMonitor /> }]
       : []),
-    ...(!access.moduleAccess || access.moduleAccess.documents?.view !== false ? [{ label: "Documents", path: "/employee/documents", icon: <FiFolder /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.credentials?.view !== false ? [{ label: "Credentials", path: "/employee/credentials", icon: <FiLock /> }] : []),
-    ...(!access.moduleAccess || access.moduleAccess.settings?.view !== false ? [{ label: "Settings", path: "/employee/settings", icon: <FiSettings /> }] : []),
+    ...(access.moduleAccess?.documents?.view === true ? [{ label: "Documents", path: "/employee/documents", icon: <FiFolder /> }] : []),
+    ...(access.moduleAccess?.credentials?.view === true ? [{ label: "Credentials", path: "/employee/credentials", icon: <FiLock /> }] : []),
+    ...(access.moduleAccess?.settings?.view === true ? [{ label: "Settings", path: "/employee/settings", icon: <FiSettings /> }] : []),
   ];
 
   const effectiveRole = user?.effectiveRole || user?.role;
@@ -52,7 +52,7 @@ const EmployeeLayout = () => {
     ? "Project Coordinator Panel"
     : "Employee Panel";
 
-  const canOpenProfile = accessLoading || access.moduleAccess?.profile?.view !== false;
+  const canOpenProfile = !accessLoading && access.moduleAccess?.profile?.view === true;
   return <SidebarLayout title={title} navItems={navItems} navLoading={accessLoading} canOpenProfile={canOpenProfile} />;
 };
 

@@ -213,14 +213,28 @@ const LeaveReports = () => {
     }
   };
 
-  const deleteLeave = async () => {
-    if (!selectedLeave) return;
-    const confirmed = await confirm({ title: "Delete leave request?", message: "This leave request will be permanently deleted.", confirmText: "Delete request", cancelText: "Cancel", tone: "danger" });
+  const deleteLeave = async (leave = selectedLeave) => {
+    if (!canDelete || !leave || updatingId) return;
+    const confirmed = await confirm({
+      title: "Delete leave request?",
+      message: `${leave.employee?.name || "Employee"} · ${leave.title || labelize(leave.type)} · ${formatDate(leave.fromDate)} to ${formatDate(leave.toDate)}. This request will be permanently deleted.`,
+      confirmText: "Delete request",
+      cancelText: "Cancel",
+      tone: "danger",
+    });
     if (!confirmed) return;
-    setUpdatingId(selectedLeave._id);
-    try { await hrApi.deleteLeave(selectedLeave._id); toast.success("Leave request deleted"); setLeaves((current) => current.filter((item) => item._id !== selectedLeave._id)); setSummary((current) => ({ ...current, total: Math.max(0, current.total - 1), pending: selectedLeave.status === "pending" ? Math.max(0, current.pending - 1) : current.pending, approved: selectedLeave.status === "approved" ? Math.max(0, current.approved - 1) : current.approved, rejected: selectedLeave.status === "rejected" ? Math.max(0, current.rejected - 1) : current.rejected })); closeBalanceModal(); loadData(); }
-    catch (err) { toast.error(err.response?.data?.message || "Unable to delete leave"); }
-    finally { setUpdatingId(""); }
+    setUpdatingId(leave._id);
+    try {
+      await hrApi.deleteLeave(leave._id);
+      toast.success("Leave request deleted");
+      setLeaves((current) => current.filter((item) => item._id !== leave._id));
+      if (selectedLeave?._id === leave._id) closeBalanceModal();
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to delete leave");
+    } finally {
+      setUpdatingId("");
+    }
   };
 
   const submitBalanceAdjustment = async (event) => {
@@ -328,8 +342,8 @@ const LeaveReports = () => {
     },
   ];
   const actions = canView ? [
-    { key: "leaves", label: "View employee leaves", icon: <FiEye className="h-4 w-4" />, iconOnly: true, title: "View employee leaves", onClick: openBalanceModal, className: "border border-[#f84525]/30 bg-[#fff5f3] text-[#d93a1e] hover:bg-[#ffebe6] dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/60" },
-    ...(canDelete ? [{ key: "delete", label: "Delete leave request", icon: <FiTrash2 className="h-4 w-4" />, iconOnly: true, title: "Delete leave request", onClick: openBalanceModal, className: "border border-red-200 bg-white text-red-600 hover:bg-red-50" }] : []),
+    { key: "leaves", label: "View employee leaves", icon: <FiEye className="h-4 w-4" />, iconOnly: true, title: "View employee leaves", onClick: openBalanceModal, className: "border-0 bg-transparent text-[#d93a1e] hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-950/30" },
+    ...(canDelete ? [{ key: "delete", label: "Delete leave request", icon: <FiTrash2 className="h-4 w-4" />, iconOnly: true, title: "Delete leave request", onClick: (leave) => deleteLeave(leave), disabled: () => Boolean(updatingId), className: "border-0 bg-transparent text-red-600 hover:bg-red-50" }] : []),
   ] : undefined;
 
   return (
@@ -475,7 +489,7 @@ const LeaveReports = () => {
           </>
         )}
             </div>
-            {((canReview && selectedLeave?.status === "pending") || canDelete) && <footer className="flex shrink-0 justify-end border-t border-gray-100 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900"><div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={deleteLeave} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div></footer>}
+            {((canReview && selectedLeave?.status === "pending") || canDelete) && <footer className="flex shrink-0 justify-end border-t border-gray-100 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900"><div className="flex gap-2">{canReview && selectedLeave?.status === "pending" && <><Button text="Approve" onClick={() => reviewLeave(selectedLeave._id, "approved")} disabled={updatingId === selectedLeave._id} className="!bg-green-600 hover:!bg-green-700" /><Button text="Reject" onClick={() => reviewLeave(selectedLeave._id, "rejected")} disabled={updatingId === selectedLeave._id} className="!bg-red-600 hover:!bg-red-700" /></>}{canDelete && <Button text="Delete" onClick={() => deleteLeave()} disabled={updatingId === selectedLeave?._id} className="!bg-red-700 hover:!bg-red-800" />}</div></footer>}
           </section>
         </div>
       ), document.body)}
@@ -494,7 +508,7 @@ const LeaveReports = () => {
           columns={columns}
           data={leaves}
           actions={actions}
-          actionsLayout="stack"
+          actionsLayout="row"
           pagination={leavePagination}
           loading={loading}
           error={error}

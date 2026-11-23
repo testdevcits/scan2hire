@@ -93,6 +93,7 @@ function App() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="leave-settings" element={<Navigate to="/admin/settings?tab=leave" replace />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 

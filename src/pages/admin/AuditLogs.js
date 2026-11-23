@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { authApi } from "../../api";
 import CommonLoader from "../../components/common/CommonLoader";
-import DateRangeFilter from "../../components/common/DateRangeFilter";
-import { FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiRefreshCw, FiSearch, FiTrash2 } from "react-icons/fi";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -47,6 +46,8 @@ export default function AuditLogs() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
 
   const load = useCallback(
     (targetPage = page) => {
@@ -57,6 +58,8 @@ export default function AuditLogs() {
           to: to || undefined,
           page: targetPage,
           limit,
+          search: search || undefined,
+          action: actionFilter === "all" ? undefined : actionFilter,
         })
         .then((response) => {
           setLogs(response.data.data || []);
@@ -64,7 +67,7 @@ export default function AuditLogs() {
         })
         .finally(() => setLoading(false));
     },
-    [from, to, page, limit]
+    [from, to, page, limit, search, actionFilter]
   );
 
   const clearRange = () => {
@@ -202,14 +205,57 @@ export default function AuditLogs() {
     }
   };
 
+  const visibleLogs = logs.filter((log) => {
+    const actionMatches = actionFilter === "all"
+      || (actionFilter === "update" ? ["update", "edit"].includes(log.action) : log.action === actionFilter);
+    const haystack = [
+      log.actorName,
+      log.actor?.name,
+      log.actor?.email,
+      log.actorRole,
+      log.actor?.role,
+      log.module,
+      moduleNames[log.module],
+      log.description,
+      log.targetName,
+      getActivitySentence(log),
+    ].join(" ").toLowerCase();
+    return actionMatches && (!search.trim() || haystack.includes(search.trim().toLowerCase()));
+  });
+
+  const getDateLabel = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    if (sameDay(date, today)) return "Today";
+    if (sameDay(date, yesterday)) return "Yesterday";
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
+  };
+
+  const getActionStyle = (action) => {
+    if (action === "create" || action === "add") return "bg-emerald-500";
+    if (action === "delete") return "bg-[#ef5b46]";
+    if (action === "view") return "bg-sky-500";
+    return "bg-[#9fb5cc]";
+  };
+
+  const groupedLogs = visibleLogs.reduce((groups, log) => {
+    const label = getDateLabel(log.createdAt);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(log);
+    return groups;
+  }, {});
+
   return (
-    <div className="space-y-4 p-2">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-4 p-1 sm:p-2">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Activity Logs</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">A readable history of who viewed, created, updated or deleted information.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => load(page)}
@@ -246,117 +292,116 @@ export default function AuditLogs() {
         </div>
       </div>
 
-      <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onApply={load} onClear={clearRange} />
+      <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="relative">
+          <FiSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-4 text-sm outline-none focus:border-[#f84525] focus:ring-2 focus:ring-red-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            placeholder="Search user, module or action"
+            aria-label="Search activity logs"
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            From
+            <input type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+          </label>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            To
+            <input type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+        </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => load(1)} disabled={Boolean(from && to && from > to)} className="h-10 rounded-xl border border-gray-300 px-5 text-sm font-semibold text-gray-700 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">Apply filter</button>
+          <div className="flex w-full gap-2 overflow-x-auto pb-1 sm:w-auto">
+            {[["all", "All"], ["create", "Created"], ["update", "Updated"], ["delete", "Deleted"], ["view", "Viewed"]].map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setActionFilter(value)} className={`h-9 shrink-0 rounded-lg border px-4 text-sm font-semibold ${actionFilter === value ? "border-[#f84525]/40 bg-[#fff5f2] text-[#d93a1e] dark:bg-orange-950/20 dark:text-orange-300" : "border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {!loading && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {["create", "update", "delete"].map((summaryAction) => {
-            const count = logs.filter((log) => log.action === summaryAction || (summaryAction === "update" && log.action === "edit")).length;
-            const labels = { create: "Created", update: "Updated", delete: "Deleted" };
-            const styles = {
-              create: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-              update: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300",
-              delete: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300",
-            };
-            return (
-              <div key={summaryAction} className={`flex items-center justify-between rounded-lg border px-4 py-3 ${styles[summaryAction]}`}>
-                <span className="text-sm font-semibold">{labels[summaryAction]} this page</span>
-                <span className="text-xl font-bold">{count}</span>
-              </div>
-            );
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-4 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
+            <div><span className="text-2xl font-bold">{pagination.total}</span><p className="mt-1 text-xs text-gray-500">Total activities</p></div>
+          </div>
+          {[{ key: "create", label: "Created", color: "text-emerald-600" }, { key: "update", label: "Updated", color: "text-blue-600" }, { key: "delete", label: "Deleted", color: "text-[#c55344]" }].map((item) => {
+            const count = logs.filter((log) => item.key === "update" ? ["update", "edit"].includes(log.action) : log.action === item.key).length;
+            return <div key={item.key} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"><div><span className={`text-2xl font-bold ${item.color}`}>{count}</span><p className="mt-1 text-xs text-gray-500">{item.label}</p></div></div>;
           })}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         {loading ? (
           <CommonLoader text={deleting ? "Deleting activity logs..." : "Loading activity logs..."} />
+        ) : visibleLogs.length === 0 ? (
+          <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">No activity found for this date range.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800/80">
-              <tr>
-                <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={logs.length > 0 && logs.every((log) => selectedIds.includes(log._id))}
-                      onChange={toggleSelectPage}
-                      className="h-4 w-4 rounded-md border-gray-300 text-[#f84525] focus:ring-[#f84525] dark:border-gray-600 dark:bg-gray-700"
-                      aria-label="Select all logs on this page"
-                    />
-                    <span>This page</span>
-                    <span>· Date & time</span>
-                  </div>
-                </th>
-                {["User", "Role", "Action", "Module", "What happened"].map((heading) => (
-                  <th key={heading} className="p-3 text-left text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500 dark:text-gray-400">No activity found for this date range.</td>
-                </tr>
-              ) : (
-                logs.map((log) => {
-                  const action = log.action || "update";
-                  const actorName = log.actorName || log.actor?.name || log.actor?.email || "Unknown user";
-                  const actorRole = log.actorRole || log.actor?.role || "-";
-                  const isSuccess = !log.statusCode || log.statusCode < 400;
+          <div className="p-3 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{pagination.total} activities</span>
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={logs.length > 0 && logs.every((log) => selectedIds.includes(log._id))}
+                  onChange={toggleSelectPage}
+                  className="h-4 w-4 rounded border-gray-300 text-[#f84525] focus:ring-[#f84525]"
+                  aria-label="Select all logs on this page"
+                />
+                Select page
+              </label>
+            </div>
 
-                  return (
-                    <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-600" key={log._id}>
-                      <td className="whitespace-nowrap p-3 text-gray-600 dark:text-gray-300">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(log._id)}
-                            onChange={() => toggleSelect(log._id)}
-                            className="h-4 w-4 rounded-md border-gray-300 text-[#f84525] focus:ring-[#f84525] dark:border-gray-600 dark:bg-gray-700"
-                            aria-label={`Select log from ${actorName} on ${new Date(log.createdAt).toLocaleString()}`}
-                          />
-                          {new Date(log.createdAt).toLocaleString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+            {Object.entries(groupedLogs).map(([label, grouped]) => (
+              <section key={label} className="mb-5 last:mb-0">
+                <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</h2>
+                <div className="space-y-3">
+                  {grouped.map((log) => {
+                    const action = log.action || "update";
+                    const actorName = log.actorName || log.actor?.name || log.actor?.email || "Unknown user";
+                    const actorRole = log.actorRole || log.actor?.role || "Super admin";
+                    const time = new Date(log.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+                    return (
+                      <article key={log._id} className="relative ml-2 flex gap-3 border-l-2 border-[#cfe2fb] pl-3 sm:ml-4 sm:gap-4 sm:pl-5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(log._id)}
+                          onChange={() => toggleSelect(log._id)}
+                          className="absolute -left-[9px] top-5 h-4 w-4 rounded-full border-0 bg-white text-[#f84525] shadow-sm ring-2 ring-[#dceafa]"
+                          aria-label={`Select log from ${actorName}`}
+                        />
+                        <div className={`absolute -left-[13px] top-3 h-6 w-6 rounded-full ${getActionStyle(action)} opacity-20`} />
+                        <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-700 dark:bg-gray-800 sm:px-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-base">{getActivitySentence(log)}</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <span className="rounded-md bg-[#fff5f2] px-2 py-1 text-xs text-[#d84a2f] dark:bg-orange-950/30 dark:text-orange-300">
+                                  {moduleNames[log.module] || log.module || "System"}
+                                </span>
+                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                                  {actorRole}
+                                </span>
+                              </div>
+                            </div>
+                            <time className="shrink-0 text-xs text-gray-400 dark:text-gray-500">{time}</time>
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold text-gray-900 dark:text-gray-100">{actorName}</div>
-                        {log.actor?.email && <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{log.actor.email}</div>}
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold text-gray-900 dark:text-gray-100">{actorRole}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold text-gray-900 dark:text-gray-100">{actionNames[action] || action}</div>
-                      </td>
-                      <td className="whitespace-nowrap p-3 font-medium text-gray-700 dark:text-gray-300">
-                        {moduleNames[log.module] || log.module || "System"}
-                      </td>
-                      <td className="max-w-md p-3">
-                        <div className="font-medium text-gray-800 dark:text-gray-200">{getActivitySentence(log)}</div>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          {log.statusCode && (
-                            <span className={isSuccess ? "text-emerald-600" : "text-red-600"}>
-                              {isSuccess ? "Successful" : "Failed"} · {log.statusCode}
-                            </span>
-                          )}
-                          {log.entityId && <span className="text-gray-400 dark:text-gray-500">Record ID: {log.entityId}</span>}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </div>
 
@@ -375,7 +420,7 @@ export default function AuditLogs() {
       )}
 
       {!loading && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
           <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
             <span>
               Showing {pagination.total === 0 ? 0 : (page - 1) * limit + 1}–{Math.min(page * limit, pagination.total)} of {pagination.total} activities
@@ -390,7 +435,7 @@ export default function AuditLogs() {
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-gray-600 dark:text-gray-400 sm:justify-end">
             <button
               type="button"
               onClick={() => changePage(page - 1)}

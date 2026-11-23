@@ -17,6 +17,7 @@ import CommonLoader from "../../components/common/CommonLoader";
 import DateRangePicker from "../../components/common/DateRangePicker";
 import CustomDropdown from "../../components/common/CustomDropdown";
 import EmptyState from "../../components/common/EmptyState";
+import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 import { isTeamLeadUser } from "../../utils/roleUtils";
 
@@ -178,6 +179,10 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 
 const EmployeeDashboard = ({ section = "all" }) => {
   const toast = useToast();
+  const { confirm } = useModal();
+  const [leaveDrafts, setLeaveDrafts] = useState([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
+  const [draftSaving, setDraftSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [birthdayReminders, setBirthdayReminders] = useState([]);
   const [moduleAccess, setModuleAccess] = useState({});
@@ -251,15 +256,20 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, accessRes, birthdaysRes] = await Promise.all([
+      const accessRes = await employeeApi.getMyAccess();
+      const permissions = accessRes.data.data?.moduleAccess || {};
+      const permitted = (key) => permissions[key] === true || permissions[key]?.view === true;
+      const empty = () => Promise.resolve({ data: { data: [] } });
+      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, birthdaysRes, draftsRes] = await Promise.all([
         employeeApi.getProfile(),
-        employeeApi.getAttendance(),
-        employeeApi.getLeaves(),
-        employeeApi.getAssignedCandidates(),
-        employeeApi.getInterviewLogs(),
-        employeeApi.getMyAccess(),
+        permitted("attendance") ? employeeApi.getAttendance() : empty(),
+        permitted("leaves") ? employeeApi.getLeaves() : empty(),
+        permitted("interviews") ? employeeApi.getAssignedCandidates() : empty(),
+        permitted("interviews") ? employeeApi.getInterviewLogs() : empty(),
         employeeApi.getBirthdays(),
+        permitted("leaves") ? employeeApi.getLeaveDrafts() : empty(),
       ]);
+      setLeaveDrafts(draftsRes.data.data || []);
       setProfile(profileRes.data.data);
       setModuleAccess(accessRes.data.data?.moduleAccess || {});
       setAttendance(attendanceRes.data.data || []);
@@ -283,10 +293,15 @@ const EmployeeDashboard = ({ section = "all" }) => {
     e.preventDefault();
     const minimumDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
     if (minimumDate && leaveForm.fromDate < minimumDate) { toast.error("Earned and optional leave must start from a future date."); return; }
+    if (leaveSaving || draftSaving) return;
+    if (!leaveForm.fromDate) return toast.error("Select a leave date range.");
+    const confirmed = await confirm({ title: "Submit leave request?", message: `${leaveForm.title} · ${leaveForm.type.replace(/_/g, " ")} · ${leaveForm.fromDate} to ${leaveForm.toDate || leaveForm.fromDate}. Submit this request for approval?`, confirmText: "Submit Request", cancelText: "Keep Editing" });
+    if (!confirmed) return;
     setLeaveSaving(true);
     try {
       await employeeApi.applyLeave({
         ...leaveForm,
+        ...(activeDraftId ? { draftId: activeDraftId } : {}),
         toDate: leaveForm.toDate || leaveForm.fromDate,
       });
       setLeaveForm({
@@ -297,6 +312,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         content: "",
         attachment: null,
       });
+      setActiveDraftId("");
       setIncludeLeaveAttachment(false);
       setShowLeaveForm(false);
       await fetchData();
@@ -306,6 +322,28 @@ const EmployeeDashboard = ({ section = "all" }) => {
     } finally {
       setLeaveSaving(false);
     }
+  };
+
+  const saveLeaveDraft = async () => {
+    if (draftSaving || leaveSaving) return;
+    setDraftSaving(true);
+    try {
+      const response = await employeeApi.saveLeaveDraft(activeDraftId, leaveForm);
+      const draft = response.data.data;
+      setActiveDraftId(draft._id);
+      setLeaveDrafts((current) => [draft, ...current.filter((item) => item._id !== draft._id)]);
+      toast.success("Leave draft saved");
+    } catch (error) { toast.error(error.response?.data?.message || "Unable to save draft"); }
+    finally { setDraftSaving(false); }
+  };
+
+  const openLeaveDraft = (draft) => {
+    if (leaveSaving || draftSaving) return;
+    setActiveDraftId(draft._id);
+    setLeaveForm({ type: draft.type, title: draft.title || "", content: draft.content || "", fromDate: draft.fromDate || "", toDate: draft.toDate || "", attachment: draft.attachment?.dataUri ? draft.attachment : null });
+    setIncludeLeaveAttachment(Boolean(draft.attachment?.dataUri));
+    setShowLeaveForm(true);
+    window.requestAnimationFrame(() => document.getElementById("leave-application-form")?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
   const handleLeaveAttachment = async (file) => {
@@ -878,7 +916,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
           <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ScrollCard
               title="Apply Leave"
-              subtitle="Open the form only when you want to send a leave mail and request."
+              subtitle="Fill out the form to submit a leave request."
               action={canApplyLeave ? (
                 <div className="flex items-center gap-2">
                   <Button
@@ -890,7 +928,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               ) : null}
             >
               {showLeaveForm ? (
-                <form onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
+                <form id="leave-application-form" onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     <CustomDropdown label="Leave Type" value={leaveForm.type} showPlaceholder={false} options={[{ value: "earned_leave", label: "EL - Earned Leave" }, { value: "sick_leave", label: "SL - Sick Leave" }, { value: "urgent_leave", label: "Urgent Leave" }, { value: "optional_leave", label: "Optional Leave" }, { value: "half_day", label: "Half Day" }, { value: "full_day", label: "Full Day" }]} onChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value, fromDate: "", toDate: "" }))} buttonClassName="h-10" portalMenu placement="bottom" />
                     {leaveBalance?.[leaveUsesEarnedBalance(leaveForm.type) ? "earned_leave" : leaveForm.type] && (
@@ -900,7 +938,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     )}
                   </div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Mail Subject / Title
+                    Subject / Title
                     <input
                       value={leaveForm.title}
                       onChange={(e) => setLeaveForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -914,7 +952,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     {leaveMinDate && <p className="mt-1 text-xs text-gray-500">{leaveForm.type === "optional_leave" ? "Optional leave can be selected only for future calendar dates." : "Earned leave can be selected from tomorrow onward."}</p>}
                   </div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
-                    Mail Content
+                    Reason for Leave
                     <textarea
                       value={leaveForm.content}
                       onChange={(e) => setLeaveForm((prev) => ({ ...prev, content: e.target.value }))}
@@ -945,18 +983,21 @@ const EmployeeDashboard = ({ section = "all" }) => {
                       </span>
                     )}
                   </label>
-                  <Button
-                    text="Submit Leave"
-                    type="submit"
-                    loading={leaveSaving}
-                    className="md:col-span-2 justify-self-start"
-                  />
+                  <div className="flex flex-wrap gap-3 md:col-span-2">
+                    <Button text="Final Submit" type="submit" loading={leaveSaving} disabled={draftSaving} />
+                    <Button text={activeDraftId ? "Update Draft" : "Save as Draft"} variant="secondary" onClick={saveLeaveDraft} loading={draftSaving} disabled={leaveSaving} />
+                    {activeDraftId && <Button text="New Request" variant="secondary" disabled={leaveSaving || draftSaving} onClick={() => { setActiveDraftId(""); setLeaveForm({ type: "earned_leave", title: "", content: "", fromDate: "", toDate: "", attachment: null }); setIncludeLeaveAttachment(false); }} />}
+                  </div>
                 </form>
               ) : (
                 <EmptyState text="Open the form to apply for leave." />
               )}
             </ScrollCard>
 
+            <div className="min-w-0 space-y-5">
+            <ScrollCard title="Saved Drafts">
+              {leaveDrafts.length === 0 ? <EmptyState text="No saved drafts." /> : leaveDrafts.map((draft) => <button type="button" key={draft._id} disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="flex w-full items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 text-left text-sm hover:bg-orange-50 dark:border-gray-800 dark:hover:bg-gray-800"><span><b className="block">{draft.title || "Untitled leave request"}</b><span className="text-xs text-gray-500">{draft.fromDate || "Dates not selected"}{draft.toDate ? ` to ${draft.toDate}` : ""}</span></span><span className="text-[#f84525]">Edit Draft</span></button>)}
+            </ScrollCard>
             <ScrollCard title="My Leaves">
               {leaves.length === 0 ? (
                 <EmptyState text="No leaves applied." />
@@ -976,6 +1017,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 ))
               )}
             </ScrollCard>
+            </div>
           </div>
         </div>
       )}
