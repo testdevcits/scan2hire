@@ -81,6 +81,7 @@ function App() {
           <Route path="employees" element={<ManageEmployees />} />
           <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
           <Route path="employees/new" element={<EmployeeCreate />} />
+          <Route path="employees/:employeeId/edit" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="candidates" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
@@ -113,6 +114,7 @@ function App() {
           <Route path="my-documents" element={<DocumentSigningList />} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/new" element={<EmployeeCreate />} />
+          <Route path="employees/:employeeId/edit" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
           <Route path="attendance" element={<EmployeeDashboard section="attendance" />} />
           <Route path="leave-calendar" element={<EmployeeLeaveCalendar />} />

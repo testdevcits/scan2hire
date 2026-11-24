@@ -26,6 +26,7 @@ const FileUploadField = ({
   currentActionLoading = false,
   uploaded = false,
   selectedFile = null,
+  className = "",
 }) => {
   const acceptsImage = /image|jpg|jpeg|png|webp/i.test(String(accept || ""));
   const inputRef = useRef(null);
@@ -67,7 +68,7 @@ const FileUploadField = ({
   const canShowPdfPreview = Boolean(activePreviewUrl && isPdfPreview);
 
   return (
-    <div className="flex flex-col text-sm font-medium text-gray-700 dark:text-gray-200">
+    <div className={`${uploaded && !selectedFile ? "hidden" : "flex"} flex-col text-sm font-medium text-gray-700 dark:text-gray-200 ${className}`}>
       <div
         tabIndex={0}
         onPaste={handlePaste}
