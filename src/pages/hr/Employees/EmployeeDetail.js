@@ -1,3 +1,4 @@
+import EmployeeCreateReview from "../../../components/common/EmployeeCreateReview";
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
@@ -9,7 +10,6 @@ import {
   FiArrowLeft,
   FiBriefcase,
   FiCalendar,
-  FiCheckCircle,
   FiCopy,
   FiDownload,
   FiEye,
@@ -331,10 +331,6 @@ const EmployeeDetail = () => {
   };
 
   const changeActiveTab = (tab) => {
-    if (tab === "edit") {
-      navigate(`${user?.role === "superadmin" ? "/admin" : "/hr"}/employees/${employeeId}/edit`);
-      return;
-    }
     const params = new URLSearchParams(location.search);
     params.set("tab", tab);
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
@@ -478,7 +474,14 @@ const EmployeeDetail = () => {
     }
   };
 
-  const hrCanViewModule = (key) => user?.role !== "hr"
+  const documentActionAllowed = (action) => {
+    if (user?.role === "superadmin") return true;
+    if (user?.role !== "hr" || accessLoading || !hrModuleAccess) return false;
+    if (hrModuleAccess.employees?.view !== true) return false;
+    const access = hrModuleAccess.employeeDocuments;
+    return access === true || access?.[action] === true;
+  };
+  const hrCanViewModule = (key) => key === "employeeDocuments" ? documentActionAllowed("view") : user?.role !== "hr"
     || accessLoading
     || hrModuleAccess === null
     || hrModuleAccess?.[key] === undefined
@@ -487,13 +490,13 @@ const EmployeeDetail = () => {
   const hrCanEditModule = (key) => user?.role !== "hr"
     || hrModuleAccess === null
     || (hrModuleAccess?.[key] === undefined ? key !== "leaveActions" : hrModuleAccess[key]?.edit !== false);
-  const hrCanDownloadModule = (key) => user?.role !== "hr"
+  const hrCanDownloadModule = (key) => key === "employeeDocuments" ? documentActionAllowed("download") : user?.role !== "hr"
     || accessLoading
     || hrModuleAccess === null
     || (key === "employeeDocuments" && (!hrModuleAccess?.employees || hrModuleAccess.employees.view !== true))
     || hrModuleAccess?.[key] === undefined
     || hrModuleAccess[key]?.download === true;
-  const hrCanUpdateModule = (key) => user?.role !== "hr"
+  const hrCanUpdateModule = (key) => key === "employeeDocuments" ? documentActionAllowed("update") : user?.role !== "hr"
     || hrModuleAccess === null
     || (hrModuleAccess?.[key] === undefined ? key !== "leaveActions" : key === "leaveActions" ? hrModuleAccess[key]?.adjust === true : hrModuleAccess[key]?.update === true || hrModuleAccess[key]?.edit === true);
   const canManageDocuments = (user?.role === "hr" || user?.role === "superadmin")
@@ -657,6 +660,8 @@ const EmployeeDetail = () => {
     const validationErrors = validateEditForm();
     if (Object.keys(validationErrors).length) {
       setEditErrors(validationErrors);
+      const field = Object.keys(validationErrors)[0];
+      setEditStep(["department", "designation", "dateOfJoining", "employeeType", "attendanceMode", "teamLead"].includes(field) ? 2 : ["street", "city", "state", "country", "pincode"].includes(field) ? 4 : 1);
       toast.error("Please fix the highlighted fields before saving");
       return;
     }
@@ -974,128 +979,117 @@ const EmployeeDetail = () => {
 
   return (
     <div className="space-y-5">
-      <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="relative min-h-[178px] border-b border-gray-100 p-4 lg:p-5">
-          <div className="absolute left-4 top-5 lg:left-5">
-            <Button variant="secondary" onClick={() => navigate(-1)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg">
-              <FiArrowLeft /> Back
-            </Button>
+      <header className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        <Button variant="secondary" onClick={() => navigate(-1)} className="mb-5 inline-flex items-center gap-2"><FiArrowLeft /> Back</Button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="h-24 w-20 shrink-0 overflow-hidden rounded-xl border border-orange-100 bg-orange-50">
+            {employee.documents?.photo?.url ? <img src={employee.documents.photo.url} alt={employee.name} className="h-full w-full object-cover" /> : <Avatar name={employee.name} size="h-full w-full" />}
           </div>
-
-          <div className="absolute right-4 top-5 flex max-w-[calc(100%-2rem)] flex-row-reverse items-start justify-end gap-3 lg:right-5">
-            <div className="flex h-36 w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-orange-200 bg-orange-50 text-2xl font-semibold text-[#f84525]">
-              {employee.documents?.photo?.url ? <img src={employee.documents.photo.url} alt={employee.name} className="h-full w-full object-cover" /> : <Avatar name={employee.name} size="h-full w-full rounded-md text-xl" alt={`${employee.name} profile`} />}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3"><h1 className="break-words text-2xl font-bold text-gray-900 dark:text-white">{employee.name}</h1><span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${activeBadgeClass}`}>{employee.isActive ? "Active" : "Inactive"}</span></div>
+            <p className="mt-1 text-sm text-gray-500">{employee.employeeId || "No employee ID"} · {employee.designation || "No designation"}</p>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-600 dark:text-gray-300">
+              <span className="inline-flex items-center gap-1.5"><FiBriefcase />{employee.department || "No department"}</span>
+              <span className="inline-flex items-center gap-1.5"><FiCalendar />Joined {formatDate(employee.dateOfJoining)}</span>
+              <span className="inline-flex items-center gap-1.5"><FiShield />{employee.employeeType || "Employee"}</span>
+              <span className="font-medium text-[#f84525]">{employee.user?.role === "teamlead" || employee.workRole === "teamlead" ? "Team Lead" : employee.user?.role === "hr" ? "HR" : "Employee"}</span>
             </div>
-            <div className="min-w-0 text-right">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="break-words text-2xl font-bold text-gray-900">{employee.name}</h1>
-                
-              </div>
-              
-              <p className="mt-1 text-sm text-gray-500">
-                {employee.employeeId || "No employee ID"} / {employee.designation || "No designation"}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-              <span className="inline-flex items-center rounded-sm border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-semibold capitalize text-orange-700">
-                  {employee.user?.role === "teamlead" || employee.workRole === "teamlead" ? "Team Lead" : employee.user?.role === "hr" ? "HR" : "Employee"}
-                </span>
-                <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-xs font-semibold ${activeBadgeClass}`}>
-                  {employee.isActive ? <FiCheckCircle /> : <FiUserX />}
-                  {employee.isActive ? "Active" : "Inactive"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute right-[132px] top-[128px] flex items-center justify-end gap-2 whitespace-nowrap text-xs text-gray-600 lg:right-[140px]">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiBriefcase className="text-gray-500" />{employee.department || "No department"}</span>
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiCalendar className="text-gray-500" />Joined {formatDate(employee.dateOfJoining)}</span>
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><FiShield className="text-gray-500" />{employee.employeeType || "Employee"}</span>
           </div>
         </div>
-
-      </div>
+      </header>
 
       <div ref={tabsRef} className="rounded-sm border border-gray-200 bg-white px-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <Tabs tabs={employeeTabs} value={activeTab} onChange={changeActiveTab} label="Employee profile sections" />
       </div>
 
-      {activeTab === "details" && <section id="details-panel" role="tabpanel" aria-labelledby="details-tab" className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm xl:col-span-2">
-          <SectionHeader title="Employee Details" subtitle="Basic information HR/admin needs before making changes." />
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <DetailItem icon={<FiBriefcase />} label="Employee ID" value={detailFallback(employee.employeeId)} />
-            <DetailItem icon={<FiBriefcase />} label="HR File No." value={detailFallback(employee.hrFileNo)} />
-            <DetailItem icon={<FiUser />} label="First Name" value={detailFallback(employee.firstName)} />
-            <DetailItem icon={<FiUser />} label="Last Name" value={detailFallback(employee.lastName)} />
-            <DetailItem icon={<FiUser />} label="Blood Group" value={detailFallback(employee.bloodGroup)} />
-            <DetailItem icon={<FiMail />} label="Email" value={detailFallback(employee.email)} />
-            <DetailItem icon={<FiPhone />} label="Mobile" value={detailFallback(employee.mobile)} />
-            <DetailItem icon={<FiPhone />} label="Alternate Mobile" value={detailFallback(employee.altMobile)} />
-            <DetailItem icon={<FiUser />} label="Father / Husband Name" value={detailFallback(employee.fatherOrHusbandName)} />
-            <DetailItem icon={<FiPhone />} label="Emergency Number" value={detailFallback(employee.emergencyNumber)} />
-            <DetailItem icon={<FiUser />} label="Gender" value={detailFallback(employee.gender)} />
-            <DetailItem icon={<FiBriefcase />} label="Department" value={detailFallback(employee.department)} />
-            <DetailItem icon={<FiUser />} label="Designation" value={detailFallback(employee.designation)} />
-            <DetailItem icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
-            <DetailItem icon={<FiCalendar />} label="Celebrate DOB" value={formatDate(employee.celebrateDob || employee.dob)} />
-            <DetailItem icon={<FiCalendar />} label="Joining Date" value={formatDate(employee.dateOfJoining)} />
-            <DetailItem icon={<FiUserCheck />} label="Reporting Manager" value={employee.reportingManagerUser?.name || (employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : detailFallback(employee.reportingManager))} />
-            <DetailItem
+      {activeTab === "details" && <section id="details-panel" role="tabpanel" aria-labelledby="details-tab" className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
+<div className="min-w-0 space-y-4 xl:col-span-2">
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Personal & Contact</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
+<DetailItem plain icon={<FiUser />} label="First Name" value={detailFallback(employee.firstName)} />
+<DetailItem plain icon={<FiUser />} label="Last Name" value={detailFallback(employee.lastName)} />
+<DetailItem plain icon={<FiUser />} label="Gender" value={detailFallback(employee.gender)} />
+<DetailItem plain icon={<FiUser />} label="Blood Group" value={detailFallback(employee.bloodGroup)} />
+<DetailItem plain icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
+<DetailItem plain icon={<FiCalendar />} label="Celebrate DOB" value={formatDate(employee.celebrateDob || employee.dob)} />
+<DetailItem plain icon={<FiMail />} label="Email" value={detailFallback(employee.email)} />
+<DetailItem plain icon={<FiPhone />} label="Mobile" value={detailFallback(employee.mobile)} />
+<DetailItem plain icon={<FiPhone />} label="Alternate Mobile" value={detailFallback(employee.altMobile)} />
+<DetailItem plain icon={<FiUser />} label="Father / Husband Name" value={detailFallback(employee.fatherOrHusbandName)} />
+<DetailItem plain icon={<FiPhone />} label="Emergency Number" value={detailFallback(employee.emergencyNumber)} />
+</div></section>
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Employment</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
+<DetailItem plain icon={<FiBriefcase />} label="Employee ID" value={detailFallback(employee.employeeId)} />
+<DetailItem plain icon={<FiBriefcase />} label="HR File No." value={detailFallback(employee.hrFileNo)} />
+<DetailItem plain icon={<FiBriefcase />} label="Department" value={detailFallback(employee.department)} />
+<DetailItem plain icon={<FiUser />} label="Designation" value={detailFallback(employee.designation)} />
+<DetailItem plain icon={<FiCalendar />} label="Joining Date" value={formatDate(employee.dateOfJoining)} />
+<DetailItem plain icon={<FiUserCheck />} label="Reporting Manager" value={employee.reportingManagerUser?.name || (employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : detailFallback(employee.reportingManager))} />
+<DetailItem plain
               icon={<FiUserCheck />}
               label="Team Lead"
               value={employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : "N/A"}
             />
-            <DetailItem icon={<FiShield />} label="Employee Type" value={detailFallback(employee.employeeType)} />
-            <DetailItem icon={<FiCalendar />} label="Probation Period" value={detailFallback(employee.trainingPeriod)} />
-            <DetailItem icon={<FiShield />} label="Work Role" value={labelize(employee.workRole || "employee")} />
-            <DetailItem
+<DetailItem plain icon={<FiShield />} label="Employee Type" value={detailFallback(employee.employeeType)} />
+<DetailItem plain icon={<FiCalendar />} label="Probation Period" value={detailFallback(employee.trainingPeriod)} />
+<DetailItem plain icon={<FiShield />} label="Work Role" value={labelize(employee.workRole || "employee")} />
+<DetailItem plain
               icon={<FiHome />}
               label="Attendance Mode"
               value={employee.attendanceMode === "work_from_home" ? "Work From Home" : "Office"}
             />
-            <DetailItem icon={<FiUser />} label="Created By" value={employee.createdBy?.name || "N/A"} />
-            <DetailItem icon={<FiCalendar />} label="Resignation Date" value={formatDate(employee.resignationDate)} />
-            <DetailItem icon={<FiCalendar />} label="Leaving Date" value={formatDate(employee.leavingDate)} />
-            <DetailItem icon={<FiShield />} label="Salary" value={detailFallback(employee.salary)} />
-            <DetailItem icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
-            <DetailItem icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
-            <DetailItem icon={<FiBriefcase />} label="Bank Holder Name" value={detailFallback(employee.bankHolderName)} />
-            <DetailItem icon={<FiBriefcase />} label="Bank Name" value={detailFallback(employee.bankName)} />
-            <DetailItem icon={<FiBriefcase />} label="Bank Account Number" value={detailFallback(employee.bankAccountNumber)} />
-            <DetailItem icon={<FiBriefcase />} label="Bank IFSC Code" value={detailFallback(employee.bankIfscCode)} />
-            <DetailItem icon={<FiBriefcase />} label="Cheque Number" value={detailFallback(employee.chequeNumber)} />
-            <DetailItem icon={<FiBriefcase />} label="Cheque Account Number" value={detailFallback(employee.chequeAccountNumber)} />
-            <DetailItem icon={<FiShield />} label="Cheque Amount" value={detailFallback(employee.chequeAmount)} />
-            <DetailItem icon={<FiCalendar />} label="Cheque Date" value={formatDate(employee.chequeDate)} />
-            <DetailItem icon={<FiBriefcase />} label="Cheque Bank Name" value={detailFallback(employee.chequeBankName)} />
-            <DetailItem icon={<FiMapPin />} label="Address" value={formatAddress(employee.address)} className="md:col-span-2" />
-            <DetailItem icon={<FiMapPin />} label="Permanent Address" value={formatAddress(employee.permanentAddress)} className="md:col-span-2" />
-            <DetailItem icon={<FiMapPin />} label="Alternate / Current Address" value={formatAddress(employee.alternateAddress)} className="md:col-span-2" />
-          </div>
-        </div>
-          <div className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm xl:col-span-1 dark:border-gray-700 dark:bg-gray-800">
+<DetailItem plain icon={<FiUser />} label="Created By" value={employee.createdBy?.name || "N/A"} />
+<DetailItem plain icon={<FiCalendar />} label="Resignation Date" value={formatDate(employee.resignationDate)} />
+<DetailItem plain icon={<FiCalendar />} label="Leaving Date" value={formatDate(employee.leavingDate)} />
+</div></section>
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Salary & Bank</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
+<DetailItem plain icon={<FiShield />} label="Salary" value={detailFallback(employee.salary)} />
+<DetailItem plain icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
+<DetailItem plain icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
+<DetailItem plain icon={<FiBriefcase />} label="Bank Holder Name" value={detailFallback(employee.bankHolderName)} />
+<DetailItem plain icon={<FiBriefcase />} label="Bank Name" value={detailFallback(employee.bankName)} />
+<DetailItem plain icon={<FiBriefcase />} label="Bank Account Number" value={detailFallback(employee.bankAccountNumber)} />
+<DetailItem plain icon={<FiBriefcase />} label="Bank IFSC Code" value={detailFallback(employee.bankIfscCode)} />
+</div></section>
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Cheque Details</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
+<DetailItem plain icon={<FiBriefcase />} label="Cheque Number" value={detailFallback(employee.chequeNumber)} />
+<DetailItem plain icon={<FiBriefcase />} label="Cheque Account Number" value={detailFallback(employee.chequeAccountNumber)} />
+<DetailItem plain icon={<FiShield />} label="Cheque Amount" value={detailFallback(employee.chequeAmount)} />
+<DetailItem plain icon={<FiCalendar />} label="Cheque Date" value={formatDate(employee.chequeDate)} />
+<DetailItem plain icon={<FiBriefcase />} label="Cheque Bank Name" value={detailFallback(employee.chequeBankName)} />
+</div></section>
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Addresses</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 ">
+<DetailItem plain icon={<FiMapPin />} label="Address" value={formatAddress(employee.address)} />
+<DetailItem plain icon={<FiMapPin />} label="Permanent Address" value={formatAddress(employee.permanentAddress)} />
+<DetailItem plain icon={<FiMapPin />} label="Alternate / Current Address" value={formatAddress(employee.alternateAddress)} />
+</div></section>
+</div>
+          <div className="min-w-0 self-start rounded-xl border border-gray-200 bg-white p-5 xl:col-span-1 dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold text-gray-900 dark:text-white">Employee Documents</h3>{hrCanViewModule("employeeDocuments") && <button type="button" onClick={() => changeActiveTab("documents")} className="text-sm font-semibold text-[#f84525]">Manage documents</button>}</div>
             <div className="space-y-2">
-              {Object.entries(documentLabelMap).map(([key, label]) => {
-                const documentValue = employee.documents?.[key];
+              {[
+                ...Object.entries(documentLabelMap).filter(([key]) => !["offerLetter", "leavingLetter", "experienceCertificate", "previousCompanyDocument", "documentXerox", "bankStatement", "salarySlips"].includes(key) || employee.documents?.[key]?.url || employee.documents?.[key]?.length).map(([key, label]) => ({ key, label, file: employee.documents?.[key] })),
+                ...(employee.qualifications || []).filter((item) => item.documents?.marksheet?.url).map((item, index) => ({ key: `qualification-${index}`, label: `${item.level || "Qualification"} Marksheet`, file: item.documents.marksheet })),
+                ...(employee.previousEmployments || []).flatMap((company, index) => lastCompanyDocumentFields.flatMap(([key, label]) => (Array.isArray(company.documents?.[key]) ? company.documents[key] : [company.documents?.[key]]).filter((file) => file?.url).map((file, fileIndex) => ({ key: `company-${index}-${key}-${fileIndex}`, label: `${company.companyName} · ${label}`, file })))),
+              ].map(({ key, label, file }) => {
+                const documentValue = file;
                 const documentItem = Array.isArray(documentValue) ? documentValue[0] : documentValue;
                 const url = documentItem?.url;
                 const uploaded = Boolean(url);
                 const canViewDocument = hrCanViewModule("employeeDocuments") && uploaded;
                 const canDownloadDocument = hrCanDownloadModule("employeeDocuments") && uploaded;
-                return <div key={key} className={`flex items-center justify-between rounded-sm border px-3 py-2 text-sm ${uploaded ? "border-green-200 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
-                  <span className="truncate">{label}</span>
+                return <div key={key} className={`flex items-center justify-between rounded-lg border px-3 py-3 text-sm ${uploaded ? "border-green-200 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
+                  <span title={label} className="min-w-0 break-words text-xs leading-5">{label}</span>
                   {uploaded ? <div className="ml-2 flex shrink-0 gap-2">
                     {canViewDocument && <button type="button" onClick={() => setDocumentPreview({ label, url, type: documentItem?.resource_type || documentItem?.format })} className="inline-flex items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button>}
                     {canDownloadDocument && <button type="button" onClick={() => downloadEmployeeDocument(url, label)} className="inline-flex items-center gap-1 rounded-sm border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"><FiDownload /> Download</button>}
-                  </div> : <span className="ml-2 shrink-0 text-xs font-semibold">Remaining</span>}
+                  </div> : <span className="ml-2 shrink-0 text-xs font-semibold">Not uploaded</span>}
                 </div>;
               })}
             </div>
           </div>
 
-      </section>}
+
+</section>}
 
       {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
         {String(documentPreview.type || "").toLowerCase().includes("pdf") || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
@@ -1114,11 +1108,11 @@ const EmployeeDetail = () => {
         </div>
 
         <div className="mb-1 flex gap-1 overflow-x-auto border-b border-gray-200 pb-3 dark:border-gray-700">
-          {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => { setEditStep(index + 1); document.getElementById(`edit-step-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
+          {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => setEditStep(index + 1)} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
         </div>
         <div className="grid grid-cols-1 gap-5">
-          <section id="edit-step-1" className="min-w-0 scroll-mt-5">
-            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900"><FiBriefcase className="text-[#f84525]" />Personal &amp; Work</h3>
+          {editStep === 1 && <section id="edit-step-1" className="min-w-0 scroll-mt-5">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900"><FiBriefcase className="text-[#f84525]" />Personal &amp; Contact</h3>
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {[
           ["employeeId", "Employee ID", "text"],
@@ -1171,6 +1165,11 @@ const EmployeeDetail = () => {
           Set as Celebrate DOB
         </label>
         <CalendarPicker label="Celebrate DOB" mode="date" value={editForm.celebrateDob} onChange={(value) => setEditForm((current) => ({ ...current, celebrateDob: value }))} />
+            </div>
+          </section>}
+          {editStep === 2 && <section id="edit-step-2" className="min-w-0">
+            <h3 className="mb-4 font-semibold">Employment &amp; Qualifications</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <CustomDropdown
           label="Department"
           value={editForm.department}
@@ -1186,7 +1185,6 @@ const EmployeeDetail = () => {
         <CustomDropdown label="Experience" value={editForm.experienceType} onChange={(value) => setEditForm((current) => ({ ...current, experienceType: value, previousEmployments: current.previousEmployments.length ? current.previousEmployments : value === "Experienced" ? [newEmployment(true)] : [] }))} options={["Fresher", "Experienced"]} />
         {editForm.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" name="totalExperienceYears" type="number" value={editForm.totalExperienceYears} onChange={handleEditFieldChange} /> : null}
         <EmploymentHistory className="md:col-span-2" form={editForm} setForm={setEditForm} />
-        {canManageDocuments && <EmploymentHistory className="md:col-span-2" form={editForm} setForm={setEditForm} documents onFiles={handleEmploymentFiles} />}
         <div className="md:col-span-2 space-y-3">
           <div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" aria-label="Add qualification" title="Add qualification" className="flex h-9 w-9 items-center justify-center text-[#f84525]" onClick={() => setEditForm((current) => ({ ...current, qualifications: [...current.qualifications, { id: crypto.randomUUID(), level: "", course: "", institute: "", passingYear: "", documents: {} }] }))}><FiPlus size={22} /></button></div>
           {editForm.qualifications.map((item, index) => <div key={item.id || index} className="space-y-3 border-b border-gray-200 pb-4 dark:border-gray-700">
@@ -1261,14 +1259,6 @@ const EmployeeDetail = () => {
           searchable
           portalMenu
         />
-        <CustomDropdown
-          label="Bond Period Duration"
-          value={editForm.bondPeriodDuration}
-          onChange={(value) => setEditForm((current) => ({ ...current, bondPeriodDuration: value }))}
-          options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod.map((item) => item.name || item) : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months", "12 Months"]}
-          searchable
-          portalMenu
-        />
         <CalendarPicker
           label="Resignation Date"
           mode="date"
@@ -1282,18 +1272,23 @@ const EmployeeDetail = () => {
           onChange={(value) => setEditForm((current) => ({ ...current, leavingDate: value }))}
         />
             </div>
-          </section>
+          </section>}
 
-          <div className="mt-5 border-t border-gray-100 pt-4">
-          {hrCanViewModule("employeeDocuments") && (employee?.qualifications || []).some((item) => item.documents?.marksheet?.url) && <div className="mb-5 space-y-3">
+          {editStep === 5 && (hrCanViewModule("employeeDocuments") || canManageDocuments) && <div id="edit-step-5" className="space-y-6 pt-4">
+        {canManageDocuments && <EmploymentHistory compact onView={hrCanViewModule("employeeDocuments") ? setDocumentPreview : undefined} onDownload={hrCanDownloadModule("employeeDocuments") ? downloadEmployeeDocument : undefined} className="md:col-span-2" form={editForm} setForm={setEditForm} documents onFiles={handleEmploymentFiles} />}
+
+          {hrCanViewModule("employeeDocuments") && editForm.qualifications.length > 0 && <section className="space-y-3">
             <h3 className="font-semibold">Qualification Marksheets</h3>
-            {(employee.qualifications || []).map((item, index) => item.documents?.marksheet?.url ? <div key={index} className="flex flex-wrap items-center gap-3 text-sm">
-              <span>{item.level} — {item.documents.marksheet.name || "Marksheet"}</span>
-              <button type="button" onClick={() => setDocumentPreview({ label: `${item.level} Marksheet`, url: item.documents.marksheet.url, type: item.documents.marksheet.resource_type || item.documents.marksheet.format })} className="inline-flex items-center gap-1 text-[#f84525]"><FiEye /> View</button>
-              {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.documents.marksheet.url, `${item.level} Marksheet`)} className="inline-flex items-center gap-1 text-blue-600"><FiDownload /> Download</button>}
-            </div> : null)}
-          </div>}
-          {hrCanViewModule("employeeDocuments") && (employee?.previousEmployments || []).length > 0 && <div className="mb-5 space-y-4">
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {editForm.qualifications.map((item, index) => {
+                const file = item.documents?.marksheet;
+                const saved = (item.id ? employee.qualifications?.find((entry) => entry.id === item.id) : employee.qualifications?.[index])?.documents?.marksheet;
+                const label = `${item.level || "Qualification"} Marksheet`;
+                return <FileUploadField compact canUpload={canManageDocuments} key={item.id || index} label={label} name={`qualification-document-${item.id || index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" hint="JPG, PNG, WEBP or PDF, up to 5 MB." fileName={file?.name} uploaded={Boolean(file?.url)} disabled={!canManageDocuments || !item.level || savingProfile} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} onPreviewCurrent={saved?.url ? () => setDocumentPreview({ label, url: saved.url, type: saved.resource_type || saved.format }) : undefined} onDownloadCurrent={saved?.url && hrCanDownloadModule("employeeDocuments") ? () => downloadEmployeeDocument(saved.url, label) : undefined} />;
+              })}
+            </div>
+          </section>}
+          {!canManageDocuments && hrCanViewModule("employeeDocuments") && (employee?.previousEmployments || []).length > 0 && <div className="mb-5 space-y-4">
             <h3 className="font-semibold">Previous Company Documents</h3>
             {employee.previousEmployments.map((company, index) => <section key={company.id || index} className="space-y-2 border-b border-gray-100 pb-3 dark:border-gray-700">
               <h4 className="text-sm font-semibold">{company.companyName}{company.isLastCompany ? " (Last company)" : ""}</h4>
@@ -1304,12 +1299,14 @@ const EmployeeDetail = () => {
               </div>))}
             </section>)}
           </div>}
-          <h3 id="edit-step-5" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Upload Documents</h3>
-          <div className="grid grid-cols-1 gap-4">
+          <h3 className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Upload Documents</h3>
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {documentItems
               .filter(([key]) => key === "photo" || employeeCreateDocumentFields.some(([field]) => field === key) || (key === "salarySlips" ? employee?.documents?.salarySlips?.length : employee?.documents?.[key]?.url))
               .map(([key, label]) => key === "salarySlips" ? (
                 <FileUploadField
+                  compact
+                  canUpload={canManageDocuments}
                   key={key}
                   label={label}
                   name="salary-slips"
@@ -1326,6 +1323,8 @@ const EmployeeDetail = () => {
                 />
             ) : (
               <FileUploadField
+                  compact
+                  canUpload={canManageDocuments}
                 key={key}
                 label={label}
                 name={key}
@@ -1358,10 +1357,18 @@ const EmployeeDetail = () => {
             ))}
           </div>
           <p className="mt-3 text-xs text-gray-500">Documents selected here will be uploaded when you click “Save Changes”.</p>
-        </div>
-        <div className="mt-5 border-t border-gray-100 pt-4">
+        </div>}
+        {editStep === 3 && <div className="pt-4">
           <h3 id="edit-step-3" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+        <CustomDropdown
+          label="Bond Period Duration"
+          value={editForm.bondPeriodDuration}
+          onChange={(value) => setEditForm((current) => ({ ...current, bondPeriodDuration: value }))}
+          options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod.map((item) => item.name || item) : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months", "12 Months"]}
+          searchable
+          portalMenu
+        />
             <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
             <InputField label="Bank Holder Name" name="bankHolderName" value={editForm.bankHolderName} onChange={handleEditFieldChange} />
             <InputField label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditFieldChange} />
@@ -1373,15 +1380,20 @@ const EmployeeDetail = () => {
             <CalendarPicker label="Cheque Date" mode="date" value={editForm.chequeDate} onChange={(value) => setEditForm((current) => ({ ...current, chequeDate: value }))} />
             <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 md:mt-[22px] dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(editForm.salaryOnHold)} onChange={(event) => setEditForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
           </div>
-        </div>
+        </div>}
 
-        <div className="mt-5 border-t border-gray-100 pt-4">
+        {editStep === 4 && <div className="pt-4">
           <h3 id="edit-step-4" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Address</h3>
           <div className="space-y-5"><div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Permanent Address</h3><label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600"><input type="checkbox" checked={JSON.stringify(editForm.alternateAddress || {}) === JSON.stringify(editForm.permanentAddress || {})} onChange={(event) => { if (event.target.checked) setEditForm((current) => ({ ...current, alternateAddress: { ...(current.permanentAddress || {}) } })); }} /> Set as Alternative / Current Address</label></div><AddressFields value={editForm.permanentAddress} onChange={(event) => handleAddressChange(event, "permanentAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={editForm.alternateAddress} onChange={(event) => handleAddressChange(event, "alternateAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div></div>
-        </div>
-        <div className="mt-5 border-t border-gray-100 pt-4">
+        </div>}
+        {editStep === 6 && <div className="pt-4">
           <h3 id="edit-step-6" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Employee Checklists</h3>
           <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
+        </div>}
+        {editStep === 7 && <EmployeeCreateReview form={{ ...editForm, photo: documentFiles.photo ? { name: documentFiles.photo.name, dataUri: "selected" } : employee.documents?.photo, documents: { ...employee.documents, ...Object.fromEntries(Object.entries(documentFiles).filter(([, file]) => file).map(([key, file]) => [key, Array.isArray(file) ? file.map((item) => ({ name: item.name, dataUri: "selected" })) : { name: file.name, dataUri: "selected" }])) } }} employees={teamLeadOptions} onEdit={setEditStep} />}
+        <div className="flex justify-between border-t border-gray-200 pt-4">
+          <Button text="Previous" disabled={editStep === 1 || savingProfile} onClick={() => setEditStep((value) => Math.max(1, value - 1))} variant="secondary" />
+          {editStep < 7 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => setEditStep((value) => Math.min(7, value + 1))} />}
         </div>
         </div>
       </form>
