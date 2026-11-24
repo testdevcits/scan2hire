@@ -233,7 +233,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [clockNow, setClockNow] = useState(new Date());
   const [birthdaySplash, setBirthdaySplash] = useState(false);
   const [birthdayTheme, setBirthdayTheme] = useState(0);
-  const isBirthday = useMemo(() => { if (!profile?.dob) return false; const dob = new Date(profile.dob); const now = new Date(); return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate(); }, [profile?.dob]);
+  const isBirthday = useMemo(() => { const birthday = profile?.celebrateDob || profile?.dob; if (!birthday) return false; const dob = new Date(birthday); const now = new Date(); return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate(); }, [profile?.celebrateDob, profile?.dob]);
   useEffect(() => { if (!isBirthday) return undefined; setBirthdayTheme(Math.floor(Math.random() * 5)); setBirthdaySplash(true); const timer = setTimeout(() => setBirthdaySplash(false), 5000); return () => clearTimeout(timer); }, [isBirthday]);
   const isTeamLead = useMemo(() => isTeamLeadUser(profile), [profile]);
 
