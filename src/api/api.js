@@ -78,6 +78,7 @@ export const hrApi = {
   resetEmployeePassword: (employeeId, newPassword) => API.patch(`/hr/employees/${employeeId}/password`, { newPassword }),
   getEmployeeLoginPassword: (employeeId) => API.get(`/hr/employees/${employeeId}/login-password`),
   updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
+  getEmployeeDocumentVersions: (employeeId) => API.get(`/hr/employees/${employeeId}/document-versions`),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
   getEmployeeAccountCredentials: (employeeId, vaultPassword) =>
