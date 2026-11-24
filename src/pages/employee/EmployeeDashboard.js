@@ -298,6 +298,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
     const minimumDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
     if (minimumDate && leaveForm.fromDate < minimumDate) { toast.error("Earned and optional leave must start from a future date."); return; }
     if (leaveSaving || draftSaving) return;
+    if (!leaveForm.title.trim() || !leaveForm.content.trim()) return toast.error("Enter a subject and reason for leave.");
     if (!leaveForm.fromDate) return toast.error("Select a leave date range.");
     const confirmed = await confirm({ title: "Submit leave request?", message: `${leaveForm.title} · ${leaveForm.type.replace(/_/g, " ")} · ${leaveForm.fromDate} to ${leaveForm.toDate || leaveForm.fromDate}. Submit this request for approval?`, confirmText: "Submit Request", cancelText: "Keep Editing" });
     if (!confirmed) return;
@@ -330,6 +331,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
   const saveLeaveDraft = async () => {
     if (draftSaving || leaveSaving) return;
+    if (!leaveForm.title.trim() || !leaveForm.content.trim() || !leaveForm.fromDate) {
+      toast.error("Enter subject, reason and leave date before saving a draft.");
+      return;
+    }
     setDraftSaving(true);
     try {
       const response = await employeeApi.saveLeaveDraft(activeDraftId, leaveForm);
@@ -339,6 +344,18 @@ const EmployeeDashboard = ({ section = "all" }) => {
       toast.success("Leave draft saved");
     } catch (error) { toast.error(error.response?.data?.message || "Unable to save draft"); }
     finally { setDraftSaving(false); }
+  };
+
+  const deleteLeaveDraft = async (draftId) => {
+    if (!draftId || leaveSaving || draftSaving) return;
+    const confirmed = await confirm({ title: "Delete draft?", message: "This saved leave draft will be permanently deleted.", confirmText: "Delete", cancelText: "Keep Draft", tone: "danger" });
+    if (!confirmed) return;
+    try {
+      await employeeApi.deleteLeaveDraft(draftId);
+      setLeaveDrafts((current) => current.filter((item) => item._id !== draftId));
+      if (activeDraftId === draftId) setActiveDraftId("");
+      toast.success("Draft deleted");
+    } catch (error) { toast.error(error.response?.data?.message || "Unable to delete draft"); }
   };
 
   const openLeaveDraft = (draft) => {
@@ -476,6 +493,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const isDashboard = section === "all";
   const effectiveModuleAccess = moduleAccess || profile?.user?.moduleAccess || profile?.moduleAccess || {};
   const canApplyLeave = Boolean(effectiveModuleAccess.leaves?.add || effectiveModuleAccess.leaves?.edit);
+  const canDeleteLeaveDraft = Boolean(effectiveModuleAccess.leaveDrafts?.delete);
   const leaveMinDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
 
   const currentMonthAttendance = useMemo(
@@ -965,7 +983,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                     />
                   </label>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
-                    <span className="flex items-center gap-2"><input type="checkbox" checked={includeLeaveAttachment} onChange={(e) => { setIncludeLeaveAttachment(e.target.checked); if (!e.target.checked) setLeaveForm((prev) => ({ ...prev, attachment: null })); }} className="accent-[#f84525]" /> Add attachment image</span>
+                    <span className="flex items-center gap-2"><input type="checkbox" checked={includeLeaveAttachment} onChange={(e) => { setIncludeLeaveAttachment(e.target.checked); if (!e.target.checked) setLeaveForm((prev) => ({ ...prev, attachment: null })); }} className="accent-[#f84525]" /> Add attachment</span>
                     {includeLeaveAttachment && <div
                       tabIndex={0}
                       onPaste={handleLeaveAttachmentPaste}
@@ -1000,7 +1018,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
             <div className="min-w-0 space-y-5">
             <ScrollCard title="Saved Drafts">
-              {leaveDrafts.length === 0 ? <EmptyState text="No saved drafts." /> : leaveDrafts.map((draft) => <button type="button" key={draft._id} disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="flex w-full items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 text-left text-sm hover:bg-orange-50 dark:border-gray-800 dark:hover:bg-gray-800"><span><b className="block">{draft.title || "Untitled leave request"}</b><span className="text-xs text-gray-500">{draft.fromDate || "Dates not selected"}{draft.toDate ? ` to ${draft.toDate}` : ""}</span></span><span className="text-[#f84525]">Edit Draft</span></button>)}
+              {leaveDrafts.length === 0 ? <EmptyState text="No saved drafts." /> : leaveDrafts.map((draft) => <div key={draft._id} className="flex w-full items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 text-left text-sm dark:border-gray-800"><button type="button" disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="min-w-0 flex-1 text-left hover:text-[#f84525]"><b className="block truncate">{draft.title}</b><span className="text-xs text-gray-500">{draft.fromDate}{draft.toDate ? ` to ${draft.toDate}` : ""}</span></button><div className="flex items-center gap-3"><button type="button" disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="text-xs font-semibold text-[#f84525]">Edit</button>{canDeleteLeaveDraft && <button type="button" disabled={leaveSaving || draftSaving} onClick={() => deleteLeaveDraft(draft._id)} className="text-xs font-semibold text-red-600">Delete</button>}</div></div>)}
             </ScrollCard>
             <ScrollCard title="My Leaves">
               {leaves.length === 0 ? (

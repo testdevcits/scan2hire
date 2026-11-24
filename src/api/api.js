@@ -157,6 +157,7 @@ export const employeeApi = {
   getLeaves: () => API.get("/employees/leaves"),
   getLeaveDrafts: () => API.get("/employees/leave-drafts"),
   saveLeaveDraft: (draftId, payload) => draftId ? API.put(`/employees/leave-drafts/${draftId}`, payload) : API.post("/employees/leave-drafts", payload),
+  deleteLeaveDraft: (draftId) => API.delete(`/employees/leave-drafts/${draftId}`),
   applyLeave: (payload) => API.post("/employees/leaves", payload),
   getCalendar: (month, year) => API.get("/employees/calendar", { params: { month, year } }),
   getCalendarDocument: (year) => API.get("/employees/calendar-document", { params: { year } }),
