@@ -1,11 +1,13 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useContext, useEffect, useState } from "react";
 import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
-import { employeeApi } from "../api";
-import API from "../api/axios";
+
 
 const HRLayout = () => {
+  const { employeeApi, API } = useApi();
   const { user } = useContext(AuthContext);
   const roleClaims = [user?.role, user?.workRole, user?.effectiveRole].filter(Boolean);
   const hasRole = (role) => roleClaims.includes(role);

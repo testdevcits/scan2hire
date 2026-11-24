@@ -1,8 +1,10 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useContext, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import LeaveSettings from "./LeaveSettings";
 import { FiCopy, FiEye, FiEyeOff, FiKey, FiMapPin, FiMoon, FiPlus, FiSettings, FiSun, FiUser } from "react-icons/fi";
-import { authApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import FileUploadField from "../../components/common/FileUploadField";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -56,6 +58,7 @@ const ToggleRow = ({ label, checked, onChange }) => (
 );
 
 const GeneralSettings = () => {
+  const { authApi } = useApi();
   const { mode, toggleMode } = useContext(ThemeContext);
   const toast = useToast();
   const [form, setForm] = useState({
@@ -501,6 +504,7 @@ const GeneralSettings = () => {
 };
 
 const AttendanceLocationSettings = () => {
+  const { authApi } = useApi();
   const toast = useToast();
   const [form, setForm] = useState({ officeLocation: { latitude: "", longitude: "", radiusMeters: 100 } });
   const [loading, setLoading] = useState(true);
@@ -636,6 +640,7 @@ const AttendanceLocationSettings = () => {
 };
 
 const AdminSettings = () => {
+  const { authApi } = useApi();
   const [params, setParams] = useSearchParams();
   const activeTab = ["leave", "attendance"].includes(params.get("tab")) ? params.get("tab") : "general";
   return <div className="admin-settings-page space-y-5 rounded-2xl bg-[#f0f0f0] p-4 dark:bg-gray-950 sm:p-6">

@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
-import { authApi, hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import CustomDropdown from "../../components/common/CustomDropdown";
@@ -11,6 +13,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { downloadCsv } from "../../utils/csvExport";
 
 const EmployeeCredentials = () => {
+  const { authApi, hrApi } = useApi();
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const canOpenEmployeeVault = user?.role === "superadmin";

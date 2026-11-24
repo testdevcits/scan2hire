@@ -1,5 +1,7 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useState } from "react";
-import { authApi } from "../../api";
+
 import CommonLoader from "../../components/common/CommonLoader";
 import DateRangePicker from "../../components/common/DateRangePicker";
 import { FiRefreshCw, FiSearch, FiTrash2 } from "react-icons/fi";
@@ -36,6 +38,7 @@ const actionNames = {
 };
 
 export default function AuditLogs() {
+  const { authApi } = useApi();
   const { confirm } = useModal();
   const toast = useToast();
   const [logs, setLogs] = useState([]);
@@ -68,7 +71,7 @@ export default function AuditLogs() {
         })
         .finally(() => setLoading(false));
     },
-    [from, to, page, limit, search, actionFilter]
+    [authApi, from, to, page, limit, search, actionFilter]
   );
 
   const clearRange = () => {

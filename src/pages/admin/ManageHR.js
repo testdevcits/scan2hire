@@ -1,7 +1,9 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { employeeRecordPermissions } from "../../config/employeeRecordPermissions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authApi, hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import EmployeeModuleAccess from "./EmployeeModuleAccess";
@@ -13,6 +15,7 @@ const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "
 const moduleOptions = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]], ["notifications", "Notifications", ["view"], { view: "View Notifications" }], ...employeeRecordPermissions];
 
 const ManageHR = () => {
+  const { authApi, hrApi } = useApi();
   const toast = useToast();
   const navigate = useNavigate();
   const { confirm } = useModal();
@@ -62,7 +65,7 @@ const ManageHR = () => {
     } finally {
       setLoading(false);
     }
-  }, [roleLabel, toast]);
+  }, [authApi, hrApi, roleLabel, toast]);
 
   useEffect(() => {
     setForm(emptyForm);

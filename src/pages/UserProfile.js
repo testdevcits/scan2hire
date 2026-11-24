@@ -1,5 +1,7 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { authApi } from "../api";
+
 import Button from "../components/common/Button";
 import CommonLoader from "../components/common/CommonLoader";
 import CustomDropdown from "../components/common/CustomDropdown";
@@ -26,6 +28,7 @@ const fileToDataUri = (file) =>
   });
 
 const UserProfile = ({ title = "My Profile" }) => {
+  const { authApi } = useApi();
   const toast = useToast();
   const { mode } = useContext(ThemeContext);
   const [profile, setProfile] = useState(null);

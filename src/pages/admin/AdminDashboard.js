@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authApi, hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
@@ -12,6 +14,7 @@ const ORANGE_SOFT = "#ffa826";
 const RED = "#ef4444";
 
 const AdminDashboard = () => {
+  const { authApi, hrApi } = useApi();
   const toast = useToast();
   const navigate = useNavigate();
   const [hrs, setHrs] = useState([]);

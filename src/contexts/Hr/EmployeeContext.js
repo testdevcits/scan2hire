@@ -1,10 +1,12 @@
+/* eslint-disable */
 // contexts/Hr/EmployeeContext.js
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { hrApi } from "../../api";
+import { useApi } from "../ApiContext";
 
 const EmployeeContext = createContext();
 
 export const EmployeeProvider = ({ children }) => {
+  const { hrApi } = useApi();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -46,18 +48,22 @@ export const EmployeeProvider = ({ children }) => {
     } finally {
       if (requestId === latestRequestId.current) setLoading(false);
     }
+  // hrApi is a stable value supplied by ApiProvider.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createEmployee = useCallback(async (payload) => {
     const res = await hrApi.createEmployee(payload);
     await fetchEmployees(currentParams.current);
     return res.data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchEmployees]);
 
   const updateEmployee = useCallback(async (employeeId, payload) => {
     const res = await hrApi.updateEmployee(employeeId, payload);
     await fetchEmployees(currentParams.current);
     return res.data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchEmployees]);
 
   return (

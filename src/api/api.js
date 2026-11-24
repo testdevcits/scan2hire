@@ -2,6 +2,7 @@ import API from "./axios";
 
 export const authApi = {
   login: (payload) => API.post("/users/login", payload),
+  logout: () => API.post("/users/logout", {}, { skipAuth: true }),
   signup: (payload) => API.post("/users/signup", payload),
   requestSignupOtp: (payload) => API.post("/users/signup/request-otp", payload),
   verifySignupOtp: (payload) => API.post("/users/signup/verify-otp", payload),

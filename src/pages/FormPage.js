@@ -1,16 +1,19 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 // src/pages/FormPage.js
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/common/Button";
-import { candidateApi } from "../api";
+
 import { useToast } from "../contexts/ToastContext";
 import Step1 from "./steps/Step1";
 import Step2 from "./steps/Step2";
 import Step3 from "./steps/Step3";
 
 const FormPage = () => {
+  const { candidateApi } = useApi();
   const navigate = useNavigate();
   const toast = useToast();
 

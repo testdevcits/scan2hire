@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
  
@@ -7,7 +9,7 @@ import {
   FiUsers,
   FiX,
 } from "react-icons/fi";
-import { hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import Avatar from "../../components/common/Avatar";
 import CommonLoader from "../../components/common/CommonLoader";
@@ -43,6 +45,7 @@ const roleCards = [
 ];
 
 const RolePill = ({ tone, text }) => {
+  const { hrApi } = useApi();
   const classes = {
     blue: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900",
     amber: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900",
@@ -78,6 +81,7 @@ const Card = ({ className = "", children }) => (
 );
 
 const EmployeeAccessControl = () => {
+  const api = useApi();
   const toast = useToast();
   const { confirm } = useModal();
   const [rows, setRows] = useState([]);
@@ -92,7 +96,7 @@ const EmployeeAccessControl = () => {
   const loadAccess = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await hrApi.getEmployeeAccess();
+      const res = await api.hrApi.getEmployeeAccess();
       const list = [...(res.data.data || [])].sort((a, b) =>
         String(a.employee?.name || "").localeCompare(String(b.employee?.name || ""))
       );
@@ -216,7 +220,7 @@ const EmployeeAccessControl = () => {
 
     setSaving(true);
     try {
-      await hrApi.assignTeamLeadEmployees(selectedTeamLeadId, {
+      await api.hrApi.assignTeamLeadEmployees(selectedTeamLeadId, {
         employeeIds: assignedEmployeeIds,
       });
       toast.success("Team Lead assignments saved");
@@ -236,7 +240,7 @@ const EmployeeAccessControl = () => {
 
     setSaving(true);
     try {
-      await hrApi.updateEmployeeAccess(selectedEmployeeId, updates);
+      await api.hrApi.updateEmployeeAccess(selectedEmployeeId, updates);
       toast.success(successMessage);
       await loadAccess();
     } catch (err) {

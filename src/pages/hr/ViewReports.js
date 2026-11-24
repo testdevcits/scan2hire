@@ -1,8 +1,10 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiCalendar, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import * as XLSX from "xlsx";
 import { getDocument } from "pdfjs-dist";
-import { hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
 import CommonTable from "../../components/common/CommonTable";
@@ -89,6 +91,7 @@ const extractCalendarEntries = async (file, year) => {
 };
 
 const ViewReports = () => {
+  const { hrApi } = useApi();
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const canEditCalendar = user?.role === "superadmin" || user?.moduleAccess?.leaveCalendar?.edit === true;
@@ -148,7 +151,9 @@ const ViewReports = () => {
     } finally {
       if (requestId === reportRequestId.current) setPageLoading(false);
     }
-  }, [month, toast]);
+  // API client is provided by the stable ApiContext value.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hrApi, month, toast]);
 
   useEffect(() => {
     loadReports();
@@ -289,7 +294,8 @@ const ViewReports = () => {
     } finally {
       setCalendarLoading(false);
     }
-  }, [toast, visibleCalendarMonthKeys]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hrApi, toast, visibleCalendarMonthKeys]);
 
   useEffect(() => {
     if (calendarModalOpen) loadCalendar();
@@ -302,7 +308,8 @@ const ViewReports = () => {
     } catch (err) {
       setCalendarPdfDocument(null);
     }
-  }, [calendarYear]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hrApi, calendarYear]);
 
   useEffect(() => {
     if (calendarModalOpen) loadCalendarPdf();

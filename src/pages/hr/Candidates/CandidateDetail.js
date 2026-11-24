@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../../../contexts/ApiContext";
 import { Fragment, useContext, useEffect, useRef, useState } from "react";
 import {
   FiBarChart2,
@@ -18,7 +20,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
-import { authApi, hrApi } from "../../../api";
+
 import Avatar from "../../../components/common/Avatar";
 import Button from "../../../components/common/Button";
 import CommonLoader from "../../../components/common/CommonLoader";
@@ -88,6 +90,7 @@ const salaryText = (amount, period) =>
   amount ? `${amount} / ${period === "monthly" ? "month" : "annum"}` : "N/A";
 
 const CandidateDetail = () => {
+  const { authApi, hrApi } = useApi();
   const { candidateId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();

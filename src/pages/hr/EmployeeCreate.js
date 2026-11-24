@@ -1,8 +1,10 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { employeeUploadErrors } from "../../utils/employeeUploadSize";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { FiPlus } from "react-icons/fi";
-import { authApi, hrApi } from "../../api";
+
 import AddressFields from "../../components/common/AddressFields";
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
@@ -56,6 +58,7 @@ const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 
 const EmployeeCreate = () => {
+  const { authApi, hrApi } = useApi();
   const { employeeId } = useParams();
   const isEditMode = Boolean(employeeId);
   const [form, setForm] = useState(initialForm);

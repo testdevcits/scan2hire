@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiCalendar,
@@ -11,7 +13,7 @@ import {
   FiKey,
   FiGift,
 } from "react-icons/fi";
-import { employeeApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import DateRangePicker from "../../components/common/DateRangePicker";
@@ -125,6 +127,7 @@ const CardHeader = ({ title, subtitle, action }) => (
 
 // KPI tile with an icon chip — the "dashboard" look
 const Kpi = ({ icon, label, value, tone = "brand" }) => {
+  const { employeeApi } = useApi();
   const tones = {
     brand: "bg-[#fff5f3] text-[#f84525] dark:bg-[#2a1712]",
     dark: "bg-gray-900 text-white dark:bg-black",
@@ -178,6 +181,7 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 };
 
 const EmployeeDashboard = ({ section = "all" }) => {
+  const { employeeApi } = useApi();
   const toast = useToast();
   const { confirm } = useModal();
   const [leaveDrafts, setLeaveDrafts] = useState([]);

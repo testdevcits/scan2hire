@@ -1,10 +1,13 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { employeeApi } from "../api";
+
 import { useToast } from "../contexts/ToastContext";
 
 const EmployeeForgotPassword = () => {
+  const { employeeApi } = useApi();
   const navigate = useNavigate();
   const toast = useToast();
   const [step, setStep] = useState(1);

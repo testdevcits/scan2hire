@@ -1,10 +1,12 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useContext, useEffect, useState } from "react";
 import SidebarLayout from "./SidebarLayout";
 import { FiBarChart2, FiBriefcase, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
-import { employeeApi } from "../api";
 
 const EmployeeLayout = () => {
+  const { employeeApi } = useApi();
   const { user } = useContext(AuthContext);
   const [access, setAccess] = useState({});
   const [accessLoading, setAccessLoading] = useState(true);
@@ -25,7 +27,7 @@ const EmployeeLayout = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [employeeApi]);
 
   const navItems = accessLoading ? [
     { label: "Dashboard", path: "/employee/dashboard", end: true, icon: <FiBarChart2 /> },

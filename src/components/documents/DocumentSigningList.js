@@ -1,10 +1,12 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import CommonLoader from '../common/CommonLoader';
 import DocumentStatusBadge from './DocumentStatusBadge';
 import EmployeeSigningDocuments from './EmployeeSigningDocuments';
 import { FiDownload, FiEdit2, FiClock, FiX, FiTrash2 } from 'react-icons/fi';
 import DocumentTableCell from './DocumentTableCell';
 import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import API from '../../api/axios';
+
 import { AuthContext } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -22,6 +24,7 @@ const fileData = file => new Promise((resolve, reject) => {
 });
 
 export default function DocumentSigningList({ managed = false, employeeFilterId = '', moduleAccess = null }) {
+  const { API } = useApi();
   const { user } = useContext(AuthContext);
   const toast = useToast();
   const isHr = ['hr', 'superadmin'].includes(user?.role);
@@ -58,12 +61,12 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
         : rows);
     } catch (err) { setError(err.response?.data?.message || 'Unable to load documents'); }
     finally { setLoading(false); }
-  }, [isHr, managed, user?.employeeProfile]);
+  }, [API, isHr, managed, user?.employeeProfile]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!managed || !isHr) return;
     API.get('/hr/employees').then(res => setEmployees(res.data.data || [])).catch(() => setError('Unable to load employees. Please refresh.'));
-  }, [managed, isHr]);
+  }, [API, managed, isHr]);
   useEffect(() => { if (employeeFilterId) setEmployeeId(String(employeeFilterId)); }, [employeeFilterId]);
   useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
 

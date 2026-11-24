@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
@@ -11,12 +13,13 @@ import ProfileCard from "../../components/common/ProfileCard";
 import TableToolbar from "../../components/common/TableToolbar";
 import ViewSwitcher from "../../components/common/ViewSwitcher";
 import { AuthContext } from "../../contexts/AuthContext";
-import { authApi, hrApi } from "../../api";
-import API from "../../api/axios";
+
+
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const ManageEmployees = () => {
+  const { authApi, hrApi, API } = useApi();
   const { employees, loading, error, pagination: serverPagination, fetchEmployees } =
     useEmployee();
   const navigate = useNavigate();

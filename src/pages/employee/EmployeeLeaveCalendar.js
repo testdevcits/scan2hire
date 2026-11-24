@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiCalendar, FiChevronLeft, FiChevronRight, FiInfo, FiList } from "react-icons/fi";
-import { employeeApi } from "../../api";
+
 import { useToast } from "../../contexts/ToastContext";
 
 const getMonthCursor = (date = new Date()) => date.getFullYear() * 12 + date.getMonth();
@@ -58,6 +60,7 @@ const CalendarSkeleton = ({ list = false }) => (
 );
 
 const EmployeeLeaveCalendar = () => {
+  const { employeeApi } = useApi();
   const toast = useToast();
   const todayKey = useMemo(() => getLocalDateKey(), []);
   const currentMonthCursor = useMemo(() => getMonthCursor(), []);

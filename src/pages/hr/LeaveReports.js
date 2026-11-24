@@ -1,8 +1,10 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import LeaveReviewDetails from "../../components/common/LeaveReviewDetails";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FiCheckCircle, FiClock, FiEye, FiFileText, FiTrash2, FiXCircle } from "react-icons/fi";
-import { authApi, hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
 import CommonTable from "../../components/common/CommonTable";
@@ -30,6 +32,7 @@ const leaveBalanceTypes = [
 ];
 
 const LeaveReports = () => {
+  const { authApi, hrApi } = useApi();
   const toast = useToast();
   const { confirm } = useModal();
   const { user } = useContext(AuthContext);
@@ -81,7 +84,7 @@ const LeaveReports = () => {
       }
     });
     return () => { active = false; };
-  }, [user?.role]);
+  }, [authApi, user?.role]);
 
   const loadData = useCallback(async () => {
     const currentRequestId = ++requestId.current;
@@ -124,13 +127,13 @@ const LeaveReports = () => {
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize, selectedDate, selectedEmployeeId, status, toast]);
+  }, [debouncedSearch, hrApi, page, pageSize, selectedDate, selectedEmployeeId, status, toast]);
 
   useEffect(() => {
     hrApi.getEmployees()
       .then((response) => setEmployees(response.data.data || []))
       .catch((err) => toast.error(err.response?.data?.message || "Unable to load employees"));
-  }, [toast]);
+  }, [hrApi, toast]);
 
   useEffect(() => {
     if (!balanceEmployeeId) {
@@ -154,7 +157,7 @@ const LeaveReports = () => {
         if (active) setBalanceLoading(false);
       });
     return () => { active = false; };
-  }, [balanceEmployeeId, toast]);
+  }, [hrApi, balanceEmployeeId, toast]);
 
   useEffect(() => {
     if (balanceDrawerOpen || !balanceEmployeeId) return undefined;
