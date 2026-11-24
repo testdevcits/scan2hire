@@ -1405,7 +1405,7 @@ const EmployeeDetail = () => {
           <h3 id="edit-step-6" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Employee Checklists</h3>
           <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
         </div>}
-        {editStep === 7 && <EmployeeCreateReview form={{ ...editForm, photo: documentFiles.photo ? { name: documentFiles.photo.name, dataUri: "selected" } : employee.documents?.photo, documents: { ...employee.documents, ...Object.fromEntries(Object.entries(documentFiles).filter(([, file]) => file).map(([key, file]) => [key, Array.isArray(file) ? file.map((item) => ({ name: item.name, dataUri: "selected" })) : { name: file.name, dataUri: "selected" }])) } }} employees={teamLeadOptions} onEdit={setEditStep} />}
+        {editStep === 7 && <EmployeeCreateReview isEditMode form={{ ...editForm, photo: documentFiles.photo ? { name: documentFiles.photo.name, dataUri: "selected" } : employee.documents?.photo, documents: { ...employee.documents, ...Object.fromEntries(Object.entries(documentFiles).filter(([, file]) => file).map(([key, file]) => [key, Array.isArray(file) ? file.map((item) => ({ name: item.name, dataUri: "selected" })) : { name: file.name, dataUri: "selected" }])) } }} employees={teamLeadOptions} onEdit={setEditStep} />}
         <div className="flex justify-between border-t border-gray-200 pt-4">
           <Button text="Previous" disabled={editStep === 1 || savingProfile} onClick={() => setEditStep((value) => Math.max(1, value - 1))} variant="secondary" />
           {editStep < 7 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => setEditStep((value) => Math.min(7, value + 1))} />}
