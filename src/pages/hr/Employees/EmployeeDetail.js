@@ -238,6 +238,7 @@ const EmployeeDetail = () => {
     joiningChecklist: {}, leavingChecklist: {}, noDuesChecklist: {},
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [editStep, setEditStep] = useState(1);
   const [editErrors, setEditErrors] = useState({});
   const [accountCredentials] = useState([]);
   const [revealedPasswords, setRevealedPasswords] = useState({});
@@ -329,6 +330,10 @@ const EmployeeDetail = () => {
   };
 
   const changeActiveTab = (tab) => {
+    if (tab === "edit") {
+      navigate(`${user?.role === "superadmin" ? "/admin" : "/hr"}/employees/${employeeId}/edit`);
+      return;
+    }
     const params = new URLSearchParams(location.search);
     params.set("tab", tab);
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
@@ -490,12 +495,8 @@ const EmployeeDetail = () => {
   const hrCanUpdateModule = (key) => user?.role !== "hr"
     || hrModuleAccess === null
     || (hrModuleAccess?.[key] === undefined ? key !== "leaveActions" : key === "leaveActions" ? hrModuleAccess[key]?.adjust === true : hrModuleAccess[key]?.update === true || hrModuleAccess[key]?.edit === true);
-  const hrCanAddModule = (key) => user?.role !== "hr"
-    || hrModuleAccess === null
-    || hrModuleAccess?.[key] === undefined
-    || hrModuleAccess[key]?.add === true;
   const canManageDocuments = (user?.role === "hr" || user?.role === "superadmin")
-    && (user?.role === "superadmin" || hrCanAddModule("employeeDocuments") || hrCanUpdateModule("employeeDocuments") || hrCanEditModule("employeeDocuments"));
+    && (user?.role === "superadmin" || hrCanUpdateModule("employeeDocuments"));
 
   const downloadEmployeeDocument = async (url, label) => {
     try {
@@ -1106,8 +1107,11 @@ const EmployeeDetail = () => {
           </Button>
         </div>
 
+        <div className="mb-1 flex gap-1 overflow-x-auto border-b border-gray-200 pb-3 dark:border-gray-700">
+          {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => { setEditStep(index + 1); document.getElementById(`edit-step-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
+        </div>
         <div className="grid grid-cols-1 gap-5">
-          <section className="min-w-0">
+          <section id="edit-step-1" className="min-w-0 scroll-mt-5">
             <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900"><FiBriefcase className="text-[#f84525]" />Personal &amp; Work</h3>
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {[
@@ -1294,7 +1298,7 @@ const EmployeeDetail = () => {
               </div>))}
             </section>)}
           </div>}
-          <h3 className="mb-3 text-base font-semibold text-gray-900">Upload Documents</h3>
+          <h3 id="edit-step-5" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Upload Documents</h3>
           <div className="grid grid-cols-1 gap-4">
             {documentItems
               .filter(([key]) => key === "photo" || employeeCreateDocumentFields.some(([field]) => field === key) || (key === "salarySlips" ? employee?.documents?.salarySlips?.length : employee?.documents?.[key]?.url))
@@ -1350,7 +1354,7 @@ const EmployeeDetail = () => {
           <p className="mt-3 text-xs text-gray-500">Documents selected here will be uploaded when you click “Save Changes”.</p>
         </div>
         <div className="mt-5 border-t border-gray-100 pt-4">
-          <h3 className="mb-3 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
+          <h3 id="edit-step-3" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
             <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
             <InputField label="Bank Holder Name" name="bankHolderName" value={editForm.bankHolderName} onChange={handleEditFieldChange} />
@@ -1366,11 +1370,11 @@ const EmployeeDetail = () => {
         </div>
 
         <div className="mt-5 border-t border-gray-100 pt-4">
-          <h3 className="mb-3 text-base font-semibold text-gray-900">Address</h3>
+          <h3 id="edit-step-4" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Address</h3>
           <div className="space-y-5"><div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Permanent Address</h3><label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600"><input type="checkbox" checked={JSON.stringify(editForm.alternateAddress || {}) === JSON.stringify(editForm.permanentAddress || {})} onChange={(event) => { if (event.target.checked) setEditForm((current) => ({ ...current, alternateAddress: { ...(current.permanentAddress || {}) } })); }} /> Set as Alternative / Current Address</label></div><AddressFields value={editForm.permanentAddress} onChange={(event) => handleAddressChange(event, "permanentAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div><div><h3 className="mb-2 font-semibold">Alternative / Current Address</h3><AddressFields value={editForm.alternateAddress} onChange={(event) => handleAddressChange(event, "alternateAddress")} errors={editErrors} className="border-0 p-0 md:grid-cols-3 xl:grid-cols-5" /></div></div>
         </div>
         <div className="mt-5 border-t border-gray-100 pt-4">
-          <h3 className="mb-3 text-base font-semibold text-gray-900">Employee Checklists</h3>
+          <h3 id="edit-step-6" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Employee Checklists</h3>
           <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
         </div>
         </div>
@@ -1500,7 +1504,7 @@ const EmployeeDetail = () => {
           {documentItems.map(([key, label]) => {
             const item = Array.isArray(employee.documents?.[key]) ? employee.documents[key][0] : employee.documents?.[key];
             if (!item?.url) return null;
-            return <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><span className="font-medium text-gray-800 dark:text-gray-100">{label}</span><div className="flex gap-2"><button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>{hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}</div></div>;
+            return <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><span className="font-medium text-gray-800 dark:text-gray-100">{label}</span><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>{hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}{canManageDocuments && <button type="button" onClick={() => document.getElementById(`${key}-file-upload`)?.click()} className="inline-flex items-center gap-1.5 rounded-sm border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 dark:border-gray-600 dark:text-green-300 dark:hover:bg-gray-800">Update</button>}</div></div>;
           })}
           {!documentItems.some(([key]) => { const item = employee.documents?.[key]; return Array.isArray(item) ? item.length > 0 : Boolean(item?.url); }) && <p className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">No uploaded documents found.</p>}
           </div>

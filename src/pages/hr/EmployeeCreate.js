@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { FiPlus } from "react-icons/fi";
 import { authApi, hrApi } from "../../api";
 import AddressFields from "../../components/common/AddressFields";
@@ -55,6 +55,8 @@ const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 
 const EmployeeCreate = () => {
+  const { employeeId } = useParams();
+  const isEditMode = Boolean(employeeId);
   const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
@@ -65,6 +67,7 @@ const EmployeeCreate = () => {
   const { createEmployee } = useEmployee();
   const toast = useToast();
   const navigate = useNavigate();
+  const [editLoading, setEditLoading] = useState(false);
   const draftKey = user?._id || user?.id || user?.email;
   const [loadedDraftKey, setLoadedDraftKey] = useState(null);
   const [draftStatus, setDraftStatus] = useState("Loading draft…");
@@ -72,7 +75,7 @@ const EmployeeCreate = () => {
   const draftReady = Boolean(draftKey && loadedDraftKey === draftKey);
 
   useEffect(() => {
-    if (!draftKey || !["hr", "superadmin"].includes(user?.role)) return;
+    if (isEditMode || !draftKey || !["hr", "superadmin"].includes(user?.role)) return;
     let active = true;
     draftFinished.current = false;
     setLoadedDraftKey(null);
@@ -87,18 +90,35 @@ const EmployeeCreate = () => {
       if (active) setDraftStatus("Browser draft storage is unavailable. Keep this page open to avoid losing changes.");
     }).finally(() => { if (active) setLoadedDraftKey(draftKey); });
     return () => { active = false; };
-  }, [draftKey, user?.role]);
+  }, [draftKey, user?.role, isEditMode]);
 
   useEffect(() => {
-    if (!draftReady || draftFinished.current) return;
+    if (isEditMode || !draftReady || draftFinished.current) return;
     const { password, ...draftForm } = form;
     let active = true;
     employeeDraft("put", draftKey, { form: draftForm, step, updatedAt: Date.now() }).catch(() => {
       if (active) setDraftStatus("Draft could not be saved in this browser. Keep this page open to avoid losing changes.");
     });
     return () => { active = false; };
-  }, [form, step, draftKey, draftReady]);
+  }, [form, step, draftKey, draftReady, isEditMode]);
   const employeesPath = user?.role === "superadmin" ? "/admin/employees" : "/hr/employees";
+
+  useEffect(() => {
+    if (!isEditMode || !employeeId) return;
+    let active = true;
+    setEditLoading(true);
+    hrApi.getEmployee(employeeId).then((response) => {
+      if (!active) return;
+      const data = response.data?.data || {};
+      setForm((current) => ({ ...current, ...data, password: "", photo: null, documents: {},
+        qualifications: (data.qualifications || []).map((item) => ({ ...item, id: item.id || crypto.randomUUID(), documents: item.documents || {} })),
+        previousEmployments: (data.previousEmployments || []).map((item, index, items) => ({ ...item, id: item.id || crypto.randomUUID(), documents: item.documents || {}, isLastCompany: items.some((entry) => entry.isLastCompany) ? Boolean(item.isLastCompany) : index === items.length - 1 })),
+        permanentAddress: data.permanentAddress || current.permanentAddress,
+        alternateAddress: data.alternateAddress || current.alternateAddress,
+      }));
+    }).catch(() => toast.error("Unable to load employee for editing")).finally(() => { if (active) setEditLoading(false); });
+    return () => { active = false; };
+  }, [employeeId, isEditMode, toast]);
   const departmentOptions = useMemo(() => [...new Set(
     departments.map((department) => String(department.name || "").trim()).filter(Boolean)
   )].sort(), [departments]);
@@ -218,7 +238,7 @@ const EmployeeCreate = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!form.password) {
+    if (!isEditMode && !form.password) {
       setStep(1);
       toast.error("Please enter the temporary password before adding the employee.");
       return;
@@ -227,7 +247,7 @@ const EmployeeCreate = () => {
     if (error) { setStep(5); toast.error(error); return; }
     setSaving(true);
     try {
-      await createEmployee({
+      const payload = {
         ...form,
         previousEmployments: form.experienceType === "Experienced" ? form.previousEmployments : [],
         totalExperienceYears: form.experienceType === "Experienced" ? form.totalExperienceYears : 0,
@@ -236,11 +256,17 @@ const EmployeeCreate = () => {
         chequeBankName: form.bankName,
         name: `${form.firstName.trim()} ${form.middleName.trim()} ${form.lastName.trim()}`.replace(/\s+/g, " ").trim(),
         hrFileNo: undefined,
-      });
+      };
+      if (isEditMode) {
+        const { password, photo, documents, ...profilePayload } = payload;
+        await hrApi.updateEmployee(employeeId, profilePayload);
+        const documentPayload = { ...documents, ...(photo ? { photo } : {}) };
+        if (Object.keys(documentPayload).length) await hrApi.updateEmployeeDocuments(employeeId, documentPayload);
+      } else await createEmployee(payload);
       draftFinished.current = true;
       try { await employeeDraft("delete", draftKey); }
       catch { toast.warning("Employee saved, but the browser draft could not be cleared."); }
-      toast.success("Employee added successfully");
+      toast.success(isEditMode ? "Employee updated successfully" : "Employee added successfully");
       navigate(employeesPath, { replace: true });
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to add employee");
@@ -253,19 +279,19 @@ const EmployeeCreate = () => {
     return <Navigate to={employeesPath} replace />;
   }
 
-  if (!draftReady && draftKey) return <div className="p-4 text-sm" role="status">Loading employee draft…</div>;
+  if ((!isEditMode && !draftReady && draftKey) || editLoading) return <div className="p-4 text-sm" role="status">Loading employee details…</div>;
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 p-2 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Add Employee</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Create an employee profile and login access.</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{isEditMode ? "Edit Employee" : "Add Employee"}</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{isEditMode ? "Update employee details step by step." : "Create an employee profile and login access."}</p>
         </div>
         <Button variant="secondary" text="Back to Employees" onClick={() => navigate(employeesPath)} />
       </div>
 
-      <p role="status" className="text-xs text-gray-500 dark:text-gray-400">{draftKey ? draftStatus : "Draft saving requires a signed-in account."} Temporary passwords are not stored.</p>
+      {!isEditMode && <p role="status" className="text-xs text-gray-500 dark:text-gray-400">{draftKey ? draftStatus : "Draft saving requires a signed-in account."} Temporary passwords are not stored.</p>}
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-gray-100 bg-white p-2 dark:border-gray-800 dark:bg-gray-900">
         {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => (
           <button type="button" key={label} onClick={() => setStep(index + 1)} className={`min-w-[125px] flex-1 rounded-lg border px-3 py-3 text-xs font-semibold transition ${step === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 bg-white text-gray-600 hover:bg-[#fff1ed] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
@@ -294,7 +320,7 @@ const EmployeeCreate = () => {
             <InputField label="Alternate Mobile" name="altMobile" type="tel" value={form.altMobile} onChange={handleChange} />
             <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" value={form.emergencyNumber} onChange={handleChange} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Login and identity</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
-            <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />
+            {!isEditMode && <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />}
           </>
         ) : null}
 
@@ -377,7 +403,7 @@ const EmployeeCreate = () => {
         <div className="flex justify-between border-t border-gray-100 pt-4 dark:border-gray-800 md:col-span-3">
           <Button type="button" variant="secondary" text="Previous" disabled={step === 1} onClick={() => setStep((value) => Math.max(1, value - 1))} />
           <div className="flex gap-2">
-            {step < 7 ? <Button type="button" text="Next" onClick={nextStep} /> : <Button type="submit" text="Add Employee" loading={saving} className="min-w-40" />}
+            {step < 7 ? <Button type="button" text="Next" onClick={nextStep} /> : <Button type="submit" text={isEditMode ? "Update Employee" : "Add Employee"} loading={saving} className="min-w-40" />}
           </div>
         </div>
       </form>
