@@ -148,7 +148,7 @@ const documentLabelMap = {
 const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "leaves", "documents", "documentSignatures"];
   if (canManage) availableTabs.push("edit");
-  if (isSuperAdmin) availableTabs.push("credentials", "access");
+  if (isSuperAdmin) availableTabs.push("credentials", "access", "versionHistory");
   if (canManage) availableTabs.push("security");
   if (canManage) availableTabs.push("actions");
   if (canManage) availableTabs.push("reviewsSalary");
@@ -941,6 +941,7 @@ const EmployeeDetail = () => {
     { value: "attendance", label: "Attendance" },
     ...(hrCanViewModule("leaveReports") ? [{ value: "leaves", label: "Leaves" }] : []),
     ...(hrCanViewModule("employeeDocuments") ? [{ value: "documents", label: "Documents" }] : []),
+    ...(user?.role === "superadmin" ? [{ value: "versionHistory", label: "Version History" }] : []),
     ...(hrCanViewModule("documents") ? [{ value: "documentSignatures", label: "Documents & Signatures" }] : []),
     ...(canManage && hrCanViewModule("employeeSecurity") ? [{ value: "security", label: "Security" }] : []),
     ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }] : []),
@@ -1514,7 +1515,6 @@ const EmployeeDetail = () => {
           {!documentItems.some(([key]) => { const item = employee.documents?.[key]; return Array.isArray(item) ? item.length > 0 : Boolean(item?.url); }) && <p className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">No uploaded documents found.</p>}
           </div>
         </div>
-        {user?.role === "superadmin" && <EmployeeDocumentHistory employee={employee} documentItems={documentItems} onView={setDocumentPreview} onDownload={downloadEmployeeDocument} canDownload={hrCanDownloadModule("employeeDocuments")} />}
         {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-8 border-t-2 border-gray-200 pt-6 dark:border-gray-700">
           <div className="mb-5"><h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Upload / Replace Documents</h3><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Choose files below, then select Save Documents to upload your changes.</p></div>
           <div className="space-y-7">{[
@@ -1526,6 +1526,10 @@ const EmployeeDetail = () => {
           ].map(([title, keys]) => <section key={title}>
             <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{documentItems.filter(([key]) => keys.includes(key)).map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div></section>)}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+      </section>}
+
+      {user?.role === "superadmin" && activeTab === "versionHistory" && <section id="versionHistory-panel" role="tabpanel" aria-labelledby="versionHistory-tab" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <EmployeeDocumentHistory employee={employee} documentItems={documentItems} onView={setDocumentPreview} onDownload={downloadEmployeeDocument} canDownload={hrCanDownloadModule("employeeDocuments")} />
       </section>}
 
       {hrCanViewModule("documents") && activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
