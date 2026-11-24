@@ -323,6 +323,8 @@ const Departments = () => {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <MasterOptionsSection type="bloodGroup" title="Blood Group Master" description="Blood groups available in employee forms." />
+          <MasterOptionsSection type="gender" title="Gender Master" description="Gender values available in employee add and update forms." />
+          <MasterOptionsSection type="qualification" title="Qualification Master" description="Qualification levels used for employee education records." />
           <MasterOptionsSection type="employeeType" title="Employment Type Master" description="Permanent, probation, internship, and custom types." />
           <MasterOptionsSection type="designation" title="Designation Master" description="Job designations available in employee forms." />
           <MasterOptionsSection type="trainingPeriod" title="Probation Period Master" description="Probation periods such as 1, 3, or 6 months." />

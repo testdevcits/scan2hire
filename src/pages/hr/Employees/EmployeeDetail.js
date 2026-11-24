@@ -69,6 +69,8 @@ const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve
     canvas.width = targetWidth;
     canvas.height = targetHeight;
     const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, targetWidth, targetHeight);
     const scale = Math.max(targetWidth / image.width, targetHeight / image.height);
     const width = image.width * scale;
     const height = image.height * scale;
@@ -194,9 +196,14 @@ const EmployeeDetail = () => {
     department: "",
     designation: "",
     dob: "",
+    celebrateDob: "",
     dateOfJoining: "",
     gender: "Other",
     employeeType: "Probation",
+    experienceType: "Fresher",
+    totalExperienceYears: "",
+    previousEmployments: [],
+    qualifications: [],
     attendanceMode: "office",
     teamLead: "",
     reportingManager: "",
@@ -231,7 +238,7 @@ const EmployeeDetail = () => {
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
+  const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], gender: [], qualification: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
   const [documentFiles, setDocumentFiles] = useState({});
   const [existingDocumentFiles, setExistingDocumentFiles] = useState({});
   const [documentErrors, setDocumentErrors] = useState({});
@@ -376,6 +383,8 @@ const EmployeeDetail = () => {
         setDepartments(departmentsRes?.data?.data || []);
         const masters = await Promise.all([
           authApi.getMasterOptions("bloodGroup"),
+          authApi.getMasterOptions("gender"),
+          authApi.getMasterOptions("qualification"),
           authApi.getMasterOptions("employeeType"),
           authApi.getMasterOptions("designation"),
           authApi.getMasterOptions("trainingPeriod"),
@@ -383,10 +392,12 @@ const EmployeeDetail = () => {
         ]);
         setMasterOptions({
           bloodGroup: masters[0].data.data || [],
-          employeeType: masters[1].data.data || [],
-          designation: masters[2].data.data || [],
-          trainingPeriod: masters[3].data.data || [],
-          bondPeriod: masters[4].data.data || [],
+          gender: masters[1].data.data || [],
+          qualification: masters[2].data.data || [],
+          employeeType: masters[3].data.data || [],
+          designation: masters[4].data.data || [],
+          trainingPeriod: masters[5].data.data || [],
+          bondPeriod: masters[6].data.data || [],
         });
       }
       setEditForm({
@@ -405,9 +416,14 @@ const EmployeeDetail = () => {
         department: employeeData.department || "",
         designation: employeeData.designation || "",
         dob: employeeData.dob ? employeeData.dob.slice(0, 10) : "",
+        celebrateDob: employeeData.celebrateDob ? employeeData.celebrateDob.slice(0, 10) : "",
         dateOfJoining: employeeData.dateOfJoining ? employeeData.dateOfJoining.slice(0, 10) : "",
         gender: employeeData.gender || "Other",
         employeeType: employeeData.employeeType || "Probation",
+        experienceType: employeeData.experienceType || "Fresher",
+        totalExperienceYears: employeeData.totalExperienceYears ?? "",
+        previousEmployments: employeeData.previousEmployments || [],
+        qualifications: employeeData.qualifications || [],
         attendanceMode: employeeData.attendanceMode || "office",
         teamLead: employeeData.reportingManagerUser ? `hr:${employeeData.reportingManagerUser._id || employeeData.reportingManagerUser}` : employeeData.teamLead?._id || employeeData.teamLead || "",
         reportingManager: employeeData.reportingManager || "",
@@ -632,6 +648,7 @@ const EmployeeDetail = () => {
         address: Object.fromEntries(Object.entries(editForm.address).map(([key, value]) => [key, value.trim()])),
         permanentAddress: Object.fromEntries(Object.entries(editForm.permanentAddress).map(([key, value]) => [key, value.trim()])),
         alternateAddress: Object.fromEntries(Object.entries(editForm.alternateAddress).map(([key, value]) => [key, value.trim()])),
+        chequeBankName: editForm.bankName,
       };
       await hrApi.updateEmployee(employeeId, payload);
       const documentEntries = Object.entries(documentFiles).filter(([, file]) => file);
@@ -988,6 +1005,7 @@ const EmployeeDetail = () => {
             <DetailItem icon={<FiBriefcase />} label="Department" value={detailFallback(employee.department)} />
             <DetailItem icon={<FiUser />} label="Designation" value={detailFallback(employee.designation)} />
             <DetailItem icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
+            <DetailItem icon={<FiCalendar />} label="Celebrate DOB" value={formatDate(employee.celebrateDob || employee.dob)} />
             <DetailItem icon={<FiCalendar />} label="Joining Date" value={formatDate(employee.dateOfJoining)} />
             <DetailItem icon={<FiUserCheck />} label="Reporting Manager" value={employee.reportingManagerUser?.name || (employee.teamLead?.name ? `${employee.teamLead.name} (${employee.teamLead.employeeId || "-"})` : detailFallback(employee.reportingManager))} />
             <DetailItem
@@ -1104,14 +1122,19 @@ const EmployeeDetail = () => {
           label="Gender"
           value={editForm.gender || "Other"}
           onChange={(value) => setEditForm((current) => ({ ...current, gender: value }))}
-          options={["Male", "Female", "Other"]}
+          options={masterOptions.gender.length ? masterOptions.gender : ["Male", "Female", "Other"]}
         />
         <CalendarPicker
           label="Date of Birth"
           mode="date"
           value={editForm.dob}
-          onChange={(value) => setEditForm((current) => ({ ...current, dob: value }))}
+          onChange={(value) => setEditForm((current) => ({ ...current, dob: value, celebrateDob: current.celebrateDob === current.dob ? value : current.celebrateDob }))}
         />
+        <label className="flex items-center gap-2 self-end pb-2 text-sm text-gray-600 dark:text-gray-300">
+          <input type="checkbox" checked={Boolean(editForm.dob && editForm.celebrateDob === editForm.dob)} onChange={(event) => setEditForm((current) => ({ ...current, celebrateDob: event.target.checked ? current.dob : "" }))} />
+          Set as Celebrate DOB
+        </label>
+        <CalendarPicker label="Celebrate DOB" mode="date" value={editForm.celebrateDob} onChange={(value) => setEditForm((current) => ({ ...current, celebrateDob: value }))} />
         <CustomDropdown
           label="Department"
           value={editForm.department}
@@ -1124,6 +1147,12 @@ const EmployeeDetail = () => {
           error={editErrors.department}
         />
         <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
+        <CustomDropdown label="Experience" value={editForm.experienceType} onChange={(value) => setEditForm((current) => ({ ...current, experienceType: value, previousEmployments: value === "Fresher" ? [] : current.previousEmployments }))} options={["Fresher", "Experienced"]} />
+        {editForm.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" name="totalExperienceYears" type="number" value={editForm.totalExperienceYears} onChange={handleEditFieldChange} /> : null}
+        <div className="md:col-span-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div className="mb-2 flex items-center justify-between"><p className="text-sm font-semibold">Qualifications</p><button type="button" className="text-xs font-semibold text-[#f84525]" onClick={() => setEditForm((current) => ({ ...current, qualifications: [...(current.qualifications || []), { level: "", course: "", institute: "", passingYear: "" }] }))}>Add Qualification</button></div>
+          {(editForm.qualifications || []).map((item, index) => <div className="mb-2 grid gap-2 md:grid-cols-4" key={index}>{["level", "course", "institute", "passingYear"].map((key) => <input key={key} className="rounded-md border border-gray-200 px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-800" placeholder={key === "level" ? "10th / Graduation" : key} value={item[key] || ""} onChange={(event) => setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((entry, entryIndex) => entryIndex === index ? { ...entry, [key]: event.target.value } : entry) }))} />)}</div>)}
+        </div>
         <CustomDropdown
           label="Reporting Manager"
           value={editForm.teamLead}
@@ -1277,7 +1306,6 @@ const EmployeeDetail = () => {
             <InputField label="Cheque Number" name="chequeNumber" value={editForm.chequeNumber} onChange={handleEditFieldChange} />
             <InputField label="Cheque Account Number" name="chequeAccountNumber" value={editForm.chequeAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Cheque Amount" name="chequeAmount" value={editForm.chequeAmount} onChange={handleEditFieldChange} />
-            <InputField label="Cheque Bank Name" name="chequeBankName" value={editForm.chequeBankName} onChange={handleEditFieldChange} />
             <CalendarPicker label="Cheque Date" mode="date" value={editForm.chequeDate} onChange={(value) => setEditForm((current) => ({ ...current, chequeDate: value }))} />
             <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 md:mt-[22px] dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(editForm.salaryOnHold)} onChange={(event) => setEditForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
           </div>
