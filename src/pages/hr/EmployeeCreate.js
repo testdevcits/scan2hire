@@ -60,6 +60,7 @@ const EmployeeCreate = () => {
   const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [reportingManagerOptions, setReportingManagerOptions] = useState([]);
   const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], gender: [], qualification: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
@@ -122,12 +123,7 @@ const EmployeeCreate = () => {
   const departmentOptions = useMemo(() => [...new Set(
     departments.map((department) => String(department.name || "").trim()).filter(Boolean)
   )].sort(), [departments]);
-  const teamLeadOptions = useMemo(
-    () => employeeOptions
-      .filter((item) => item.workRole === "teamlead" || item.user?.role === "teamlead")
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
-    [employeeOptions]
-  );
+  const teamLeadOptions = useMemo(() => reportingManagerOptions.length ? reportingManagerOptions : employeeOptions.filter((item) => item.workRole === "teamlead" || item.user?.role === "teamlead"), [employeeOptions, reportingManagerOptions]);
 
   useEffect(() => {
     if (user?.role !== "hr" && user?.role !== "superadmin") return;
@@ -141,8 +137,9 @@ const EmployeeCreate = () => {
       authApi.getMasterOptions("trainingPeriod"),
       authApi.getMasterOptions("bondPeriod"),
       hrApi.getEmployees(),
+      hrApi.getReportingManagers(),
     ])
-      .then(([departmentResponse, bloodResponse, genderResponse, qualificationResponse, typeResponse, designationResponse, trainingResponse, bondResponse, employeesResponse]) => {
+      .then(([departmentResponse, bloodResponse, genderResponse, qualificationResponse, typeResponse, designationResponse, trainingResponse, bondResponse, employeesResponse, managersResponse]) => {
         setDepartments(departmentResponse.data.data || []);
         setMasterOptions({
           bloodGroup: (bloodResponse.data.data || []).map((item) => item.name),
@@ -154,6 +151,7 @@ const EmployeeCreate = () => {
           bondPeriod: (bondResponse.data.data || []).map((item) => item.name),
         });
         setEmployeeOptions(employeesResponse?.data?.data || []);
+        setReportingManagerOptions(managersResponse?.data?.data || []);
       })
       .catch(() => setDepartments([]));
   }, [user?.role]);
