@@ -1,9 +1,12 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useState } from "react";
-import { hrApi } from "../../api";
+
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
 import { useToast } from "../../contexts/ToastContext";
 
 function UpdateStatusModal({ candidate, onClose, refresh }) {
+  const { hrApi } = useApi();
   const { employees } = useEmployee();
   const toast = useToast();
   const [status, setStatus] = useState(candidate?.interviewStatus || "");

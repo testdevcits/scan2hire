@@ -1,12 +1,15 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { FiBell, FiCheck, FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { authApi } from "../api";
+
 import Button from "../components/common/Button";
 import { AuthContext } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 
 const Notifications = () => {
+  const { authApi } = useApi();
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();

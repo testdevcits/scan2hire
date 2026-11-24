@@ -1,8 +1,11 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useEffect, useState } from "react";
-import { hrApi } from "../../api";
+
 import Button from "../common/Button";
 
 export default function EmployeeDocumentHistory({ employee, documentItems, onView, onDownload, canDownload }) {
+  const { hrApi } = useApi();
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

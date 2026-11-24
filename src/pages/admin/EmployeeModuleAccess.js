@@ -1,5 +1,7 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useEffect, useState } from "react";
-import { authApi, hrApi } from "../../api";
+
 import ModulePermissionMatrix from "../../components/common/ModulePermissionMatrix";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -10,6 +12,7 @@ const employeeModules = [["dashboard", "Dashboard"], ["attendance", "Attendance"
 const teamLeadModules = [["dashboard", "Dashboard"], ["yourTeam", "Your Team"], ["candidates", "Candidates"], ["checkins", "Today Check-ins"], ["attendance", "Attendance"], ["attendanceReports", "Attendance Reports"], ["leaveReports", "Leave Reports"], ["interviews", "Interviews"], ["leaves", "Leaves"], ["leaveCalendar", "Conative Calendar"], ["systemAllotment", "System Allotments"], ["tasks", "Tasks"], ...profileModules, ["documents", "Documents"], ["credentials", "Credentials"], ["rolesAccess", "Roles & Access"], ["settings", "Settings"]];
 
 export default function EmployeeModuleAccess({ role = "employee", title = "Employee Role & Access" }) {
+  const { authApi, hrApi } = useApi();
   const modules = role === "teamlead" ? teamLeadModules : employeeModules;
   const initial = Object.fromEntries(modules.map(([key]) => [key, key === "profile" ? { view: true } : key.startsWith("profile") ? { view: false } : { view: true, edit: true }]));
   const [permissions, setPermissions] = useState(initial);

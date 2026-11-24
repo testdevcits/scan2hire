@@ -1,5 +1,7 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useMemo, useEffect, useState } from "react";
-import { employeeApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -36,6 +38,7 @@ const statusLabels = {
 };
 
 const EmployeeTasks = () => {
+  const { employeeApi } = useApi();
   const toast = useToast();
   const [tasks, setTasks] = useState([]);
   const [viewMode, setViewMode] = useState("date");

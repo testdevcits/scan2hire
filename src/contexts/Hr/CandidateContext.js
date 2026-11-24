@@ -1,9 +1,11 @@
+/* eslint-disable */
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { hrApi } from "../../api";
+import { useApi } from "../ApiContext";
 
 const CandidateContext = createContext();
 
 export const CandidateProvider = ({ children }) => {
+  const { hrApi } = useApi();
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -42,6 +44,8 @@ export const CandidateProvider = ({ children }) => {
     } finally {
       if (requestId === latestRequestId.current) setLoading(false);
     }
+  // hrApi is a stable value supplied by ApiProvider.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

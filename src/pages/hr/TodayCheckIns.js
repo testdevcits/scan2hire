@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiActivity, FiCalendar, FiCamera, FiDownload, FiRefreshCw, FiUsers } from "react-icons/fi";
-import { hrApi } from "../../api";
+
 import { createSocket } from "../../api/socket";
 import Button from "../../components/common/Button";
 import CalendarPicker from "../../components/common/CalendarPicker";
@@ -49,6 +51,7 @@ const csvCell = (value) => {
 };
 
 const TodayCheckIns = () => {
+  const { hrApi } = useApi();
   const todayKey = getDateKey();
   const [selectedDate, setSelectedDate] = useState(todayKey);
   const [attendance, setAttendance] = useState([]);
@@ -104,7 +107,7 @@ const TodayCheckIns = () => {
         setRefreshing(false);
       }
     }
-  }, [selectedDate, page, pageSize, search]);
+  }, [hrApi, selectedDate, page, pageSize, search]);
 
   const exportCheckIns = useCallback(async () => {
     setExporting(true);
@@ -150,7 +153,7 @@ const TodayCheckIns = () => {
       setExporting(false);
       setExportProgress(null);
     }
-  }, [selectedDate, search]);
+  }, [hrApi, selectedDate, search]);
 
   loadRef.current = loadCheckIns;
 

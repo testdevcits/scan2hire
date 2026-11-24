@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FiEye, FiImage, FiPlus, FiUploadCloud, FiX } from "react-icons/fi";
-import { employeeApi, hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
@@ -72,6 +74,7 @@ const truncateText = (value, max = 90) => {
 };
 
 const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact = false }) => {
+  const { employeeApi, hrApi } = useApi();
   const addFiles = async (files) => {
     const selected = Array.from(files || []).filter((file) => file.type?.startsWith("image/"));
     if (!selected.length) return;

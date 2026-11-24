@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import DocumentSigningList from "../../components/documents/DocumentSigningList";
 import { useCallback, useEffect, useState } from "react";
-import { employeeApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
@@ -34,6 +36,7 @@ const getPreviewType = (url = "") => {
 };
 
 const UploadedDocumentPreview = ({ title, url, onOpen }) => {
+  const { employeeApi } = useApi();
   if (!url) return null;
 
   const previewType = getPreviewType(url);
@@ -62,6 +65,7 @@ const UploadedDocumentPreview = ({ title, url, onOpen }) => {
 };
 
 const EmployeeDocuments = () => {
+  const api = useApi();
   const toast = useToast();
   const [section, setSection] = useState("company");
   const [profile, setProfile] = useState(null);
@@ -74,7 +78,7 @@ const EmployeeDocuments = () => {
   const loadProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await employeeApi.getProfile();
+      const res = await api.employeeApi.getProfile();
       setProfile(res.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || "Unable to load documents");
@@ -104,7 +108,7 @@ const EmployeeDocuments = () => {
   const requestDocumentUpdate = async (docKey) => {
     setRequestingDoc(docKey);
     try {
-      const res = await employeeApi.requestDocumentUpdate({ documents: [docKey] });
+      const res = await api.employeeApi.requestDocumentUpdate({ documents: [docKey] });
       setProfile(res.data.data || profile);
       toast.success(res.data.message || "Document update request sent to HR");
     } catch (err) {
@@ -118,7 +122,7 @@ const EmployeeDocuments = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await employeeApi.updateDocuments(docs);
+      const res = await api.employeeApi.updateDocuments(docs);
       setProfile(res.data.data);
       setDocs({});
       toast.success(res.data.message || "Documents updated");

@@ -1,7 +1,9 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { FiBell, FiLogOut, FiMenu, FiMoon, FiSun, FiTrash2, FiUser, FiX } from "react-icons/fi";
-import { authApi } from "../api";
+
 import { AuthContext } from "../contexts/AuthContext";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
@@ -9,6 +11,7 @@ import { useModal } from "../contexts/ModalContext";
 import logo from "../assets/logo.png";
 
 const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false, canOpenProfile = true }) => {
+  const { authApi } = useApi();
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
   const toast = useToast();

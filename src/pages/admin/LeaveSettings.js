@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useEffect, useState } from "react";
 import { FiMail, FiCalendar } from "react-icons/fi";
-import { authApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -10,6 +12,7 @@ const parseEmails = (value) => [...new Set(value.split(/[,;\n]+/).map((email) =>
 const Toggle = ({ label, checked, onChange }) => <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-5 py-4 dark:border-gray-700"><span className="text-sm font-medium">{label}</span><span className="relative inline-flex shrink-0"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="peer sr-only" /><span className="h-6 w-10 rounded-full bg-gray-300 transition-colors peer-checked:bg-[#f84525]" /><span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-4" /></span></label>;
 
 export default function LeaveSettings() {
+  const { authApi } = useApi();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

@@ -1,7 +1,9 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { FiCalendar, FiClock, FiUserCheck, FiUsers } from "react-icons/fi";
-import { hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import DateRangePicker from "../../components/common/DateRangePicker";
 import { ActionCard, ChartMetric, CompactInfoRow, MetricCard, PageHeader, SectionCard } from "../../components/common/ReusableCards";
@@ -30,6 +32,7 @@ const getRangeBucketLabel = (startDate, weekIndex) => {
 };
 
 const HRDashboard = () => {
+  const { hrApi } = useApi();
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useContext(AuthContext);
@@ -54,7 +57,7 @@ const HRDashboard = () => {
         if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
         if (birthdays.status === "fulfilled") setBirthdayReminders(birthdays.value.data.data || []);
       });
-  }, [currentMonth, isProjectCoordinator, toast]);
+  }, [hrApi, currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();
 

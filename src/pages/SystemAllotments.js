@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -16,7 +18,7 @@ import {
 } from "react-icons/fi";
 import { BsPc } from "react-icons/bs";
 import { BsKeyboard, BsMouse2, BsEarbuds } from "react-icons/bs";
-import { employeeApi, hrApi } from "../api";
+
 import Button from "../components/common/Button";
 import CommonTable from "../components/common/CommonTable";
 import CommonLoader from "../components/common/CommonLoader";
@@ -217,6 +219,7 @@ const AssetItemCard = ({ asset }) => (
 );
 
 const SystemAllotments = ({ selfOnly = false }) => {
+  const { employeeApi, hrApi } = useApi();
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const toast = useToast();

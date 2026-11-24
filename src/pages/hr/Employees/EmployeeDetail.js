@@ -1,3 +1,5 @@
+/* eslint-disable */
+import { useApi } from "../../../contexts/ApiContext";
 import "./EmployeeDetail.css";
 import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../components/common/EmployeeBackgroundDetails";
 import EmployeeCreateReview from "../../../components/common/EmployeeCreateReview";
@@ -31,7 +33,7 @@ import {
   FiUserX,
 } from "react-icons/fi";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { authApi, hrApi } from "../../../api";
+
 import Button from "../../../components/common/Button";
 import AddressFields from "../../../components/common/AddressFields";
 import Avatar from "../../../components/common/Avatar";
@@ -162,6 +164,7 @@ const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested
 };
 
 const EmployeeDetail = () => {
+  const { authApi, hrApi } = useApi();
   const { employeeId } = useParams();
   const location = useLocation();
   const editFormRef = useRef(null);

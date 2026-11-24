@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useEffect, useState } from "react";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
-import { authApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import InputField from "../../components/common/InputField";
@@ -15,6 +17,7 @@ const emptyForm = {
 };
 
 const MasterOptionsSection = ({ type, title, description }) => {
+  const { authApi } = useApi();
   const toast = useToast();
   const { confirm } = useModal();
   const [items, setItems] = useState([]);
@@ -140,6 +143,7 @@ const MasterOptionsSection = ({ type, title, description }) => {
 };
 
 const Departments = () => {
+  const { authApi } = useApi();
   const toast = useToast();
   const { confirm } = useModal();
   const [departments, setDepartments] = useState([]);

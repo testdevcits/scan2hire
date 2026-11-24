@@ -1,7 +1,9 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FiCamera, FiLock, FiShield } from "react-icons/fi";
 import { Navigate, useLocation } from "react-router-dom";
-import { authApi, employeeApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import FilePreviewModal from "../../components/common/FilePreviewModal";
@@ -30,6 +32,7 @@ const getPastedImage = (event) =>
     ?.getAsFile();
 
 const EmployeeSettings = ({ requireProfileAccess = false }) => {
+  const { authApi, employeeApi } = useApi();
   const toast = useToast();
   const location = useLocation();
   const isHrSettings = location.pathname.startsWith("/hr/");

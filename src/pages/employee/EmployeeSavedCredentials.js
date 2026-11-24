@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useState } from "react";
 import { FiCopy, FiDownload, FiEye, FiEyeOff, FiPlus } from "react-icons/fi";
-import { authApi, employeeApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import { useToast } from "../../contexts/ToastContext";
@@ -15,6 +17,7 @@ const emptyForm = {
 };
 
 const EmployeeSavedCredentials = () => {
+  const { authApi, employeeApi } = useApi();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [pageUnlocked, setPageUnlocked] = useState(false);

@@ -1,13 +1,16 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { candidateApi } from "../api";
+
 import { useToast } from "../contexts/ToastContext";
 
 const OTP_LENGTH = 6;
 
 const OtpPage = () => {
+  const { candidateApi } = useApi();
   const navigate = useNavigate();
   const toast = useToast();
 

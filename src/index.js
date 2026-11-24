@@ -7,6 +7,7 @@ import reportWebVitals from "./reportWebVitals";
 
 // Import Providers
 import { AuthProvider } from "./contexts/AuthContext";
+import { ApiProvider } from "./contexts/ApiContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CandidateProvider } from "./contexts/Hr/CandidateContext";
 import { EmployeeProvider } from "./contexts/Hr/EmployeeContext"; // <-- new
@@ -17,17 +18,19 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <ThemeProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <ModalProvider>
-            <CandidateProvider>
-              <EmployeeProvider>
-                <App />
-              </EmployeeProvider>
-            </CandidateProvider>
-          </ModalProvider>
-        </ToastProvider>
-      </AuthProvider>
+      <ApiProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <ModalProvider>
+              <CandidateProvider>
+                <EmployeeProvider>
+                  <App />
+                </EmployeeProvider>
+              </CandidateProvider>
+            </ModalProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </ApiProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

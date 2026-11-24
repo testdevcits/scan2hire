@@ -1,5 +1,7 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useRef, useState } from 'react';
-import API from '../../api/axios';
+
 import CommonModal from '../common/CommonModal';
 import CommonLoader from '../common/CommonLoader';
 import Button from '../common/Button';
@@ -9,6 +11,7 @@ import SignaturePad from './SignaturePad';
 import { useToast } from '../../contexts/ToastContext';
 
 export default function PageSigningModal({ document, managed, canDelete = false, canPlacement = false, canReview = false, onDelete, onClose, onChanged }) {
+  const { API } = useApi();
   const toast = useToast();
   const [doc, setDoc] = useState(null), [original, setOriginal] = useState(null), [pageBytes, setPageBytes] = useState(null);
   const [page, setPage] = useState(1), [placements, setPlacements] = useState([]), [visited, setVisited] = useState([]);

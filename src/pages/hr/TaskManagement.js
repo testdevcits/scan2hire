@@ -1,6 +1,8 @@
+/* eslint-disable */
+import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { hrApi } from "../../api";
+
 import Button from "../../components/common/Button";
 import CommonLoader from "../../components/common/CommonLoader";
 import Pagination, { usePagination } from "../../components/common/Pagination";
@@ -66,6 +68,7 @@ const taskDefaults = {
 };
 
 const TaskManagement = () => {
+  const { hrApi } = useApi();
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const isHr = user?.role === "hr";

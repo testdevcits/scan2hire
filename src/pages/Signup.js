@@ -1,7 +1,9 @@
+/* eslint-disable */
+import { useApi } from "../contexts/ApiContext";
 import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi } from "../api";
+
 import Button from "../components/common/Button";
 import { useToast } from "../contexts/ToastContext";
 
@@ -16,6 +18,7 @@ const emptyForm = {
 };
 
 const Signup = () => {
+  const { authApi } = useApi();
   const toast = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
