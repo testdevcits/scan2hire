@@ -23,7 +23,7 @@ const CustomDropdown = ({
   compact = false,
   placement = "bottom",
   showPlaceholder = true,
-  portalMenu = false,
+  portalMenu = true,
 }) => {
   const wrapperRef = useRef(null);
   const buttonRef = useRef(null);
@@ -68,7 +68,7 @@ const CustomDropdown = ({
       const desiredHeight = Math.min(480, (filteredOptions.length + (showPlaceholder ? 1 : 0)) * 36 + (searchable ? 54 : 8));
       const openAbove = placement === "top"
         ? spaceAbove >= Math.min(desiredHeight, 160) || spaceAbove > spaceBelow
-        : spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+        : spaceBelow < Math.min(desiredHeight, 300) && spaceAbove > spaceBelow;
       const availableHeight = openAbove ? spaceAbove : spaceBelow;
       const maxHeight = Math.max(80, Math.min(480, availableHeight));
       const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
