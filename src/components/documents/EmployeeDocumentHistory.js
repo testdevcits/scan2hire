@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import Button from "../common/Button";
 
-export default function EmployeeDocumentHistory({ employee, documentItems, onView, onDownload, canDownload }) {
+export default function EmployeeDocumentHistory({ employee, documentItems, onView, onDownload, canDownload, canRestore }) {
   const { hrApi } = useApi();
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +46,7 @@ export default function EmployeeDocumentHistory({ employee, documentItems, onVie
           <td className="p-2">v{version.version} · {version.isLatest ? "Latest" : "Old"}</td>
           <td className="p-2">{version.uploadedAt ? new Date(version.uploadedAt).toLocaleString() : "Unknown"}</td>
           <td className="p-2">{version.uploadedByEmail || "Unknown"}</td>
-          <td className="p-2"><div className="flex gap-2"><Button text="View" disabled={!version.file?.url} onClick={() => onView({ label: `${label} · v${version.version}`, url: version.file.url, type: version.file.resource_type || version.file.format })} />{canDownload && <Button text="Download" variant="secondary" disabled={!version.file?.url} onClick={() => onDownload(version.file.url, `${label} v${version.version}`)} />}</div></td>
+          <td className="p-2"><div className="flex gap-2"><Button text="View" disabled={!version.file?.url} onClick={() => onView({ label: `${label} · v${version.version}`, url: version.file.url, type: version.file.resource_type || version.file.format })} />{canDownload && <Button text="Download" variant="secondary" disabled={!version.file?.url} onClick={() => onDownload(version.file.url, `${label} v${version.version}`)} />}{canRestore && !version.isLatest && <Button text="Restore" variant="secondary" onClick={() => canRestore(version)} />}</div></td>
         </tr>;
       })}</tbody>
     </table></div>}
