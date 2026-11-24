@@ -161,7 +161,7 @@ const EmployeeCreate = () => {
   const handleChange = (event) => {
     const { name, value } = event.target;
     if (["mobile", "altMobile"].includes(name) && !/^\d{0,10}$/.test(value)) return;
-    if (["firstName", "lastName"].includes(name)) {
+    if (["firstName", "middleName", "lastName", "fatherOrHusbandName"].includes(name)) {
       const titleCased = value.trimStart().replace(/(^|\s)([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
       setForm((current) => ({ ...current, [name]: titleCased }));
       return;

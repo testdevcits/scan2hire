@@ -816,7 +816,11 @@ const EmployeeDetail = () => {
 
   const handleEditFieldChange = (event) => {
     const { name, value } = event.target;
-    const nextValue = name.toLowerCase().includes("mobile") ? value.replace(/\D/g, "").slice(0, 10) : value;
+    const nextValue = name.toLowerCase().includes("mobile")
+      ? value.replace(/\D/g, "").slice(0, 10)
+      : ["firstName", "middleName", "lastName", "fatherOrHusbandName"].includes(name)
+        ? value.trimStart().replace(/(^|\s)([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`)
+        : value;
     setEditForm((current) => ({ ...current, [name]: nextValue }));
     setEditErrors((current) => ({ ...current, [name]: validateEditField(name, nextValue) }));
   };
