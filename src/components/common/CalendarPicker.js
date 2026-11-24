@@ -13,15 +13,16 @@ const todayKeyForZone = (date, timeZone) => timeZone
   : toKey(date);
 const fromKey = (value) => {
   if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day || 1);
+  const [year, month, day] = String(value).split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
 };
 
-const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName = "", className = "", error = "", inlineLabel = false, timeZone, disabled = false }) => {
+const CalendarPicker = ({ value, onChange, mode = "date", label, labelAddon = null, labelClassName = "", className = "", error = "", inlineLabel = false, timeZone, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
   const [visibleMonth, setVisibleMonth] = useState(() => fromKey(value) || new Date());
   const isMonth = mode === "month";
+  const isYear = mode === "year";
   const year = visibleMonth.getFullYear();
   const month = visibleMonth.getMonth();
   const monthNames = useMemo(() => Array.from({ length: 12 }, (_, index) => new Date(2024, index, 1).toLocaleDateString(undefined, { month: "long" })), []);
@@ -38,7 +39,7 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName 
   const weekdays = useMemo(() => Array.from({ length: 7 }, (_, index) => new Date(2024, 0, 7 + index).toLocaleDateString(undefined, { weekday: "short" })), []);
   const today = todayKeyForZone(new Date(), timeZone);
   const selected = fromKey(value);
-  const triggerText = selected
+  const triggerText = isYear ? (value ? String(value).slice(0, 4) : "Select year") : selected
     ? selected.toLocaleDateString(undefined, isMonth ? { month: "long", year: "numeric" } : { day: "2-digit", month: "short", year: "numeric" })
     : isMonth ? "Select month" : "Select date";
 
@@ -72,7 +73,7 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName 
   return (
     <>
       <div className={inlineLabel ? "flex w-full min-w-0 items-center gap-2" : "flex w-full min-w-0 flex-col"}>
-      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 block w-full text-left leading-5"} ${labelClassName || "font-medium text-sm text-gray-700 dark:text-gray-200 sm:text-base"}`}>{label}</span> : null}
+      {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 flex w-full items-center justify-between text-left leading-5"} ${labelClassName || "font-medium text-sm text-gray-700 dark:text-gray-200 sm:text-base"}`}><span>{label}</span>{labelAddon}</span> : null}
       <button type="button" onClick={openPicker} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} className={`inline-flex h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 transition hover:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-900 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
         <span className="flex min-w-0 items-center gap-2"><FiCalendar className="h-4 w-4 shrink-0 text-[#f84525]" /><span className="truncate">{triggerText}</span></span>
         <FiChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
@@ -83,10 +84,18 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName 
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-gray-950/55 p-3 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="calendar-picker-title" className="w-full max-w-[410px] overflow-hidden rounded-2xl border border-orange-100 bg-[#fffdfa] shadow-2xl dark:border-gray-700 dark:bg-gray-900">
             <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-[#f84525] to-[#f26a28] px-5 py-4 text-white">
-              <div><h2 id="calendar-picker-title" className="text-base font-semibold">Select {isMonth ? "Report Month" : "Date"}</h2><p className="mt-1 text-xs text-white/80">Choose a {isMonth ? "month" : "day"} to update the employee report.</p></div>
+              <div><h2 id="calendar-picker-title" className="text-base font-semibold">Select {isYear ? "Year" : isMonth ? "Report Month" : "Date"}</h2><p className="mt-1 text-xs text-white/80">Choose a {isYear ? "year" : isMonth ? "month" : "day"}.</p></div>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close calendar" className="rounded-md p-1.5 text-white/85 hover:bg-white/15"><FiX className="h-5 w-5" /></button>
             </header>
             <div className="p-4 sm:p-5">
+              {isYear ? <>
+                <div className="flex items-center justify-between gap-2">
+                  <button type="button" aria-label="Previous years" onClick={() => setVisibleMonth(new Date(year - 12, 0, 1))} className="rounded-lg p-2 text-[#f84525] hover:bg-orange-50"><FiChevronLeft /></button>
+                  <span className="text-sm font-semibold dark:text-gray-100">{Math.floor(year / 12) * 12} – {Math.floor(year / 12) * 12 + 11}</span>
+                  <button type="button" aria-label="Next years" onClick={() => setVisibleMonth(new Date(year + 12, 0, 1))} className="rounded-lg p-2 text-[#f84525] hover:bg-orange-50"><FiChevronRight /></button>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-2">{Array.from({ length: 12 }, (_, index) => Math.floor(year / 12) * 12 + index).map((item) => <button key={item} type="button" aria-pressed={draft === String(item)} onClick={() => setDraft(String(item))} className={`rounded-lg px-3 py-3 text-sm ${draft === String(item) ? "bg-[#f84525] font-semibold text-white" : "text-gray-700 hover:bg-orange-50 dark:text-gray-200 dark:hover:bg-gray-800"}`}>{item}</button>)}</div>
+              </> : <>
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setVisibleMonth(new Date(year, month - 1, 1))} aria-label="Previous month" className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-100 bg-white text-[#f84525] hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800"><FiChevronLeft /></button>
                 <div className="flex min-w-0 flex-1 justify-center gap-2">
@@ -112,8 +121,9 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelClassName 
                   })}
                 </div>
               )}
+              </>}
               <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-orange-100 pt-4 dark:border-gray-800">
-                <div className="flex gap-2"><button type="button" onClick={() => { const now = new Date(); const key = todayKeyForZone(now, timeZone); const todayDate = fromKey(key); setDraft(isMonth ? key.slice(0, 7) : key); setVisibleMonth(todayDate); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{isMonth ? "This month" : "Today"}</button><button type="button" onClick={() => { setDraft(""); onChange(""); setOpen(false); }} className="rounded-lg bg-orange-50 px-3 py-2 text-xs font-medium text-[#c6381e] hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200">Clear</button></div>
+                <div className="flex gap-2"><button type="button" onClick={() => { const now = new Date(); const key = todayKeyForZone(now, timeZone); const todayDate = fromKey(key); setDraft(isYear ? key.slice(0, 4) : isMonth ? key.slice(0, 7) : key); setVisibleMonth(todayDate); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:border-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{isYear ? "This year" : isMonth ? "This month" : "Today"}</button><button type="button" onClick={() => { setDraft(""); onChange(""); setOpen(false); }} className="rounded-lg bg-orange-50 px-3 py-2 text-xs font-medium text-[#c6381e] hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200">Clear</button></div>
                 <div className="ml-auto flex gap-2"><button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">Cancel</button><button type="button" onClick={apply} disabled={!draft} className="rounded-lg bg-[#f84525] px-4 py-2 text-xs font-semibold text-white hover:bg-[#d93a1e] disabled:cursor-not-allowed disabled:opacity-40">Apply</button></div>
               </footer>
             </div>

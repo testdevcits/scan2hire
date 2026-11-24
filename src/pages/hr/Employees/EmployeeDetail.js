@@ -1,3 +1,7 @@
+import { FiPlus } from "react-icons/fi";
+import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
+import EmploymentHistory from "../../../components/common/EmploymentHistory";
+import { newEmployment, lastCompanyDocumentFields } from "../../../utils/employmentFields";
 import { employeeRecordPermissions } from "../../../config/employeeRecordPermissions";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -211,6 +215,7 @@ const EmployeeDetail = () => {
     leavingDate: "",
     salary: "",
     salaryOnHold: false,
+    trainingPeriod: "",
     bondPeriodDuration: "",
     bankHolderName: "",
     bankName: "",
@@ -422,7 +427,7 @@ const EmployeeDetail = () => {
         employeeType: employeeData.employeeType || "Probation",
         experienceType: employeeData.experienceType || "Fresher",
         totalExperienceYears: employeeData.totalExperienceYears ?? "",
-        previousEmployments: employeeData.previousEmployments || [],
+        previousEmployments: (employeeData.previousEmployments || []).map((item) => ({ ...item, id: item.id || crypto.randomUUID() })),
         qualifications: employeeData.qualifications || [],
         attendanceMode: employeeData.attendanceMode || "office",
         teamLead: employeeData.reportingManagerUser ? `hr:${employeeData.reportingManagerUser._id || employeeData.reportingManagerUser}` : employeeData.teamLead?._id || employeeData.teamLead || "",
@@ -431,6 +436,7 @@ const EmployeeDetail = () => {
         leavingDate: employeeData.leavingDate ? employeeData.leavingDate.slice(0, 10) : "",
         salary: employeeData.salary || "",
         salaryOnHold: Boolean(employeeData.salaryOnHold),
+        trainingPeriod: employeeData.trainingPeriod || "",
         bondPeriodDuration: employeeData.bondPeriodDuration || "",
         bankHolderName: employeeData.bankHolderName || "",
         bankName: employeeData.bankName || "",
@@ -624,6 +630,26 @@ const EmployeeDetail = () => {
     finally { setSavingPassword(false); }
   };
 
+  const updateQualification = (index, key, value) => setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  const handleQualificationMarksheet = async (index, file) => {
+    if (!file) return;
+    const target = editForm.qualifications[index];
+    if (file.size > 5 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type)) { toast.error("Select a JPG, PNG, WEBP or PDF marksheet, up to 5 MB."); return; }
+    try {
+      const payload = { dataUri: await fileToDataUri(file), name: file.name, type: file.type };
+      setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((item) => (target.id ? item.id === target.id : item === target) ? { ...item, documents: { ...item.documents, marksheet: payload } } : item) }));
+    } catch { toast.error("Unable to read the selected marksheet."); }
+  };
+  const handleEmploymentFiles = async (companyId, key, files) => {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+    if (selected.length > 1 || selected.some((file) => file.size > 5 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type))) { toast.error("Choose one file per document, JPG/PNG/WEBP/PDF only, up to 5 MB."); return; }
+    if ((key === "salarySlips" || key === "bankStatement") && selected.some((file) => file.type !== "application/pdf")) { toast.error("Upload the last 3 months as one PDF for this document."); return; }
+    try {
+      const payloads = await Promise.all(selected.map(async (file) => ({ dataUri: await fileToDataUri(file), name: file.name, type: file.type })));
+      setEditForm((current) => ({ ...current, previousEmployments: current.previousEmployments.map((item) => item.id === companyId ? { ...item, documents: { ...item.documents, [key]: key === "salarySlips" ? payloads : payloads[0] } } : item) }));
+    } catch { toast.error("Unable to read company documents."); }
+  };
   const updateEmployee = async (e) => {
     e.preventDefault();
     const validationErrors = validateEditForm();
@@ -640,7 +666,7 @@ const EmployeeDetail = () => {
         teamLead: editForm.teamLead.startsWith("hr:") ? "" : editForm.teamLead,
         employeeId: editForm.employeeId.trim(),
         name: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
-        bankHolderName: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
+        bankHolderName: editForm.bankHolderName,
         mobile: editForm.mobile.trim(),
         altMobile: editForm.altMobile.trim(),
         department: editForm.department.trim(),
@@ -1147,11 +1173,22 @@ const EmployeeDetail = () => {
           error={editErrors.department}
         />
         <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
-        <CustomDropdown label="Experience" value={editForm.experienceType} onChange={(value) => setEditForm((current) => ({ ...current, experienceType: value, previousEmployments: value === "Fresher" ? [] : current.previousEmployments }))} options={["Fresher", "Experienced"]} />
+        <CustomDropdown label="Experience" value={editForm.experienceType} onChange={(value) => setEditForm((current) => ({ ...current, experienceType: value, previousEmployments: current.previousEmployments.length ? current.previousEmployments : value === "Experienced" ? [newEmployment(true)] : [] }))} options={["Fresher", "Experienced"]} />
         {editForm.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" name="totalExperienceYears" type="number" value={editForm.totalExperienceYears} onChange={handleEditFieldChange} /> : null}
-        <div className="md:col-span-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div className="mb-2 flex items-center justify-between"><p className="text-sm font-semibold">Qualifications</p><button type="button" className="text-xs font-semibold text-[#f84525]" onClick={() => setEditForm((current) => ({ ...current, qualifications: [...(current.qualifications || []), { level: "", course: "", institute: "", passingYear: "" }] }))}>Add Qualification</button></div>
-          {(editForm.qualifications || []).map((item, index) => <div className="mb-2 grid gap-2 md:grid-cols-4" key={index}>{["level", "course", "institute", "passingYear"].map((key) => <input key={key} className="rounded-md border border-gray-200 px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-800" placeholder={key === "level" ? "10th / Graduation" : key} value={item[key] || ""} onChange={(event) => setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((entry, entryIndex) => entryIndex === index ? { ...entry, [key]: event.target.value } : entry) }))} />)}</div>)}
+        <EmploymentHistory className="md:col-span-2" form={editForm} setForm={setEditForm} />
+        {canManageDocuments && <EmploymentHistory className="md:col-span-2" form={editForm} setForm={setEditForm} documents onFiles={handleEmploymentFiles} />}
+        <div className="md:col-span-2 space-y-3">
+          <div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" aria-label="Add qualification" title="Add qualification" className="flex h-9 w-9 items-center justify-center text-[#f84525]" onClick={() => setEditForm((current) => ({ ...current, qualifications: [...current.qualifications, { id: crypto.randomUUID(), level: "", course: "", institute: "", passingYear: "", documents: {} }] }))}><FiPlus size={22} /></button></div>
+          {editForm.qualifications.map((item, index) => <div key={item.id || index} className="space-y-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <div className="flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setEditForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <CustomDropdown label="Qualification" value={item.level} options={masterOptions.qualification.map((option) => option.name || option)} onChange={(value) => updateQualification(index, "level", value)} />
+              <InputField label="Course / Specialization" value={item.course} onChange={(event) => updateQualification(index, "course", event.target.value)} />
+              <InputField label="Institute / University" value={item.institute} onChange={(event) => updateQualification(index, "institute", event.target.value)} />
+              <CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} />
+              {canManageDocuments && <div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} name={`qualification-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level || savingProfile} fileName={item.documents?.marksheet?.name} hint="JPG, PNG, WEBP or PDF, up to 5 MB." onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div>}
+            </div>
+          </div>)}
         </div>
         <CustomDropdown
           label="Reporting Manager"
@@ -1238,12 +1275,29 @@ const EmployeeDetail = () => {
           </section>
 
           <div className="mt-5 border-t border-gray-100 pt-4">
+          {hrCanViewModule("employeeDocuments") && (employee?.qualifications || []).some((item) => item.documents?.marksheet?.url) && <div className="mb-5 space-y-3">
+            <h3 className="font-semibold">Qualification Marksheets</h3>
+            {(employee.qualifications || []).map((item, index) => item.documents?.marksheet?.url ? <div key={index} className="flex flex-wrap items-center gap-3 text-sm">
+              <span>{item.level} — {item.documents.marksheet.name || "Marksheet"}</span>
+              <button type="button" onClick={() => setDocumentPreview({ label: `${item.level} Marksheet`, url: item.documents.marksheet.url, type: item.documents.marksheet.resource_type || item.documents.marksheet.format })} className="inline-flex items-center gap-1 text-[#f84525]"><FiEye /> View</button>
+              {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.documents.marksheet.url, `${item.level} Marksheet`)} className="inline-flex items-center gap-1 text-blue-600"><FiDownload /> Download</button>}
+            </div> : null)}
+          </div>}
+          {hrCanViewModule("employeeDocuments") && (employee?.previousEmployments || []).length > 0 && <div className="mb-5 space-y-4">
+            <h3 className="font-semibold">Previous Company Documents</h3>
+            {employee.previousEmployments.map((company, index) => <section key={company.id || index} className="space-y-2 border-b border-gray-100 pb-3 dark:border-gray-700">
+              <h4 className="text-sm font-semibold">{company.companyName}{company.isLastCompany ? " (Last company)" : ""}</h4>
+              {lastCompanyDocumentFields.flatMap(([key, label]) => (key === "salarySlips" ? company.documents?.[key] || [] : [company.documents?.[key]]).filter((file) => file?.url).map((file, fileIndex) => <div key={`${key}-${fileIndex}`} className="flex flex-wrap items-center gap-3 text-sm">
+                <span>{label}{key === "salarySlips" ? ` ${fileIndex + 1}` : ""}: {file.name || "Uploaded file"}</span>
+                <button type="button" onClick={() => setDocumentPreview({ label: `${company.companyName} ${label}`, url: file.url, type: file.resource_type || file.format })} className="inline-flex items-center gap-1 text-[#f84525]"><FiEye /> View</button>
+                {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(file.url, `${company.companyName} ${label}`)} className="inline-flex items-center gap-1 text-blue-600"><FiDownload /> Download</button>}
+              </div>))}
+            </section>)}
+          </div>}
           <h3 className="mb-3 text-base font-semibold text-gray-900">Upload Documents</h3>
           <div className="grid grid-cols-1 gap-4">
             {documentItems
-              .filter(([key]) => key === "salarySlips"
-                ? Array.isArray(employee?.documents?.[key]) && employee.documents[key].length > 0
-                : Boolean(employee?.documents?.[key]?.url))
+              .filter(([key]) => key === "photo" || employeeCreateDocumentFields.some(([field]) => field === key) || (key === "salarySlips" ? employee?.documents?.salarySlips?.length : employee?.documents?.[key]?.url))
               .map(([key, label]) => key === "salarySlips" ? (
                 <FileUploadField
                   key={key}
@@ -1299,7 +1353,7 @@ const EmployeeDetail = () => {
           <h3 className="mb-3 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
             <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
-            <InputField label="Bank Holder Name" name="bankHolderName" value={`${editForm.firstName} ${editForm.middleName} ${editForm.lastName}`.replace(/\s+/g, " ").trim()} disabled />
+            <InputField label="Bank Holder Name" name="bankHolderName" value={editForm.bankHolderName} onChange={handleEditFieldChange} />
             <InputField label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditFieldChange} />
             <InputField label="Bank Account Number" name="bankAccountNumber" value={editForm.bankAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Bank IFSC Code" name="bankIfscCode" value={editForm.bankIfscCode} onChange={handleEditFieldChange} />
@@ -1440,15 +1494,28 @@ const EmployeeDetail = () => {
 
       {activeTab === "documents" && hrCanViewModule("employeeDocuments") && <section id="documents-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <SectionHeader title="Documents" subtitle={canManageDocuments ? "Upload or replace employee documents below." : "View uploaded employee documents."} />
-        <div className="mt-5 space-y-2">
+        <div className="mt-5">
+          <div className="mb-3 flex items-center gap-3"><h3 className="shrink-0 text-base font-semibold text-gray-900 dark:text-gray-100">Saved Documents</h3><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-200 dark:bg-gray-700" /></div>
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {documentItems.map(([key, label]) => {
             const item = Array.isArray(employee.documents?.[key]) ? employee.documents[key][0] : employee.documents?.[key];
             if (!item?.url) return null;
-            return <div key={key} className="flex items-center justify-between rounded border border-green-200 bg-green-50 px-3 py-2 text-sm"><span className="font-medium text-green-900">{label}</span><div className="flex gap-2"><button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="rounded border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700"><FiEye /> View</button>{hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="rounded border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700"><FiDownload /> Download</button>}</div></div>;
+            return <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><span className="font-medium text-gray-800 dark:text-gray-100">{label}</span><div className="flex gap-2"><button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>{hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}</div></div>;
           })}
           {!documentItems.some(([key]) => { const item = employee.documents?.[key]; return Array.isArray(item) ? item.length > 0 : Boolean(item?.url); }) && <p className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">No uploaded documents found.</p>}
+          </div>
         </div>
-        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-6 border-t border-gray-100 pt-5 dark:border-gray-700"><div className="grid grid-cols-1 gap-4">{documentItems.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div><div className="mt-4 flex justify-end"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+        {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-8 border-t-2 border-gray-200 pt-6 dark:border-gray-700">
+          <div className="mb-5"><h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Upload / Replace Documents</h3><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Choose files below, then select Save Documents to upload your changes.</p></div>
+          <div className="space-y-7">{[
+            ["Identity & Personal", ["photo", "aadhaarCard", "panCard", "bloodGroupProof"]],
+            ["Address & Bank", ["addressProof", "passbook", "bankStatement", "salarySlips"]],
+            ["Education & Resume", ["degree", "resume"]],
+            ["Employment & Letters", ["offerLetter", "appointmentLetter", "leavingLetter", "experienceCertificate", "previousCompanyDocument", "documentXerox"]],
+            ["Bond Documents", ["bondDocument", "bondLetter"]],
+          ].map(([title, keys]) => <section key={title}>
+            <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{documentItems.filter(([key]) => keys.includes(key)).map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div></section>)}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
 
       {hrCanViewModule("documents") && activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
