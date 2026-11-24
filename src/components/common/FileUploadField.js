@@ -3,6 +3,8 @@ import { FiDownload, FiEye, FiFileText, FiUploadCloud } from "react-icons/fi";
 
 const FileUploadField = ({
   label,
+  compact = false,
+  canUpload = true,
   name,
   maxSizeBytes = 5 * 1024 * 1024,
   hint = "Upload JPG, PNG, PDF",
@@ -78,6 +80,23 @@ const FileUploadField = ({
     )
   );
   const canShowPdfPreview = Boolean(activePreviewUrl && isPdfPreview);
+
+  if (compact) return <div className={`min-w-0 rounded-xl border bg-white p-4 dark:bg-gray-900 ${sizeError || error ? "border-red-400" : "border-gray-200 dark:border-gray-700"} ${className}`}>
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2"><span className="rounded-lg bg-orange-50 p-2 text-[#f84525] dark:bg-gray-800"><FiFileText size={18} /></span><label htmlFor={`${name}-file-upload`} className="min-w-0 text-sm font-semibold text-gray-800 dark:text-gray-100">{label}{required ? " *" : ""}</label></div>
+      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${selectedFile || (fileName && !uploaded) ? "bg-orange-50 text-orange-700" : uploaded ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>{selectedFile || (fileName && !uploaded) ? "Selected" : uploaded ? "Uploaded" : "Not uploaded"}</span>
+    </div>
+    <p title={fileName || ""} className="mt-3 truncate text-xs text-gray-600 dark:text-gray-300">{fileName || "No file selected"}</p>
+    <p className="mt-1 min-h-[32px] text-[11px] leading-4 text-gray-500">{hint}</p>
+    {canUpload && <input ref={inputRef} id={`${name}-file-upload`} type="file" name={name} accept={accept} multiple={multiple} onChange={handleChange} required={required} disabled={disabled} className="hidden" />}
+    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+      {canUpload && <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-md border border-orange-200 px-3 py-1.5 text-xs font-semibold text-[#f84525] hover:bg-orange-50 disabled:opacity-50"><FiUploadCloud />{fileName ? "Replace" : "Choose file"}</button>}
+      {onPreviewCurrent && <button type="button" onClick={onPreviewCurrent} className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"><FiEye />View</button>}
+      {onDownloadCurrent && <button type="button" onClick={onDownloadCurrent} className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"><FiDownload />Download</button>}
+    </div>
+    {selectedFile && activePreviewUrl && <a href={activePreviewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-[#f84525] underline">Preview selected file</a>}
+    {sizeError || error ? <p role="alert" className="mt-2 text-xs text-red-600">{sizeError || error}</p> : null}
+  </div>;
 
   return (
     <div className={`${uploaded && !selectedFile ? "hidden" : "flex"} flex-col text-sm font-medium text-gray-700 dark:text-gray-200 ${className}`}>
