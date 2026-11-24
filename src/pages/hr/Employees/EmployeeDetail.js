@@ -1,3 +1,4 @@
+import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
 import EmploymentHistory from "../../../components/common/EmploymentHistory";
@@ -1513,6 +1514,7 @@ const EmployeeDetail = () => {
           {!documentItems.some(([key]) => { const item = employee.documents?.[key]; return Array.isArray(item) ? item.length > 0 : Boolean(item?.url); }) && <p className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">No uploaded documents found.</p>}
           </div>
         </div>
+        {user?.role === "superadmin" && <EmployeeDocumentHistory employee={employee} documentItems={documentItems} onView={setDocumentPreview} onDownload={downloadEmployeeDocument} canDownload={hrCanDownloadModule("employeeDocuments")} />}
         {canManageDocuments && <form onSubmit={saveEmployeeDocuments} className="mt-8 border-t-2 border-gray-200 pt-6 dark:border-gray-700">
           <div className="mb-5"><h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Upload / Replace Documents</h3><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Choose files below, then select Save Documents to upload your changes.</p></div>
           <div className="space-y-7">{[
