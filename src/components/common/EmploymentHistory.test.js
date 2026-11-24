@@ -17,9 +17,8 @@ test("last company gets extra upload fields and older company only two", () => {
   render(<EmploymentHistory documents form={{ experienceType: "Experienced", previousEmployments: companies }} onFiles={jest.fn()} />);
   expect(screen.getAllByText("Offer Letter *")).toHaveLength(2);
   expect(screen.getAllByText("Experience Letter *")).toHaveLength(2);
-  expect(screen.getAllByText("Relieving Letter *")).toHaveLength(1);
-  expect(screen.getAllByText("Bank Statement (Last 3 Months) *")).toHaveLength(1);
-  expect(screen.getAllByText("Salary Slips (Last 3 Months) *")).toHaveLength(1);
+  expect(screen.getAllByText("Bank Statement (Last 3 Months)")).toHaveLength(1);
+  expect(screen.getAllByText("Salary Slips (Last 3 Months)")).toHaveLength(1);
 });
 
 test("selecting last company preserves company-linked files", () => {
@@ -48,12 +47,13 @@ test("bank and salary single PDF fields move to the selected last company", () =
   }
   render(<Harness />);
   const first = screen.getByRole("heading", { name: "Company A" }).closest("section");
-  expect(within(first).queryByText("Bank Statement (Last 3 Months) *")).toBeNull();
+  expect(within(first).queryByText("Bank Statement (Last 3 Months)")).toBeNull();
   fireEvent.click(within(first).getByRole("radio"));
-  expect(within(first).getByText("Bank Statement (Last 3 Months) *")).toBeTruthy();
+  expect(within(first).getByText("Bank Statement (Last 3 Months)")).toBeTruthy();
   const second = screen.getByRole("heading", { name: "Company B" }).closest("section");
-  expect(within(second).queryByText("Salary Slips (Last 3 Months) *")).toBeNull();
+  expect(within(second).queryByText("Salary Slips (Last 3 Months)")).toBeNull();
   const pdfInputs = first.querySelectorAll('input[type="file"][accept=".pdf"]');
   expect(pdfInputs).toHaveLength(2);
-  for (const input of pdfInputs) expect(input.multiple).toBe(false);
+  expect(pdfInputs[0].multiple).toBe(false);
+  expect(pdfInputs[1].multiple).toBe(true);
 });

@@ -4,6 +4,7 @@ import { FiDownload, FiEye, FiFileText, FiUploadCloud } from "react-icons/fi";
 const FileUploadField = ({
   label,
   name,
+  maxSizeBytes = 5 * 1024 * 1024,
   hint = "Upload JPG, PNG, PDF",
   accept = ".pdf,.jpg,.jpeg,.png",
   onChange,
@@ -28,6 +29,17 @@ const FileUploadField = ({
   selectedFile = null,
   className = "",
 }) => {
+  const [sizeError, setSizeError] = useState("");
+  const handleChange = (event) => {
+    const oversized = Array.from(event.target.files || []).find((file) => file.size > maxSizeBytes);
+    if (oversized) {
+      setSizeError(`${oversized.name}: ${(oversized.size / 1024 / 1024).toFixed(2)} MB. Maximum file size is ${(maxSizeBytes / 1024 / 1024).toFixed(1)} MB. Choose a smaller file.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+    setSizeError("");
+    onChange?.(event);
+  };
   const acceptsImage = /image|jpg|jpeg|png|webp/i.test(String(accept || ""));
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -48,14 +60,14 @@ const FileUploadField = ({
     if (!imageFile) return;
 
     event.preventDefault();
-    onChange?.({
+    handleChange({
       target: {
         name,
         files: [imageFile],
       },
     });
   };
-  const emitFile = (file) => file && onChange?.({ target: { name, files: [file] } });
+  const emitFile = (file) => file && handleChange({ target: { name, files: [file] } });
 
   const isPdfPreview = previewType === "pdf" || String(activePreviewUrl || "").startsWith("data:application/pdf") || /\.pdf(?:$|[?#])/i.test(String(activePreviewUrl || ""));
   const canShowImagePreview = Boolean(
@@ -91,7 +103,7 @@ const FileUploadField = ({
             name={name}
             accept={accept}
             multiple={multiple}
-            onChange={onChange}
+            onChange={handleChange}
             required={required}
             disabled={disabled}
             className="hidden"
@@ -187,7 +199,7 @@ const FileUploadField = ({
           {previewText}
         </button>
       ) : null}
-      {error ? <span className="mt-1 text-sm text-red-500 dark:text-red-400">{error}</span> : null}
+      {sizeError || error ? <span role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">{sizeError || error}</span> : null}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { employeeUploadErrors } from "../../utils/employeeUploadSize";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { FiPlus } from "react-icons/fi";
@@ -62,6 +63,7 @@ const EmployeeCreate = () => {
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [reportingManagerOptions, setReportingManagerOptions] = useState([]);
   const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], gender: [], qualification: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
+  const [uploadErrors, setUploadErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
   const { user } = useContext(AuthContext);
@@ -161,12 +163,22 @@ const EmployeeCreate = () => {
     if (["mobile", "altMobile"].includes(name) && !/^\d{0,10}$/.test(value)) return;
     if (["firstName", "middleName", "lastName", "fatherOrHusbandName"].includes(name)) {
       const titleCased = value.trimStart().replace(/(^|\s)([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
-      setForm((current) => ({ ...current, [name]: titleCased }));
+      setForm((current) => {
+        const next = { ...current, [name]: titleCased };
+        if (["firstName", "middleName", "lastName"].includes(name) && !String(current.bankHolderName || "").trim()) {
+          next.bankHolderName = [next.firstName, next.middleName, next.lastName].filter(Boolean).join(" ");
+        }
+        return next;
+      });
       return;
     }
     setForm((current) => ({ ...current, [name]: value }));
   };
   const handleSelect = (name) => (value) => setForm((current) => ({ ...current, [name]: value, ...(name === "experienceType" && value === "Experienced" && !current.previousEmployments.length ? { previousEmployments: [newEmployment(true)] } : {}) }));
+  useEffect(() => {
+    const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
+    if (fullName && !String(form.bankHolderName || "").trim()) setForm((current) => ({ ...current, bankHolderName: fullName }));
+  }, [form.firstName, form.middleName, form.lastName, form.bankHolderName]);
   const addQualification = () => setForm((current) => ({ ...current, qualifications: [...current.qualifications, { id: crypto.randomUUID(), level: "", course: "", institute: "", passingYear: "", percentage: "", documents: {} }] }));
   const updateQualification = (index, key, value) => setForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
 
@@ -218,7 +230,7 @@ const EmployeeCreate = () => {
   const handleEmploymentFiles = async (companyId, key, files) => {
     const selected = Array.from(files || []);
     if (!selected.length) return;
-    if (selected.length > 1) { toast.error("Select one file per document. Salary slips must be combined into one PDF."); return; }
+    if (selected.length > 1 && key !== "salarySlips") { toast.error("Select one file per document. Salary slips can be uploaded as one or multiple PDFs."); return; }
     if (selected.some((file) => file.size > MAX_UPLOAD_SIZE || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type))) { toast.error("Company documents must be JPG, PNG, WEBP or PDF and 5 MB or smaller."); return; }
     if ((key === "salarySlips" || key === "bankStatement") && selected.some((file) => file.type !== "application/pdf")) { toast.error("Upload the last 3 months as one PDF for this document."); return; }
     try {
@@ -226,7 +238,8 @@ const EmployeeCreate = () => {
       setForm((current) => ({ ...current, previousEmployments: current.previousEmployments.map((item) => item.id === companyId ? { ...item, documents: { ...item.documents, [key]: key === "salarySlips" ? payloads : payloads[0] } } : item) }));
     } catch { toast.error("Unable to read company documents."); }
   };
-  const nextStep = () => {
+  const nextStep = (event) => {
+    event?.preventDefault();
     if (step === 2 || step === 5) {
       const error = experienceError(form, step === 5);
       if (error) { toast.error(error); return; }
@@ -236,6 +249,8 @@ const EmployeeCreate = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (step !== 7 || saving) return;
+    if (!event.currentTarget.form?.reportValidity()) return;
     if (!isEditMode && !form.password) {
       setStep(1);
       toast.error("Please enter the temporary password before adding the employee.");
@@ -255,6 +270,13 @@ const EmployeeCreate = () => {
         name: `${form.firstName.trim()} ${form.middleName.trim()} ${form.lastName.trim()}`.replace(/\s+/g, " ").trim(),
         hrFileNo: undefined,
       };
+      const sizeErrors = employeeUploadErrors(payload);
+      setUploadErrors(sizeErrors);
+      if (Object.keys(sizeErrors).length) {
+        setStep(Object.keys(sizeErrors).some((key) => key.startsWith("qualification-marksheet-")) ? 2 : 5);
+        toast.error("Uploads are too large together. Reduce the files marked below.");
+        return;
+      }
       if (isEditMode) {
         const { password, photo, documents, ...profilePayload } = payload;
         await hrApi.updateEmployee(employeeId, profilePayload);
@@ -267,7 +289,7 @@ const EmployeeCreate = () => {
       toast.success(isEditMode ? "Employee updated successfully" : "Employee added successfully");
       navigate(employeesPath, { replace: true });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to add employee");
+      toast.error(error.response?.status === 413 ? "Uploads exceed the server request limit. Compress the selected files and try again." : error.response?.data?.message || "Unable to add employee. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -298,7 +320,7 @@ const EmployeeCreate = () => {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} autoComplete="off" className="grid grid-cols-1 gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-3">
+      <form onSubmit={(event) => event.preventDefault()} autoComplete="off" className="grid grid-cols-1 gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-3">
         {step === 1 ? (
           <>
             <div className="md:col-span-3 flex items-center gap-4 text-lg font-semibold"><span>Personal information</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
@@ -355,10 +377,10 @@ const EmployeeCreate = () => {
             <CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} />
           </>
         ) : null}
-        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-[#f84525] hover:bg-[#fff1ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84525]"><FiPlus size={22} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
+        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-[#f84525] hover:bg-[#fff1ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84525]"><FiPlus size={22} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} error={uploadErrors[`qualification-marksheet-${index}`]} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
 
-        {step === 2 ? <EmploymentHistory form={form} setForm={setForm} /> : null}
-        {step === 5 ? <EmploymentHistory form={form} setForm={setForm} documents onFiles={handleEmploymentFiles} /> : null}
+        {step === 2 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} /> : null}
+        {step === 5 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} documents onFiles={handleEmploymentFiles} /> : null}
 
         {step === 3 ? (
           <>
@@ -385,9 +407,9 @@ const EmployeeCreate = () => {
 
         {step === 5 ? (
           <div className="md:col-span-3">
-            <FileUploadField label="Employee Photo" name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG or WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
+            <FileUploadField label="Employee Photo" error={uploadErrors["employee-photo"]} name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG or WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
+              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} error={uploadErrors[key]} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
             </div>
           </div>
         ) : null}
@@ -401,7 +423,7 @@ const EmployeeCreate = () => {
         <div className="flex justify-between border-t border-gray-100 pt-4 dark:border-gray-800 md:col-span-3">
           <Button type="button" variant="secondary" text="Previous" disabled={step === 1} onClick={() => setStep((value) => Math.max(1, value - 1))} />
           <div className="flex gap-2">
-            {step < 7 ? <Button type="button" text="Next" onClick={nextStep} /> : <Button type="submit" text={isEditMode ? "Update Employee" : "Add Employee"} loading={saving} className="min-w-40" />}
+            {step < 7 ? <Button key="next-step" type="button" text="Next" onClick={nextStep} /> : <Button key="save-employee" type="button" onClick={handleSubmit} text={isEditMode ? "Update Employee" : "Add Employee"} loading={saving} className="min-w-40" />}
           </div>
         </div>
       </form>
