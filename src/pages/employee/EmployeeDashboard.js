@@ -271,7 +271,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         permitted("interviews") ? employeeApi.getAssignedCandidates() : empty(),
         permitted("interviews") ? employeeApi.getInterviewLogs() : empty(),
         employeeApi.getBirthdays(),
-        permitted("leaves") ? employeeApi.getLeaveDrafts() : empty(),
+        permitted("leaveDrafts") ? employeeApi.getLeaveDrafts() : empty(),
       ]);
       setLeaveDrafts(draftsRes.data.data || []);
       setProfile(profileRes.data.data);
@@ -493,6 +493,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const isDashboard = section === "all";
   const effectiveModuleAccess = moduleAccess || profile?.user?.moduleAccess || profile?.moduleAccess || {};
   const canApplyLeave = Boolean(effectiveModuleAccess.leaves?.add || effectiveModuleAccess.leaves?.edit);
+  const canViewLeaveDrafts = Boolean(effectiveModuleAccess.leaveDrafts === true || effectiveModuleAccess.leaveDrafts?.view);
   const canDeleteLeaveDraft = Boolean(effectiveModuleAccess.leaveDrafts?.delete);
   const leaveMinDate = ["earned_leave", "optional_leave"].includes(leaveForm.type) ? toDateKey(addDays(new Date(), 1)) : "";
 
@@ -1017,9 +1018,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
             </ScrollCard>
 
             <div className="min-w-0 space-y-5">
-            <ScrollCard title="Saved Drafts">
+            {canViewLeaveDrafts && <ScrollCard title="Saved Drafts">
               {leaveDrafts.length === 0 ? <EmptyState text="No saved drafts." /> : leaveDrafts.map((draft) => <div key={draft._id} className="flex w-full items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 text-left text-sm dark:border-gray-800"><button type="button" disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="min-w-0 flex-1 text-left hover:text-[#f84525]"><b className="block truncate">{draft.title}</b><span className="text-xs text-gray-500">{draft.fromDate}{draft.toDate ? ` to ${draft.toDate}` : ""}</span></button><div className="flex items-center gap-3"><button type="button" disabled={leaveSaving || draftSaving} onClick={() => openLeaveDraft(draft)} className="text-xs font-semibold text-[#f84525]">Edit</button>{canDeleteLeaveDraft && <button type="button" disabled={leaveSaving || draftSaving} onClick={() => deleteLeaveDraft(draft._id)} className="text-xs font-semibold text-red-600">Delete</button>}</div></div>)}
-            </ScrollCard>
+            </ScrollCard>}
             <ScrollCard title="My Leaves">
               {leaves.length === 0 ? (
                 <EmptyState text="No leaves applied." />
