@@ -20,7 +20,7 @@ const ReviewValue = ({ value }) => {
   return String(value);
 };
 
-export default function EmployeeCreateReview({ form, employees = [], onEdit }) {
+export default function EmployeeCreateReview({ form, employees = [], onEdit, isEditMode = false }) {
   const [showPassword, setShowPassword] = useState(false);
   const manager = employees.find((employee) => employee._id === form.teamLead);
   const sections = [
@@ -29,7 +29,7 @@ export default function EmployeeCreateReview({ form, employees = [], onEdit }) {
       ["Father / Husband Name", form.fatherOrHusbandName], ["Gender", form.gender], ["Blood Group", form.bloodGroup],
       ["Date of Birth / Birthday", form.dob], ["Celebrate DOB", form.celebrateDob], ["Email", form.email],
       ["Mobile", form.mobile], ["Alternate Mobile", form.altMobile], ["Emergency Contact Number", form.emergencyNumber],
-      ["Temporary Password", form.password ? "•••••••• (set)" : "Not provided"],
+      ...(!isEditMode ? [["Temporary Password", form.password ? "•••••••• (set)" : "Not provided"]] : []),
     ], 1],
     ["Employment", [
       ["Joining Date", form.dateOfJoining], ["Department", form.department], ["Designation", form.designation],
@@ -54,8 +54,8 @@ export default function EmployeeCreateReview({ form, employees = [], onEdit }) {
   ];
 
   return <div className="md:col-span-3 space-y-4">
-    <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Review each step before adding the employee. Select the edit icon to update that step.</p>
-    <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Employee Code / HR File No. will be generated automatically after saving.</p>
+    <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Review each step before {isEditMode ? "saving changes" : "adding the employee"}. Select the edit icon to update that step.</p>
+    {!isEditMode && <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Employee Code / HR File No. will be generated automatically after saving.</p>}
     <div className="space-y-8">
       {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists"].map((stepTitle, index) => <section key={stepTitle} className="min-w-0">
         <div className="mb-4 flex items-center gap-4">

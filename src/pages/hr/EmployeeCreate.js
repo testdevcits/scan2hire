@@ -418,7 +418,7 @@ const EmployeeCreate = () => {
           <div className="md:col-span-3 space-y-6"><EmployeeChecklist value={form} onChange={handleChecklist} /></div>
         ) : null}
 
-        {step === 7 ? <EmployeeCreateReview form={form} employees={employeeOptions} onEdit={setStep} /> : null}
+        {step === 7 ? <EmployeeCreateReview isEditMode={isEditMode} form={form} employees={employeeOptions} onEdit={setStep} /> : null}
 
         <div className="flex justify-between border-t border-gray-100 pt-4 dark:border-gray-800 md:col-span-3">
           <Button type="button" variant="secondary" text="Previous" disabled={step === 1} onClick={() => setStep((value) => Math.max(1, value - 1))} />
