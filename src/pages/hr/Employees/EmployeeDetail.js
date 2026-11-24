@@ -1,3 +1,5 @@
+import "./EmployeeDetail.css";
+import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../components/common/EmployeeBackgroundDetails";
 import EmployeeCreateReview from "../../../components/common/EmployeeCreateReview";
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
 import { FiPlus } from "react-icons/fi";
@@ -8,6 +10,8 @@ import { employeeRecordPermissions } from "../../../config/employeeRecordPermiss
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
+  FiSidebar,
+  FiX,
   FiBriefcase,
   FiCalendar,
   FiCopy,
@@ -169,6 +173,7 @@ const EmployeeDetail = () => {
   // Backend profile edits and employee lifecycle actions are HR-only.
   const canManage = user?.role === "hr" || user?.role === "superadmin";
   const [employee, setEmployee] = useState(null);
+  const [documentsPanelOpen, setDocumentsPanelOpen] = useState(false);
   const [attendance, setAttendance] = useState([]);
   const [employeeLeaves, setEmployeeLeaves] = useState([]);
   const [employeeLeavesLoading, setEmployeeLeavesLoading] = useState(false);
@@ -1002,10 +1007,15 @@ const EmployeeDetail = () => {
         <Tabs tabs={employeeTabs} value={activeTab} onChange={changeActiveTab} label="Employee profile sections" />
       </div>
 
-      {activeTab === "details" && <section id="details-panel" role="tabpanel" aria-labelledby="details-tab" className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
-<div className="min-w-0 space-y-4 xl:col-span-2">
+      {activeTab === "details" && <section id="details-panel" role="tabpanel" aria-labelledby="details-tab" className="space-y-4">
+        {hrCanViewModule("employeeDocuments") && <div className="flex justify-end">
+          <button type="button" aria-label={documentsPanelOpen ? "Close employee documents" : "Open employee documents"} aria-expanded={documentsPanelOpen} aria-controls="employee-documents-sidebar" onClick={() => setDocumentsPanelOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:border-orange-300 hover:text-[#f84525] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">{documentsPanelOpen ? <FiX /> : <FiSidebar />} Documents</button>
+        </div>}
+<div className={`employee-details-layout ${documentsPanelOpen && hrCanViewModule("employeeDocuments") ? "employee-details-layout-open" : ""}`}>
+<div className="min-w-0 space-y-4">
 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Personal & Contact</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
 <DetailItem plain icon={<FiUser />} label="First Name" value={detailFallback(employee.firstName)} />
+<DetailItem plain icon={<FiUser />} label="Middle Name" value={detailFallback(employee.middleName)} />
 <DetailItem plain icon={<FiUser />} label="Last Name" value={detailFallback(employee.lastName)} />
 <DetailItem plain icon={<FiUser />} label="Gender" value={detailFallback(employee.gender)} />
 <DetailItem plain icon={<FiUser />} label="Blood Group" value={detailFallback(employee.bloodGroup)} />
@@ -1041,8 +1051,9 @@ const EmployeeDetail = () => {
 <DetailItem plain icon={<FiCalendar />} label="Resignation Date" value={formatDate(employee.resignationDate)} />
 <DetailItem plain icon={<FiCalendar />} label="Leaving Date" value={formatDate(employee.leavingDate)} />
 </div></section>
+<EmployeeBackgroundDetails employee={employee} />
 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Salary & Bank</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
-<DetailItem plain icon={<FiShield />} label="Salary" value={detailFallback(employee.salary)} />
+<DetailItem plain icon={<FiShield />} label="Salary" value={employee.salary ?? "N/A"} />
 <DetailItem plain icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
 <DetailItem plain icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
 <DetailItem plain icon={<FiBriefcase />} label="Bank Holder Name" value={detailFallback(employee.bankHolderName)} />
@@ -1053,7 +1064,7 @@ const EmployeeDetail = () => {
 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Cheque Details</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
 <DetailItem plain icon={<FiBriefcase />} label="Cheque Number" value={detailFallback(employee.chequeNumber)} />
 <DetailItem plain icon={<FiBriefcase />} label="Cheque Account Number" value={detailFallback(employee.chequeAccountNumber)} />
-<DetailItem plain icon={<FiShield />} label="Cheque Amount" value={detailFallback(employee.chequeAmount)} />
+<DetailItem plain icon={<FiShield />} label="Cheque Amount" value={employee.chequeAmount ?? "N/A"} />
 <DetailItem plain icon={<FiCalendar />} label="Cheque Date" value={formatDate(employee.chequeDate)} />
 <DetailItem plain icon={<FiBriefcase />} label="Cheque Bank Name" value={detailFallback(employee.chequeBankName)} />
 </div></section>
@@ -1062,8 +1073,10 @@ const EmployeeDetail = () => {
 <DetailItem plain icon={<FiMapPin />} label="Permanent Address" value={formatAddress(employee.permanentAddress)} />
 <DetailItem plain icon={<FiMapPin />} label="Alternate / Current Address" value={formatAddress(employee.alternateAddress)} />
 </div></section>
+<EmployeeChecklistDetails employee={employee} />
 </div>
-          <div className="min-w-0 self-start rounded-xl border border-gray-200 bg-white p-5 xl:col-span-1 dark:border-gray-700 dark:bg-gray-900">
+          {hrCanViewModule("employeeDocuments") && <div id="employee-documents-sidebar" className="employee-documents-reveal" aria-hidden={!documentsPanelOpen} inert={!documentsPanelOpen}>
+          <div className="min-h-0 overflow-hidden"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold text-gray-900 dark:text-white">Employee Documents</h3>{hrCanViewModule("employeeDocuments") && <button type="button" onClick={() => changeActiveTab("documents")} className="text-sm font-semibold text-[#f84525]">Manage documents</button>}</div>
             <div className="space-y-2">
               {[
@@ -1086,9 +1099,11 @@ const EmployeeDetail = () => {
                 </div>;
               })}
             </div>
-          </div>
+          </div></div></div>}
 
 
+
+</div>
 </section>}
 
       {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
