@@ -644,7 +644,7 @@ const EmployeeDetail = () => {
   const handleEmploymentFiles = async (companyId, key, files) => {
     const selected = Array.from(files || []);
     if (!selected.length) return;
-    if (selected.length > 1 || selected.some((file) => file.size > 5 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type))) { toast.error("Choose one file per document, JPG/PNG/WEBP/PDF only, up to 5 MB."); return; }
+    if ((selected.length > 1 && key !== "salarySlips") || selected.some((file) => file.size > 5 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type))) { toast.error("Choose one file per document; salary slips can be one or multiple PDFs. JPG/PNG/WEBP/PDF only, up to 5 MB."); return; }
     if ((key === "salarySlips" || key === "bankStatement") && selected.some((file) => file.type !== "application/pdf")) { toast.error("Upload the last 3 months as one PDF for this document."); return; }
     try {
       const payloads = await Promise.all(selected.map(async (file) => ({ dataUri: await fileToDataUri(file), name: file.name, type: file.type })));
