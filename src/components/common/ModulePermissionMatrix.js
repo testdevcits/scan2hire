@@ -14,7 +14,7 @@ const ModulePermissionMatrix = ({ modules, value, onChange, actions = ["view", "
         };
         const recordChildren = [
           ["currentRecordControl", "Joining / Current Record", ["currentView", "current"], { currentView: "View", current: "Add / Update" }],
-          ["nextReviewControl", "Next Review", ["nextReviewView", "nextReview"], { nextReviewView: "View", nextReview: "Add / Update" }],
+          ["nextReviewControl", "Appraisal Review", ["nextReviewView", "nextReview"], { nextReviewView: "View", nextReview: "Add / Update" }],
           ["leavingControl", "Leaving Process", ["leavingView", "leaving"], { leavingView: "View", leaving: "Add / Update" }],
           ["nafControl", "NAF Process", ["nafView", "naf"], { nafView: "View", naf: "Add / Update" }],
           ["documentsProvidedControl", "Documents Provided", ["documentsProvidedView", "documentsProvided"], { documentsProvidedView: "View", documentsProvided: "Add / Update" }],

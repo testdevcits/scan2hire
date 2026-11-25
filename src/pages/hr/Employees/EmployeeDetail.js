@@ -969,7 +969,7 @@ const EmployeeDetail = () => {
     ...(canManage && hrCanViewModule("employeeSecurity") ? [{ value: "security", label: "Security" }] : []),
     ...(user?.role === "superadmin" ? [{ value: "access", label: "Role & Access" }, { value: "credentials", label: "Credentials" }] : []),
     ...(canManage && hrCanEditModule("employees") ? [{ value: "actions", label: "Actions" }] : []),
-    ...(canManage && hrCanViewModule("employeeRecordGroup") ? [{ value: "reviewsSalary", label: "Reviews & Salary History" }] : []),
+    ...(canManage && hrCanViewModule("employeeRecordGroup") ? [{ value: "reviewsSalary", label: "Appraisal Review" }] : []),
   ];
 
   const recordDefinitions = {
@@ -1503,11 +1503,11 @@ const EmployeeDetail = () => {
 
       {canManage && hrCanViewModule("employeeRecordGroup") && activeTab === "reviewsSalary" && (
         <section id="reviews-salary-panel" role="tabpanel" className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
-          <SectionHeader title="Reviews & Salary History" subtitle="View this employee's current record, reviews, and lifecycle records." />
+          <SectionHeader title="Appraisal Review" subtitle="Schedule, update, and complete this employee's salary reviews." />
           <div className="mt-5 flex flex-wrap gap-2 rounded border border-gray-200 bg-gray-50 p-2">
             {[
               ["current", "Joining / Current Record", "Current salary, bond and next increment details."],
-              ["nextReview", "Next Review", "Annual or subsequent review records."],
+              ["nextReview", "Appraisal Review", "Schedule and manage salary appraisal reviews."],
               ["leaving", "Leaving Process", "Notice, last working date and exit record."],
               ["naf", "NAF Process", "NAF and ID card process details."],
               ["documentsProvided", "Documents Provided", "Leaving documents and handover status."],
