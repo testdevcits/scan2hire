@@ -6,7 +6,6 @@ import EmployeeDocumentReview from "../../../components/documents/EmployeeDocume
 import { useApi } from "../../../contexts/ApiContext";
 import "./EmployeeDetail.css";
 import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../components/common/EmployeeBackgroundDetails";
-import EmployeeCreateReview from "../../../components/common/EmployeeCreateReview";
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
@@ -226,7 +225,7 @@ const EmployeeDetail = () => {
     resignationDate: "",
     leavingDate: "",
     salary: "",
-    salaryOnHold: false,
+    salaryOnHold: true,
     trainingPeriod: "",
     bondPeriodDuration: "",
     bankHolderName: "",
@@ -448,7 +447,8 @@ const EmployeeDetail = () => {
         resignationDate: employeeData.resignationDate ? employeeData.resignationDate.slice(0, 10) : "",
         leavingDate: employeeData.leavingDate ? employeeData.leavingDate.slice(0, 10) : "",
         salary: employeeData.salary || "",
-        salaryOnHold: Boolean(employeeData.salaryOnHold),
+        // Keep salary on hold by default until HR completes the employee file.
+        salaryOnHold: employeeData.salaryOnHold === undefined ? true : Boolean(employeeData.salaryOnHold),
         trainingPeriod: employeeData.trainingPeriod || "",
         bondPeriodDuration: employeeData.bondPeriodDuration || "",
         bankHolderName: employeeData.bankHolderName || "",
@@ -1137,7 +1137,7 @@ const EmployeeDetail = () => {
         </div>
 
         <div className="mb-1 flex gap-1 overflow-x-auto border-b border-gray-200 pb-3 dark:border-gray-700">
-          {["Basic details", "Employment", "Bank details", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => setEditStep(index + 1)} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
+          {["Basic details", "Employment", "Bank details", "Addresses", "Documents", "Checklists"].map((label, index) => <button key={label} type="button" onClick={() => setEditStep(index + 1)} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
         </div>
         <div className="grid grid-cols-1 gap-5">
           {editStep === 1 && <section id="edit-step-1" className="min-w-0 scroll-mt-5">
@@ -1421,10 +1421,9 @@ const EmployeeDetail = () => {
           <h3 id="edit-step-6" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Employee Checklists</h3>
           <EmployeeChecklist value={editForm} onChange={handleChecklistChange} disabled={savingProfile} />
         </div>}
-        {editStep === 7 && <EmployeeCreateReview isEditMode form={{ ...editForm, photo: documentFiles.photo ? { name: documentFiles.photo.name, dataUri: "selected" } : employee.documents?.photo, documents: { ...employee.documents, ...Object.fromEntries(Object.entries(documentFiles).filter(([, file]) => file).map(([key, file]) => [key, Array.isArray(file) ? file.map((item) => ({ name: item.name, dataUri: "selected" })) : { name: file.name, dataUri: "selected" }])) } }} employees={teamLeadOptions} onEdit={setEditStep} />}
         <div className="flex justify-between border-t border-gray-200 pt-4">
           <Button text="Previous" disabled={editStep === 1 || savingProfile} onClick={() => setEditStep((value) => Math.max(1, value - 1))} variant="secondary" />
-          {editStep < 7 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => { const error = validateEditStep(editStep); if (error) { toast.error(error); return; } setEditStep((value) => Math.min(7, value + 1)); }} />}
+          {editStep < 6 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => { const error = validateEditStep(editStep); if (error) { toast.error(error); return; } setEditStep((value) => Math.min(6, value + 1)); }} />}
         </div>
         </div>
       </form>
