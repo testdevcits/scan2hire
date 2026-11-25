@@ -421,7 +421,7 @@ const LeaveReports = () => {
 
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Urgent Leave, Half Day (0.5 day), and Full Day requests are deducted from Earned Leave.</p>
 
-            {canAdjust && (
+            {canAdjust && balanceData?.probation?.paidLeaveEligible !== false && (
               <form onSubmit={submitBalanceAdjustment} className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 md:grid-cols-2 xl:grid-cols-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                   Leave type
