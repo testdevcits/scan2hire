@@ -115,7 +115,6 @@ const AdminDashboard = () => {
   );
 
   const birthdayList = birthdayReminders;
-  const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
   const todayDay = new Date().getUTCDate();
   const todayBirthdayCount = birthdayList.filter((employee) => employee.day === todayDay).length;
 
@@ -198,11 +197,11 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div>
             <h2 className="font-semibold text-gray-950 dark:text-white">Upcoming Appraisal Reviews</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">All future scheduled employee reviews</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Scheduled reviews in the next two days</p>
           </div>
           <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#f84525] dark:bg-orange-950/40">{appraisalReminders.length}</span>
         </div>
-        {appraisalReminders.length ? <div className="divide-y divide-gray-100 dark:divide-gray-800">{appraisalReminders.map(item => <button key={`${item.employeeId}-${item.reviewId}`} type="button" onClick={() => navigate(`/admin/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"><span className="min-w-40 flex-1"><span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{item.employeeName}</span><span className="block text-xs text-gray-500">{item.employeeCode || "No employee ID"} · {item.department || item.designation || "Employee"}</span></span><span className={`rounded px-2 py-1 text-xs font-semibold ${item.effectiveDate === todayKey ? "bg-[#fff1ed] text-[#f84525]" : "bg-blue-50 text-blue-700"}`}>{item.effectiveDate === todayKey ? "Due today" : new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}</span><span className="text-xs text-gray-600 dark:text-gray-300">Planned salary: <strong>₹{item.plannedSalary}</strong></span></button>)}</div> : <p className="p-4 text-sm text-gray-500">No upcoming appraisal reviews.</p>}
+        {appraisalReminders.length ? <div className="divide-y divide-gray-100 dark:divide-gray-800">{appraisalReminders.map(item => <button key={`${item.employeeId}-${item.reviewId}`} type="button" onClick={() => navigate(`/admin/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"><span className="min-w-40 flex-1"><span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{item.employeeName}</span><span className="block text-xs text-gray-500">{item.employeeCode || "No employee ID"} · {item.department || item.designation || "Employee"}</span></span><span className="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}</span><span className="text-xs text-gray-600 dark:text-gray-300">Planned salary: <strong>₹{item.plannedSalary}</strong></span></button>)}</div> : <p className="p-4 text-sm text-gray-500">No appraisal reviews scheduled in the next two days.</p>}
       </section>
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-[1.45fr_0.55fr]">
