@@ -195,6 +195,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
+  const [leaveProbation, setLeaveProbation] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [roundSaving, setRoundSaving] = useState(false);
@@ -204,7 +205,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
-    type: "earned_leave",
+    type: leaveProbation && !leaveProbation.paidLeaveEligible ? "unpaid_leave" : "earned_leave",
     title: "",
     fromDate: "",
     toDate: "",
@@ -279,6 +280,9 @@ const EmployeeDashboard = ({ section = "all" }) => {
       setAttendance(attendanceRes.data.data || []);
       setLeaves(leavesRes.data.data?.leaves || leavesRes.data.data || []);
       setLeaveBalance(leavesRes.data.data?.balance || null);
+      const probation = leavesRes.data.data?.probation;
+      setLeaveProbation(probation || null);
+      if (probation && !probation.paidLeaveEligible) setLeaveForm(current => ({ ...current, type: 'unpaid_leave' }));
       setCandidates(candidatesRes.data.data || []);
       setInterviewLogs(logsRes.data.data?.logs || []);
       setBirthdayReminders(birthdaysRes.data.data || []);
@@ -310,7 +314,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
         toDate: leaveForm.toDate || leaveForm.fromDate,
       });
       setLeaveForm({
-        type: "earned_leave",
+        type: leaveProbation && !leaveProbation.paidLeaveEligible ? "unpaid_leave" : "earned_leave",
         title: "",
         fromDate: "",
         toDate: "",
@@ -918,6 +922,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
 
       {show("leaves") && (
         <div className="flex-1 min-h-0 flex flex-col gap-4">
+          {leaveProbation?.required && !leaveProbation.paidLeaveEligible && <div className="mb-4 rounded border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Paid leave is unavailable until HR confirms probation. Expected end: {leaveProbation.expectedEndDate || "Not configured"}. You can request unpaid leave for HR approval.</div>}
           {leaveBalance && (
             <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
               {[
@@ -953,7 +958,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
               {showLeaveForm ? (
                 <form id="leave-application-form" onSubmit={applyLeave} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    <CustomDropdown label="Leave Type" value={leaveForm.type} showPlaceholder={false} options={[{ value: "earned_leave", label: "EL - Earned Leave" }, { value: "sick_leave", label: "SL - Sick Leave" }, { value: "urgent_leave", label: "Urgent Leave" }, { value: "optional_leave", label: "Optional Leave" }, { value: "half_day", label: "Half Day" }, { value: "full_day", label: "Full Day" }]} onChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value, fromDate: "", toDate: "" }))} buttonClassName="h-10" portalMenu placement="bottom" />
+                    <CustomDropdown label="Leave Type" value={leaveForm.type} showPlaceholder={false} options={[{ value: "earned_leave", label: "EL - Earned Leave" }, { value: "sick_leave", label: "SL - Sick Leave" }, { value: "urgent_leave", label: "Urgent Leave" }, { value: "optional_leave", label: "Optional Leave" }, { value: "half_day", label: "Half Day" }, { value: "full_day", label: "Full Day" }, { value: "unpaid_leave", label: "Unpaid Leave (HR approval required)" }].filter(option => !leaveProbation || leaveProbation.paidLeaveEligible || option.value === "unpaid_leave")} onChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value, fromDate: "", toDate: "" }))} buttonClassName="h-10" portalMenu placement="bottom" />
                     {leaveBalance?.[leaveUsesEarnedBalance(leaveForm.type) ? "earned_leave" : leaveForm.type] && (
                       <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                         Available {leaveUsesEarnedBalance(leaveForm.type) ? "from Earned Leave" : "for this leave type"}: {leaveBalance[leaveUsesEarnedBalance(leaveForm.type) ? "earned_leave" : leaveForm.type].remaining} day(s).{leaveUsesEarnedBalance(leaveForm.type) ? ` ${leaveForm.type.replace(/_/g, " ")} is deducted from EL${leaveForm.type === "half_day" ? " at 0.5 day" : leaveForm.type === "full_day" ? " at 1 day" : ""}.` : ""}
@@ -1009,7 +1014,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                   <div className="flex flex-wrap gap-3 md:col-span-2">
                     <Button text="Final Submit" type="submit" loading={leaveSaving} disabled={draftSaving} />
                     <Button text={activeDraftId ? "Update Draft" : "Save as Draft"} variant="secondary" onClick={saveLeaveDraft} loading={draftSaving} disabled={leaveSaving} />
-                    {activeDraftId && <Button text="New Request" variant="secondary" disabled={leaveSaving || draftSaving} onClick={() => { setActiveDraftId(""); setLeaveForm({ type: "earned_leave", title: "", content: "", fromDate: "", toDate: "", attachment: null }); setIncludeLeaveAttachment(false); }} />}
+                    {activeDraftId && <Button text="New Request" variant="secondary" disabled={leaveSaving || draftSaving} onClick={() => { setActiveDraftId(""); setLeaveForm({ type: leaveProbation && !leaveProbation.paidLeaveEligible ? "unpaid_leave" : "earned_leave", title: "", content: "", fromDate: "", toDate: "", attachment: null }); setIncludeLeaveAttachment(false); }} />}
                   </div>
                 </form>
               ) : (
