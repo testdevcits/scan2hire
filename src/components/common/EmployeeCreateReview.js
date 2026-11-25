@@ -29,17 +29,17 @@ export default function EmployeeCreateReview({ form, employees = [], onEdit, isE
       ["Father / Husband Name", form.fatherOrHusbandName], ["Gender", form.gender], ["Blood Group", form.bloodGroup],
       ["Date of Birth / Birthday", form.dob], ["Celebrate DOB", form.celebrateDob], ["Email", form.email],
       ["Mobile", form.mobile], ["Alternate Mobile", form.altMobile], ["Emergency Contact Number", form.emergencyNumber],
-      ...(!isEditMode ? [["Temporary Password", form.password ? "•••••••• (set)" : "Not provided"]] : []),
+      ...(!isEditMode ? [["Temporary Password", form.useDefaultPassword ? "Admin default password" : form.password ? "•••••••• (set)" : "Not provided"]] : []),
     ], 1],
     ["Employment", [
+      ["Salary", form.salary], ...(!isEditMode ? [["Increment Date", form.nextIncrementDate], ["Bond End Date", form.bondEndDate]] : []), ...(isEditMode ? [["Salary on Hold", form.salaryOnHold]] : []), ["Bond Period Duration", form.bondPeriodDuration],
       ["Joining Date", form.dateOfJoining], ["Department", form.department], ["Designation", form.designation],
       ["Employee Type", form.employeeType], ["Experience", form.experienceType], ...(form.experienceType === "Experienced" ? [["Total Experience (Years)", form.totalExperienceYears]] : []),
       ["Probation Period", form.trainingPeriod], ["Attendance Mode", form.attendanceMode === "work_from_home" ? "Work From Home" : "Office"],
       ["Reporting Manager", manager ? `${manager.employeeId || ""} ${manager.name}`.trim() : form.reportingManager],
       ["Resignation Date", form.resignationDate], ["Leaving Date", form.leavingDate], ["Qualifications", form.qualifications],
     ], 2],
-    ["Bank & Salary", [
-      ["Salary", form.salary], ["Salary on Hold", form.salaryOnHold], ["Bond Period Duration", form.bondPeriodDuration],
+    ["Bank Details", [
       ["Bank Holder Name", form.bankHolderName], ["Bank Name", form.bankName], ["Bank Account Number", form.bankAccountNumber],
       ["Bank IFSC Code", form.bankIfscCode], ["Cheque Number", form.chequeNumber], ["Cheque Account Number", form.chequeAccountNumber],
       ["Cheque Amount", form.chequeAmount], ["Cheque Date", form.chequeDate], ["Cheque Bank Name", form.bankName],
@@ -54,10 +54,9 @@ export default function EmployeeCreateReview({ form, employees = [], onEdit, isE
   ];
 
   return <div className="md:col-span-3 space-y-4">
-    <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Review each step before {isEditMode ? "saving changes" : "adding the employee"}. Select the edit icon to update that step.</p>
     {!isEditMode && <p role="note" className="border-l-4 border-[#f84525] bg-[#fff5f1] px-4 py-3 text-sm leading-relaxed text-gray-700 dark:bg-orange-950/30 dark:text-gray-200"><span className="font-semibold text-[#c6381d] dark:text-orange-300">Note:</span> Employee Code / HR File No. will be generated automatically after saving.</p>}
     <div className="space-y-8">
-      {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists"].map((stepTitle, index) => <section key={stepTitle} className="min-w-0">
+      {["Basic details", "Employment", "Bank details", "Addresses", "Documents", "Checklists"].map((stepTitle, index) => <section key={stepTitle} className="min-w-0">
         <div className="mb-4 flex items-center gap-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Step {index + 1}: {stepTitle}</h3>
           <span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" />

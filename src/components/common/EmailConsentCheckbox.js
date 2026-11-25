@@ -1,3 +1,5 @@
+import Checkbox from "./Checkbox";
+
 const EmailConsentCheckbox = ({
   checked,
   onChange,
@@ -7,21 +9,7 @@ const EmailConsentCheckbox = ({
   description,
   className = "",
 }) => (
-  <label className={`flex cursor-pointer items-start gap-2 rounded-md border border-gray-200 p-3 text-sm dark:border-gray-700 ${className}`}>
-    <input
-      type="checkbox"
-      checked={checked}
-      disabled={disabled || !recipient}
-      onChange={(event) => onChange?.(event.target.checked)}
-      className="mt-0.5 accent-[#f84525]"
-    />
-    <span>
-      <span className="block font-medium">{label}</span>
-      <span className="text-xs text-gray-500">
-        {recipient ? description : "Candidate email is missing."}
-      </span>
-    </span>
-  </label>
+  <Checkbox checked={checked} onChange={onChange} disabled={disabled || !recipient} label={label} description={recipient ? description : "Candidate email is missing."} className={className} />
 );
 
 export default EmailConsentCheckbox;

@@ -60,6 +60,7 @@ export const candidateApi = {
 };
 
 export const hrApi = {
+  getDefaultEmployeePasswordStatus: () => API.get("/hr/default-employee-password"),
   getCandidates: (params) => API.get("/hr/candidates", { params }),
   getCandidate: (candidateId) => API.get(`/hr/candidates/${candidateId}`),
   updateCandidateStatus: (candidateId, payload) =>
