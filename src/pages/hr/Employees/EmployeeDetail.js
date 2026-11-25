@@ -275,7 +275,10 @@ const EmployeeDetail = () => {
   const [accessLoading, setAccessLoading] = useState(true);
   const [hrModuleAccess, setHrModuleAccess] = useState(null);
   const [recordEditor, setRecordEditor] = useState(null);
-  const [activeRecord, setActiveRecord] = useState("current");
+  const [activeRecord, setActiveRecord] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("record") || (params.get("tab") === "reviewsSalary" ? "nextReview" : "current");
+  });
   const [recordDraft, setRecordDraft] = useState({});
   const [savingRecord, setSavingRecord] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
@@ -346,6 +349,13 @@ const EmployeeDetail = () => {
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
     setActiveTabState(tab);
     if (user?.role === "hr") authApi.getProfile().then((response) => setHrModuleAccess(response.data.data?.moduleAccess ?? null)).catch(() => {});
+  };
+  const changeActiveRecord = (record) => {
+    const params = new URLSearchParams(location.search);
+    params.set("tab", "reviewsSalary");
+    params.set("record", record);
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+    setActiveRecord(record);
   };
   const handleChecklistChange = (group, key, value) => setEditForm((current) => ({ ...current, [group]: { ...(current[group] || {}), [key]: value } }));
 
@@ -1513,7 +1523,7 @@ const EmployeeDetail = () => {
               ["documentsProvided", "Documents Provided", "Leaving documents and handover status."],
               ["salaryRelease", "Salary Release", "Salary hold and full-and-final release details."],
             ].filter(([key]) => recordCanView(key)).map(([key, title]) => {
-              return <button type="button" key={key} onClick={() => setActiveRecord(key)} className={`rounded px-4 py-2 text-sm font-semibold transition ${activeRecord === key ? "bg-[#f84525] text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-orange-300"}`}>
+              return <button type="button" key={key} onClick={() => changeActiveRecord(key)} className={`rounded px-4 py-2 text-sm font-semibold transition ${activeRecord === key ? "bg-[#f84525] text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-orange-300"}`}>
                 {title}
               </button>;
             })}

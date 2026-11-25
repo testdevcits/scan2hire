@@ -46,16 +46,18 @@ const HRDashboard = () => {
   const [candidates, setCandidates] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [birthdayReminders, setBirthdayReminders] = useState([]);
+  const [appraisalReminders, setAppraisalReminders] = useState([]);
 
   useEffect(() => {
     if (isProjectCoordinator) return undefined;
-    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees(), hrApi.getBirthdays(new Date().getMonth() + 1)])
-      .then(([attendance, leaves, candidates, employees, birthdays]) => {
+    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees(), hrApi.getBirthdays(new Date().getMonth() + 1), hrApi.getAppraisalReminders()])
+      .then(([attendance, leaves, candidates, employees, birthdays, appraisal]) => {
         if (attendance.status === "fulfilled") setAttendance(attendance.value.data.data || []);
         if (leaves.status === "fulfilled") setLeaves(leaves.value.data.data || []);
         if (candidates.status === "fulfilled") setCandidates(candidates.value.data.data || []);
         if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
         if (birthdays.status === "fulfilled") setBirthdayReminders(birthdays.value.data.data || []);
+        if (appraisal.status === "fulfilled") setAppraisalReminders(appraisal.value.data.data || []);
       });
   }, [hrApi, currentMonth, isProjectCoordinator, toast]);
 
@@ -156,6 +158,10 @@ const HRDashboard = () => {
           <MetricCard key={item.label} {...item} />
         ))}
       </section>
+
+      {!isTeamLead && <SectionCard title="Upcoming Appraisal Reviews" subtitle="All future scheduled employee reviews" contentClassName="pt-3">
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">{appraisalReminders.length ? appraisalReminders.map(item => <button key={`${item.employeeId}-${item.reviewId}`} type="button" onClick={() => navigate(`/hr/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"><span className="min-w-40 flex-1"><span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{item.employeeName}</span><span className="block text-xs text-gray-500">{item.employeeCode || "No employee ID"} · {item.department || item.designation || "Employee"}</span></span><span className={`rounded px-2 py-1 text-xs font-semibold ${item.effectiveDate === getLocalDateKey() ? "bg-[#fff1ed] text-[#f84525]" : "bg-blue-50 text-blue-700"}`}>{item.effectiveDate === getLocalDateKey() ? "Due today" : new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}</span><span className="text-xs text-gray-600 dark:text-gray-300">Planned salary: <strong>₹{item.plannedSalary}</strong></span></button>) : <p className="py-3 text-sm text-gray-500">No upcoming appraisal reviews, or you do not have Appraisal Review view access.</p>}</div>
+      </SectionCard>}
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <SectionCard title="This Month's Birthdays" subtitle={`Employee birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} contentClassName="pt-3">
