@@ -10,7 +10,7 @@ import PdfPageCanvas from './PdfPageCanvas';
 import SignaturePad from './SignaturePad';
 import { useToast } from '../../contexts/ToastContext';
 
-export default function PageSigningModal({ document, managed, canDelete = false, canPlacement = false, canReview = false, onDelete, onClose, onChanged }) {
+export default function PageSigningModal({ document, managed, canSign = false, canDelete = false, canPlacement = false, canReview = false, onDelete, onClose, onChanged }) {
   const { API } = useApi();
   const toast = useToast();
   const [doc, setDoc] = useState(null), [original, setOriginal] = useState(null), [pageBytes, setPageBytes] = useState(null);
@@ -32,7 +32,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     return () => { active = false; };
   }, [document._id]);
   const setup = managed && canPlacement && doc?.status === 'draft';
-  const signing = !managed && ['pending', 'needs_correction'].includes(doc?.status);
+  const signing = !managed && canSign && ['pending', 'needs_correction'].includes(doc?.status);
   const reviewing = managed && canReview && doc?.status === 'awaiting_verification';
   const count = doc?.pages?.length || 0;
   const signedPages = doc?.signedPages || [];
@@ -91,7 +91,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
     return { left: `${(placement.mode === 'strip' ? Math.max(12, currentSize.width - 244) : placement.x) / currentSize.width * 100}%`, top: `${(placement.mode === 'strip' ? currentSize.height + 20 : placement.y) / totalHeight * 100}%`, width: `${220 / currentSize.width * 100}%`, height: `${80 / totalHeight * 100}%` };
   };
   const label = document.type === 'hr_policy' ? 'HR Policy' : 'Appointment Letter';
-  return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : 'Read and sign each page. HR/Admin approval is required for Done.'} headerContent={setup && placement ? <div className="mr-2 flex max-w-[260px] items-center gap-2"><span className="text-xs font-medium text-gray-500">Placement</span><CustomDropdown showPlaceholder={false} value={placement.mode} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} /></div> : null} className="max-w-5xl border-2 border-[#f84525]" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
+  return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : signing ? 'Read and sign each page. HR/Admin approval is required for Done.' : 'View your document. Signing requires permission from your administrator.'} headerContent={setup && placement ? <div className="mr-2 flex max-w-[260px] items-center gap-2"><span className="text-xs font-medium text-gray-500">Placement</span><CustomDropdown showPlaceholder={false} value={placement.mode} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} /></div> : null} className="max-w-5xl border-2 border-[#f84525]" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
     {canDelete && <Button text="Delete" variant="danger" disabled={busy} onClick={onDelete} className="mr-4" />}
     {doc && <div className="flex flex-wrap gap-1">{doc.pages.map(p => <Button key={p.page} text={`${p.page}${reviewing ? (visited.includes(p.page) ? ' ✓' : '') : (signedPages.includes(p.page) ? ' ✓' : '')}`} variant={page === p.page ? 'primary' : 'secondary'} disabled={busy} onClick={() => changePage(p.page)} className="!px-2 !py-1 text-xs" />)}</div>}
     <div className="mr-auto" />
