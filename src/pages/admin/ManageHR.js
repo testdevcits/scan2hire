@@ -1,6 +1,7 @@
 /* eslint-disable */
+import { createPortal } from "react-dom";
 import { useApi } from "../../contexts/ApiContext";
-import { employeeRecordPermissions } from "../../config/employeeRecordPermissions";
+import { hrAccessModules as moduleOptions } from "../../config/hrAccessModules";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,7 +13,6 @@ import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const emptyForm = { name: "", email: "", mobile: "", password: "", employeeId: "" };
-const moduleOptions = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]], ["notifications", "Notifications", ["view"], { view: "View Notifications" }], ...employeeRecordPermissions];
 
 const ManageHR = () => {
   const { authApi, hrApi } = useApi();
@@ -347,10 +347,10 @@ const ManageHR = () => {
         </div>
         </> : null}
       </section>
-      {accessTarget && <div className={`fixed inset-0 z-50 bg-black/20 ${drawerClosing ? "animate-fade-out" : ""}`} onClick={() => { if (!savingAccess) closeDrawer(); }}><aside className={`${drawerClosing ? "animate-slide-out-right" : "animate-slide-in-right"} absolute right-0 top-0 flex h-screen max-h-screen w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl`} onClick={(event) => event.stopPropagation()}><div className="border-b px-6 py-5"><div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold">Manage Role Access</h2><p className="mt-1 text-sm text-gray-500">Select modules for {accessTarget.name}.</p></div><button type="button" onClick={closeDrawer} className="text-xl text-gray-500">×</button></div></div><div className="flex-1 overflow-y-auto p-6">
+      {accessTarget && createPortal(<div className={`fixed inset-0 z-[140] !m-0 bg-black/20 ${drawerClosing ? "animate-fade-out" : ""}`} onClick={() => { if (!savingAccess) closeDrawer(); }}><aside className={`${drawerClosing ? "animate-slide-out-right" : "animate-slide-in-right"} absolute inset-y-0 right-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl`} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Manage Role Access"><div className="shrink-0 border-b px-6 py-5"><div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold">Manage Role Access</h2><p className="mt-1 text-sm text-gray-500">Select modules for {accessTarget.name}.</p></div><button type="button" onClick={closeDrawer} className="text-xl text-gray-500">×</button></div></div><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
         <div className="mb-4 rounded-sm border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><p className="font-semibold">HR role permissions</p><p className="mt-1 text-xs">Checked modules will appear in this HR user’s panel. Unchecked modules will be hidden.</p></div>
         <ModulePermissionMatrix modules={moduleOptions} value={moduleDraft} onChange={(key, value) => setModuleDraft((current) => ({ ...current, [key]: value }))} />
-      </div><div className="flex justify-end gap-2 border-t bg-gray-50 px-6 py-4"><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={closeDrawer} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></div></aside></div>}
+      </div><div className="flex shrink-0 flex-wrap justify-end gap-2 border-t bg-gray-50 px-6 py-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}><Button text="Cancel" variant="secondary" disabled={savingAccess} onClick={closeDrawer} /><Button text="Save HR Permissions" loading={savingAccess} onClick={saveAccess} /></div></aside></div>, document.body)}
     </div>
   );
 };

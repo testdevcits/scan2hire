@@ -50,7 +50,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
   const version = () => ({ originalHash: doc.originalHash, revision: doc.revision || 1, round: doc.signingRound || 1 });
   const rendered = () => { setReady(true); setVisited(current => current.includes(page) ? current : [...current, page]); };
   const changePlacement = update => setPlacements(current => current.map(item => item.page === page ? { ...item, ...update } : item));
-  const changePage = next => { setReady(false); setPage(next); };
+  const changePage = next => { if (next === page) return; setReady(false); setPage(next); };
   const savePage = async () => {
     if (!ready || !signature || !accepted) return;
     setBusy(true);
@@ -87,13 +87,13 @@ export default function PageSigningModal({ document, managed, canDelete = false,
   };
   const pointBox = () => {
     if (!currentSize || !placement) return null;
-    const totalHeight = currentSize.height + (placement.mode === 'strip' ? 96 : 0);
+    const totalHeight = currentSize.height + (placement.mode === 'strip' ? 120 : 0);
     return { left: `${(placement.mode === 'strip' ? Math.max(12, currentSize.width - 244) : placement.x) / currentSize.width * 100}%`, top: `${(placement.mode === 'strip' ? currentSize.height + 20 : placement.y) / totalHeight * 100}%`, width: `${220 / currentSize.width * 100}%`, height: `${80 / totalHeight * 100}%` };
   };
   const label = document.type === 'hr_policy' ? 'HR Policy' : 'Appointment Letter';
   return <CommonModal title={label} subtitle={setup ? 'Set a fixed signature box on each page, then send to the employee.' : reviewing ? 'Review every signed page before approving or requesting correction.' : 'Read and sign each page. HR/Admin approval is required for Done.'} headerContent={setup && placement ? <div className="mr-2 flex max-w-[260px] items-center gap-2"><span className="text-xs font-medium text-gray-500">Placement</span><CustomDropdown showPlaceholder={false} value={placement.mode} disabled={busy} onChange={mode => changePlacement({ mode, x: 20, y: 20 })} options={[{ value: 'strip', label: 'Add space below page' }, { value: 'overlay', label: 'Use blank space on page' }]} /></div> : null} className="max-w-5xl border-2 border-[#f84525]" onClose={() => { if (!busy) onClose(); }} bodyClassName="space-y-3" footer={<>
     {canDelete && <Button text="Delete" variant="danger" disabled={busy} onClick={onDelete} className="mr-4" />}
-    {doc && <div className="flex flex-wrap gap-1">{doc.pages.map(p => <Button key={p.page} text={`${p.page}${signedPages.includes(p.page) ? ' ✓' : ''}`} variant={page === p.page ? 'primary' : 'secondary'} disabled={busy} onClick={() => changePage(p.page)} className="!px-2 !py-1 text-xs" />)}</div>}
+    {doc && <div className="flex flex-wrap gap-1">{doc.pages.map(p => <Button key={p.page} text={`${p.page}${reviewing ? (visited.includes(p.page) ? ' ✓' : '') : (signedPages.includes(p.page) ? ' ✓' : '')}`} variant={page === p.page ? 'primary' : 'secondary'} disabled={busy} onClick={() => changePage(p.page)} className="!px-2 !py-1 text-xs" />)}</div>}
     <div className="mr-auto" />
     {doc && <div className="flex flex-wrap items-center gap-1">
       <Button text="Previous" variant="secondary" disabled={busy || page === 1} onClick={() => changePage(page - 1)} className="text-xs" />
@@ -117,7 +117,7 @@ export default function PageSigningModal({ document, managed, canDelete = false,
             const y = (event.clientY - rect.top) / rect.height * currentSize.height - 25;
             changePlacement({ x: Math.max(0, Math.min(currentSize.width - 220, x)), y: Math.max(0, Math.min(currentSize.height - 80, y)) });
           }}>
-            {setup ? <><PdfPageCanvas bytes={original} page={page} onRendered={rendered} />{placement?.mode === 'strip' && <div style={{ aspectRatio: `${currentSize.width} / 96`, background: '#fff' }} />}</> : pageBytes ? <PdfPageCanvas bytes={pageBytes} onRendered={rendered} /> : <CommonLoader compact text="Loading page…" />}
+            {setup ? <><PdfPageCanvas bytes={original} page={page} onRendered={rendered} />{placement?.mode === 'strip' && <div style={{ aspectRatio: `${currentSize.width} / 120`, background: '#fff' }} />}</> : pageBytes ? <PdfPageCanvas bytes={pageBytes} onRendered={rendered} /> : <CommonLoader compact text="Loading page…" />}
             {ready && setup && <div onClick={event => event.stopPropagation()} onPointerDown={event => { if (placement.mode !== 'overlay' || busy) return; event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); draggingBox.current = true; }} onPointerMove={event => {
               if (!draggingBox.current) return;
               const rect = pageArea.current.getBoundingClientRect();
@@ -139,8 +139,8 @@ export default function PageSigningModal({ document, managed, canDelete = false,
               <p className="text-xs text-gray-500">Your final signature is previewed in its fixed position on the page.</p>
             </>}
           </> : reviewing ? <>
-            <h3 className="text-sm font-semibold">HR / Admin Verification</h3><p className="text-xs text-gray-500">Check the signature and content on each page. Only approval marks this document Done.</p>
-            <label className="block text-sm">Correction reason<textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} placeholder="Required when requesting correction" className="mt-2 min-h-28 w-full rounded-sm border p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>
+            <h3 className="text-sm font-semibold">HR / Admin Verification</h3><p className="text-xs text-gray-500">Reviewed {visited.length} of {count} pages. Check every page to enable approval. If everything is correct, select Approve &amp; Mark Done; no correction reason is needed.</p>
+            <label className="block text-sm">Correction reason (only for corrections)<textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} placeholder="Required when requesting correction" className="mt-2 min-h-28 w-full rounded-sm border p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>
           </> : <p className="text-sm">{doc.status === 'awaiting_verification' ? 'Submitted successfully. Waiting for HR/Admin verification.' : `Status: ${doc.status}`}</p>}
         </div>
       </div>
