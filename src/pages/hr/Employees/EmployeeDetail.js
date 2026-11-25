@@ -1054,6 +1054,9 @@ const EmployeeDetail = () => {
             />
 <DetailItem plain icon={<FiShield />} label="Employee Type" value={detailFallback(employee.employeeType)} />
 <DetailItem plain icon={<FiCalendar />} label="Probation Period" value={detailFallback(employee.trainingPeriod)} />
+<DetailItem plain icon={<FiShield />} label="Salary" value={employee.salary ?? "N/A"} />
+<DetailItem plain icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
+<DetailItem plain icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
 <div className="md:col-span-2"><ProbationManagement employee={employee} canManage={canManage && hrCanEditModule("employees")} onChanged={() => loadEmployee({ includeReport: false })} /></div>
 <DetailItem plain icon={<FiShield />} label="Work Role" value={labelize(employee.workRole || "employee")} />
 <DetailItem plain
@@ -1066,10 +1069,7 @@ const EmployeeDetail = () => {
 <DetailItem plain icon={<FiCalendar />} label="Leaving Date" value={formatDate(employee.leavingDate)} />
 </div></section>
 <EmployeeBackgroundDetails employee={employee} />
-<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Salary & Bank</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
-<DetailItem plain icon={<FiShield />} label="Salary" value={employee.salary ?? "N/A"} />
-<DetailItem plain icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
-<DetailItem plain icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
+<section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Bank Details</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
 <DetailItem plain icon={<FiBriefcase />} label="Bank Holder Name" value={detailFallback(employee.bankHolderName)} />
 <DetailItem plain icon={<FiBriefcase />} label="Bank Name" value={detailFallback(employee.bankName)} />
 <DetailItem plain icon={<FiBriefcase />} label="Bank Account Number" value={detailFallback(employee.bankAccountNumber)} />
