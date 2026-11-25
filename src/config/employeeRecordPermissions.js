@@ -1,10 +1,10 @@
 export const employeeRecordPermissions = [
-  ["employeeRecordGroup", "Reviews & Salary History", ["view", "currentView", "current", "nextReviewView", "nextReview", "leavingView", "leaving", "nafView", "naf", "documentsProvidedView", "documentsProvided", "salaryReleaseView", "salaryRelease"], {
+  ["employeeRecordGroup", "Appraisal Review & Employee Records", ["view", "currentView", "current", "nextReviewView", "nextReview", "leavingView", "leaving", "nafView", "naf", "documentsProvidedView", "documentsProvided", "salaryReleaseView", "salaryRelease"], {
     view: "View History",
     currentView: "View Current Record",
     current: "Add / Update Current Record",
-    nextReviewView: "View Next Review",
-    nextReview: "Add / Update Next Review",
+    nextReviewView: "View Appraisal Review",
+    nextReview: "Add / Update Appraisal Review",
     leavingView: "View Leaving Process",
     leaving: "Add / Update Leaving Record",
     nafView: "View NAF Process",
