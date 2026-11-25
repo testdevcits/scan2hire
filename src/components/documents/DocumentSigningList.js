@@ -30,6 +30,9 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
   const isHr = ['hr', 'superadmin'].includes(user?.role);
   const documentAccess = user?.role === 'hr' ? (moduleAccess?.documents || user?.moduleAccess?.documents) : null;
   const canDocument = action => user?.role === 'superadmin' || (documentAccess ? documentAccess[action] === true : false);
+  const ownAccess = moduleAccess || user?.moduleAccess || {};
+  const canSignOwn = isHr ? ownAccess.ownDocuments?.edit === true : ownAccess.documents?.edit === true;
+  const canDownloadOwn = isHr ? ownAccess.ownDocuments?.download === true : ownAccess.documents?.download === true;
   const canDelete = managed && isHr && canDocument('delete');
   const [documents, setDocuments] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -92,7 +95,7 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
   const downloadSigned = async doc => {
     setBusy(true);
     try {
-      const res = await API.get(`/documents/${doc._id}/file`, { params: { signed: true }, responseType: 'blob' });
+      const res = await API.get(`/documents/${doc._id}/file`, { params: { signed: true, download: true }, responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       const employee = String(doc.employee?.employeeId || doc.employee?.name || 'employee').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -178,12 +181,12 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
         {managed && isHr && canDocument('add') && !employeeFilterId && <Button text="+ Add Employee Documents" onClick={() => { setEditTarget(null); setEmployeeId(''); setFile(null); setFiles({}); setUploadOpen(true); }} disabled={busy} />}
       </div>
     </>}
-    {!managed && <EmployeeSigningDocuments documents={documents} loading={loading} error={error} busy={busy} onRefresh={load} onOpen={open} onDownload={downloadSigned} />}
+    {!managed && <EmployeeSigningDocuments documents={documents} loading={loading} error={error} busy={busy} onRefresh={load} onOpen={open} onDownload={downloadSigned} canSign={canSignOwn} canDownload={canDownloadOwn} />}
     {managed && employeeFilterId && isHr && canDocument('add') && <div className="mb-4 rounded-sm border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"><h2 className="mb-3 font-semibold">Upload employee documents</h2><div className="grid gap-4 sm:grid-cols-2">{Object.entries(labels).map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept=".pdf,application/pdf" hint="PDF only · Maximum 5 MB" required disabled={busy} fileName={files[key]?.name} onChange={e => setFiles(currentFiles => ({ ...currentFiles, [key]: e.target.files?.[0] || null }))} />)}</div><div className="mt-4 flex justify-end"><Button text="Save Documents" loading={busy} onClick={upload} disabled={Object.keys(labels).some(key => !files[key])} /></div></div>}
     {managed && <CommonTable tableClassName="table-fixed min-w-[640px]" mobileLayout="stack" columns={columns} data={selectedVisible} loading={loading} loadingText="Loading documents…" error={error} errorAction={<Button text="Try again" onClick={load} variant="secondary" />} emptyText={filter === 'pending' ? 'No pending signatures. You are all caught up.' : 'No documents found.'}
       toolbar={<div className="flex justify-end border-b border-gray-100 p-3 dark:border-gray-800"><Button text="Refresh" variant="secondary" disabled={loading || busy} onClick={load} /></div>}
     />}
-    {workflow && <Suspense fallback={<CommonLoader compact text="Opening signing screen…" />}><PageSigningModal document={workflow} managed={managed} canDelete={canDelete} canPlacement={canDocument('placement')} canReview={canDocument('review')} onDelete={() => setDeleteTarget(workflow)} onClose={() => setWorkflow(null)} onChanged={load} /></Suspense>}
+    {workflow && <Suspense fallback={<CommonLoader compact text="Opening signing screen…" />}><PageSigningModal document={workflow} managed={managed} canSign={canSignOwn} canDelete={canDelete} canPlacement={canDocument('placement')} canReview={canDocument('review')} onDelete={() => setDeleteTarget(workflow)} onClose={() => setWorkflow(null)} onChanged={load} /></Suspense>}
     {uploadOpen && <CommonModal title={editTarget ? `Update ${labels[type]}` : 'Add employee documents'} subtitle={editTarget ? 'Upload a replacement PDF. The previous copy stays in history.' : 'Select an employee once and upload both PDFs together.'} className="max-w-2xl" as="form" onSubmit={upload} onClose={() => { if (!busy) setUploadOpen(false); }} footer={<><Button text="Back" variant="secondary" disabled={busy} onClick={() => setUploadOpen(false)} /><Button text={editTarget ? 'Save Updated Draft' : 'Save Documents'} type="submit" loading={busy} disabled={!employeeId || (editTarget ? !file : !Object.keys(labels).some(key => !employeeDocuments.some(doc => doc.type === key)) || Object.keys(labels).some(key => !employeeDocuments.some(doc => doc.type === key) && !files[key]))} /></>}>
       <div className="space-y-5">
         {employeeFilterId ? <div className="rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"><span className="font-medium">Employee:</span> {employees.find(emp => String(emp._id) === String(employeeFilterId))?.name || "Selected employee"}</div> : <CustomDropdown label="Employee" searchable required disabled={busy || Boolean(editTarget)} value={employeeId} onChange={value => { setEmployeeId(value); setFiles({}); }} placeholder="Search and select an employee" options={employees.map(emp => ({ value: emp._id, label: `${emp.name} (${emp.employeeId || emp.email})` }))} portalMenu />}
@@ -212,12 +215,12 @@ export default function DocumentSigningList({ managed = false, employeeFilterId 
       <p className="text-sm text-gray-600 dark:text-gray-300">{labels[deleteTarget.type]} for {deleteTarget.employee?.name || 'this employee'} will disappear from active lists and signing access. Existing signed copies and version/signature audit records will be retained.</p>
     </CommonModal>}
     {preview && <CommonModal title={`${labels[preview.doc.type]}${preview.signed ? ' · Signed copy' : ''}`} subtitle={preview.doc.filename} className="max-w-4xl" bodyClassName="space-y-4" onClose={() => { if (!busy) close(); }} footer={<>
-      {(!managed || canDocument('download')) && <a href={preview.url} download={`${preview.signed ? 'signed-' : ''}${preview.doc.filename}`} className="mr-auto inline-flex items-center rounded-sm border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-200">Download PDF</a>}
+      {(managed ? canDocument('download') : canDownloadOwn) && <a href={preview.url} download={`${preview.signed ? 'signed-' : ''}${preview.doc.filename}`} className="mr-auto inline-flex items-center rounded-sm border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-200">Download PDF</a>}
       <Button text="Close" variant="secondary" disabled={busy} onClick={close} />
     </>}>
       {preview.doc.status !== 'archived' && <div className="flex flex-wrap items-center gap-2">
         {preview.doc.status === 'done' && <Button text={preview.signed ? 'View Original' : 'View Signed PDF'} variant="secondary" disabled={busy} onClick={() => open(preview.doc, !preview.signed)} className="text-xs" />}
-        {managed && preview.doc.status === 'done' && <Button disabled={busy} onClick={() => downloadSigned(preview.doc)} className="inline-flex items-center gap-1.5 text-xs"><FiDownload />Download Signed PDF</Button>}
+        {managed && canDocument('download') && preview.doc.status === 'done' && <Button disabled={busy} onClick={() => downloadSigned(preview.doc)} className="inline-flex items-center gap-1.5 text-xs"><FiDownload />Download Signed PDF</Button>}
         {managed && isHr && canDocument('update') && ['draft', 'pending'].includes(preview.doc.status) && <Button variant="secondary" disabled={busy} onClick={() => { const doc = preview.doc; close(); edit(doc); }} className="inline-flex items-center gap-1.5 text-xs"><FiEdit2 />Update PDF</Button>}
         {(preview.doc.revision || 1) > 1 && <Button variant="secondary" disabled={busy} onClick={() => { const doc = preview.doc; close(); showHistory(doc); }} className="inline-flex items-center gap-1.5 text-xs"><FiClock />History</Button>}
         {managed && isHr && canDocument('cancel') && preview.doc.status === 'pending' && <Button variant="secondary" disabled={busy} onClick={() => { const doc = preview.doc; close(); setCancelTarget(doc); }} className="inline-flex items-center gap-1.5 text-xs !text-red-600"><FiX />Cancel Request</Button>}

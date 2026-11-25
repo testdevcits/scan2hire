@@ -42,7 +42,7 @@ const EmployeeLayout = () => {
     ...(access.systemAllotmentManage && (access.moduleAccess?.systemAllotment?.view === true)
       ? [{ label: "System Allotments", path: "/employee/system-allotments", icon: <FiMonitor /> }]
       : []),
-    ...(access.moduleAccess?.documents?.view === true ? [{ label: "Documents", path: "/employee/documents", icon: <FiFolder /> }] : []),
+    ...((access.moduleAccess?.documents?.view === true || access.moduleAccess?.profileDocuments?.view === true) ? [{ label: "Documents", path: "/employee/documents", icon: <FiFolder /> }] : []),
     ...(access.moduleAccess?.credentials?.view === true ? [{ label: "Credentials", path: "/employee/credentials", icon: <FiLock /> }] : []),
     ...(access.moduleAccess?.settings?.view === true ? [{ label: "Settings", path: "/employee/settings", icon: <FiSettings /> }] : []),
   ];
