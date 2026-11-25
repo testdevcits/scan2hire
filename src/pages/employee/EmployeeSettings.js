@@ -235,7 +235,7 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
               <div className="grid grid-cols-1 gap-4 rounded-sm bg-white p-2 text-sm lg:grid-cols-2">
                 {activeProfileTab === "profileDocuments" && !isHrSettings && <div className="lg:col-span-2"><PersonalDocuments /></div>}
                 {activeProfileTab === "profileDocuments" && isHrSettings && <div className="lg:col-span-2 space-y-3">{Object.entries(profileDetails?.documents || {}).map(([key, value]) => <div key={key} className="flex justify-between rounded border p-3"><span>{key.replace(/([A-Z])/g, " $1")}</span>{getDocumentUrl(value) && <button className="text-sm text-[#f84525]" onClick={() => setPreview({ title: key, url: getDocumentUrl(value) })}>View</button>}</div>)}</div>}
-                {activeProfileTab === "overview" && <SubmittedProfileDetails employee={profileDetails || {}} canView={canViewProfileGroup} />}
+                {activeProfileTab === "overview" && <SubmittedProfileDetails employee={profileDetails || {}} canView={canViewProfileGroup} protectSalary={!isHrSettings} />}
 
               </div>
         </section>

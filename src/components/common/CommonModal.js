@@ -19,7 +19,7 @@ const CommonModal = ({
 }) => {
   return createPortal(
     <div
-      className={`fixed inset-0 z-[140] flex bg-black/45 ${drawer ? `transition-opacity duration-300 ease-in-out ${open ? "opacity-100" : "pointer-events-none opacity-0"}` : "items-center justify-center p-3 sm:p-5"}`}
+      className={`fixed inset-0 z-[140]  flex bg-black/45 ${drawer ? `transition-opacity duration-300 ease-in-out ${open ? "opacity-100" : "pointer-events-none opacity-0"}` : "items-center justify-center p-3 sm:p-5"}`}
       role="presentation"
       onMouseDown={(event) => { if (drawer && event.target === event.currentTarget) onClose?.(); }}
     >
