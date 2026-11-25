@@ -1,3 +1,4 @@
+import DefaultEmployeePasswordSettings from "../../components/common/DefaultEmployeePasswordSettings";
 /* eslint-disable */
 import { useApi } from "../../contexts/ApiContext";
 import { useContext, useEffect, useState } from "react";
@@ -442,6 +443,7 @@ const GeneralSettings = () => {
           </Card>
 
         </div>
+        <DefaultEmployeePasswordSettings />
         <form id="admin-settings-form" onSubmit={saveSettings} className="min-w-0 space-y-5">
           <Card>
             <CardHeader icon={<FiSettings />} title="Mail & Notification Controls" />

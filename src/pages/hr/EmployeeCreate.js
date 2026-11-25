@@ -1,3 +1,4 @@
+import Checkbox from "../../components/common/Checkbox";
 /* eslint-disable */
 import { useApi } from "../../contexts/ApiContext";
 import { employeeUploadErrors } from "../../utils/employeeUploadSize";
@@ -30,7 +31,7 @@ const initialForm = {
   email: "",
   mobile: "",
   altMobile: "", gender: "Other", attendanceMode: "office",
-  hrFileNo: "", fatherOrHusbandName: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: false, bondPeriodDuration: "",
+  hrFileNo: "", fatherOrHusbandName: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: true, bondPeriodDuration: "", nextIncrementDate: "", bondEndDate: "",
   experienceType: "Fresher", totalExperienceYears: "", previousEmployments: [],
   qualifications: [],
   bankHolderName: "", bankAccountNumber: "", bankIfscCode: "", bankName: "",
@@ -55,18 +56,24 @@ const initialForm = {
   noDuesChecklist: { teamLeadProjectManager: false, itHead: false, hrHead: false },
 };
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
 
 
 const EmployeeCreate = () => {
   const { authApi, hrApi } = useApi();
   const { employeeId } = useParams();
   const isEditMode = Boolean(employeeId);
+  const [useDefaultPassword, setUseDefaultPassword] = useState(false);
+  const [defaultPasswordConfigured, setDefaultPasswordConfigured] = useState(false);
+  useEffect(() => { if (!isEditMode) hrApi.getDefaultEmployeePasswordStatus().then(res => { const configured = res.data.configured === true; setDefaultPasswordConfigured(configured); setUseDefaultPassword(configured); }).catch(() => setDefaultPasswordConfigured(false)); }, [isEditMode]);
+
   const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [reportingManagerOptions, setReportingManagerOptions] = useState([]);
   const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], gender: [], qualification: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
   const [uploadErrors, setUploadErrors] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
   const { user } = useContext(AuthContext);
@@ -79,6 +86,7 @@ const EmployeeCreate = () => {
   const [draftStatus, setDraftStatus] = useState("Loading draft…");
   const draftFinished = useRef(false);
   const draftReady = Boolean(draftKey && loadedDraftKey === draftKey);
+  const employmentDetailsComplete = Boolean(form.dateOfJoining && form.department && form.designation && form.employeeType && form.attendanceMode && form.salary && form.bondPeriodDuration);
 
   useEffect(() => {
     if (isEditMode || !draftKey || !["hr", "superadmin"].includes(user?.role)) return;
@@ -163,7 +171,11 @@ const EmployeeCreate = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    if (["mobile", "altMobile"].includes(name) && !/^\d{0,10}$/.test(value)) return;
+    if (name === "email") { setForm(current => ({ ...current, email: value.toLowerCase().trim() })); return; }
+    if (["mobile", "altMobile", "emergencyNumber"].includes(name)) {
+      if (!/^\d{0,10}$/.test(value)) return;
+      setFieldErrors((current) => ({ ...current, [name]: "" }));
+    }
     if (["firstName", "middleName", "lastName", "fatherOrHusbandName"].includes(name)) {
       const titleCased = value.trimStart().replace(/(^|\s)([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
       setForm((current) => {
@@ -177,13 +189,23 @@ const EmployeeCreate = () => {
     }
     setForm((current) => ({ ...current, [name]: value }));
   };
+  const validateMobileField = (name, value) => {
+    const labels = { mobile: "Mobile number", altMobile: "Alternate mobile", emergencyNumber: "Emergency contact" };
+    if (!value && name !== "mobile") return "";
+    if (!value) return "Mobile number is required";
+    return /^[6-9]\d{9}$/.test(value) ? "" : `${labels[name]} must be 10 digits and start with 6, 7, 8 or 9`;
+  };
+  const handleMobileBlur = (event) => {
+    const { name, value } = event.target;
+    setFieldErrors((current) => ({ ...current, [name]: validateMobileField(name, value) }));
+  };
   const handleSelect = (name) => (value) => setForm((current) => ({ ...current, [name]: value, ...(name === "experienceType" && value === "Experienced" && !current.previousEmployments.length ? { previousEmployments: [newEmployment(true)] } : {}) }));
   useEffect(() => {
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
     if (fullName && !String(form.bankHolderName || "").trim()) setForm((current) => ({ ...current, bankHolderName: fullName }));
   }, [form.firstName, form.middleName, form.lastName, form.bankHolderName]);
   const addQualification = () => setForm((current) => ({ ...current, qualifications: [...current.qualifications, { id: crypto.randomUUID(), level: "", course: "", institute: "", passingYear: "", percentage: "", documents: {} }] }));
-  const updateQualification = (index, key, value) => setForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  const updateQualification = (index, key, value) => setForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value, ...(key === "level" && !qualificationHasSpecialization(value) ? { course: "" } : {}) } : item) }));
 
   const handleNamedAddressChange = (addressKey) => (event) => {
     const { name, value } = event.target;
@@ -243,10 +265,18 @@ const EmployeeCreate = () => {
   };
   const nextStep = (event) => {
     event?.preventDefault();
+    if (step === 1) {
+      const mobileErrors = Object.fromEntries(["mobile", "altMobile", "emergencyNumber"].map((name) => [name, validateMobileField(name, form[name])]));
+      setFieldErrors((current) => ({ ...current, ...mobileErrors }));
+      if (Object.values(mobileErrors).some(Boolean)) { toast.error("Please correct the highlighted mobile numbers"); return; }
+    }
     if (step === 2 || step === 5) {
       const error = experienceError(form, step === 5);
       if (error) { toast.error(error); return; }
     }
+    if (step === 2 && (!form.dateOfJoining || !form.department || !form.designation || !form.employeeType)) { toast.error("Complete joining date, department, designation and employee type before continuing"); return; }
+    if (step === 3 && form.salary !== "" && (Number.isNaN(Number(form.salary)) || Number(form.salary) < 0)) { toast.error("Enter a valid salary"); return; }
+    if (step === 4 && [form.permanentAddress, form.alternateAddress].some((address) => address?.pincode && !/^\d{6}$/.test(address.pincode))) { toast.error("Enter a valid 6-digit pincode"); return; }
     setStep((value) => Math.min(7, value + 1));
   };
 
@@ -254,9 +284,14 @@ const EmployeeCreate = () => {
     event.preventDefault();
     if (step !== 7 || saving) return;
     if (!event.currentTarget.form?.reportValidity()) return;
-    if (!isEditMode && !form.password) {
+    if (!isEditMode && !useDefaultPassword && !form.password) {
       setStep(1);
       toast.error("Please enter the temporary password before adding the employee.");
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(form.mobile) || (form.altMobile && !/^[6-9]\d{9}$/.test(form.altMobile)) || (form.emergencyNumber && !/^[6-9]\d{9}$/.test(form.emergencyNumber))) {
+      setStep(1);
+      toast.error("Please enter valid Indian mobile numbers.");
       return;
     }
     const error = experienceError(form);
@@ -265,6 +300,9 @@ const EmployeeCreate = () => {
     try {
       const payload = {
         ...form,
+        useDefaultPassword: !isEditMode && useDefaultPassword,
+        password: useDefaultPassword ? "" : form.password,
+        salaryOnHold: Boolean(form.salaryOnHold),
         previousEmployments: form.experienceType === "Experienced" ? form.previousEmployments : [],
         totalExperienceYears: form.experienceType === "Experienced" ? form.totalExperienceYears : 0,
         salarySlips: [],
@@ -316,7 +354,7 @@ const EmployeeCreate = () => {
 
       {!isEditMode && <p role="status" className="text-xs text-gray-500 dark:text-gray-400">{draftKey ? draftStatus : "Draft saving requires a signed-in account."} Temporary passwords are not stored.</p>}
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-gray-100 bg-white p-2 dark:border-gray-800 dark:bg-gray-900">
-        {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => (
+        {["Basic details", "Employment", "Bank details", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => (
           <button type="button" key={label} onClick={() => setStep(index + 1)} className={`min-w-[125px] flex-1 rounded-lg border px-3 py-3 text-xs font-semibold transition ${step === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 bg-white text-gray-600 hover:bg-[#fff1ed] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
             <span className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full ${step === index + 1 ? "bg-[#f84525] text-white" : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"}`}>{index + 1}</span>{label}
           </button>
@@ -339,11 +377,12 @@ const EmployeeCreate = () => {
             <CalendarPicker label="Celebrate DOB" labelAddon={<label className="inline-flex items-center gap-1 text-xs font-normal"><input type="checkbox" checked={Boolean(form.dob && form.celebrateDob === form.dob)} onChange={(event) => setForm((current) => ({ ...current, celebrateDob: event.target.checked ? current.dob : "" }))} /> Same as DOB</label>} mode="date" value={form.celebrateDob} onChange={(value) => setForm((current) => ({ ...current, celebrateDob: value }))} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Contact details</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
             <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} required />
-            <InputField label="Mobile" name="mobile" type="tel" value={form.mobile} onChange={handleChange} required />
-            <InputField label="Alternate Mobile" name="altMobile" type="tel" value={form.altMobile} onChange={handleChange} />
-            <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" value={form.emergencyNumber} onChange={handleChange} />
+            <InputField label="Mobile" name="mobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.mobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.mobile} required />
+            <InputField label="Alternate Mobile" name="altMobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.altMobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.altMobile} />
+            <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.emergencyNumber} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.emergencyNumber} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Login and identity</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
-            {!isEditMode && <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />}
+            {!isEditMode && <div className="md:col-span-3"><Checkbox label="Use temporary password" checked={useDefaultPassword} disabled={!defaultPasswordConfigured} onChange={checked => { setUseDefaultPassword(checked); setForm(current => ({ ...current, password: '' })); }} description={defaultPasswordConfigured ? 'Applies only to this new employee. You can also enter a custom password.' : 'Ask Admin to configure a default password in Settings, or enter a custom password.'} /></div>}
+            {!isEditMode && !useDefaultPassword && <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />}
           </>
         ) : null}
 
@@ -353,7 +392,7 @@ const EmployeeCreate = () => {
             {form.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" type="number" min="0" step="0.1" value={form.totalExperienceYears} onChange={handleChange} name="totalExperienceYears" /> : null}
             <CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value }))} />
             <CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu />
-            <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation} searchable portalMenu />
+            <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation.filter((item) => !item.department || item.department === form.department).map((item) => item.name || item)} searchable portalMenu />
             <CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} />
             <CustomDropdown label="Probation Period" value={form.trainingPeriod} onChange={handleSelect("trainingPeriod")} options={masterOptions.trainingPeriod.length ? masterOptions.trainingPeriod : ["1 Month", "3 Months", "6 Months"]} />
             <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
@@ -378,17 +417,28 @@ const EmployeeCreate = () => {
             />
             <CalendarPicker label="Resignation Date" mode="date" value={form.resignationDate} onChange={(value) => setForm((current) => ({ ...current, resignationDate: value }))} />
             <CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} />
+            <section className="md:col-span-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <h3 className="text-base font-semibold">Joining / Current Record</h3>
+              <p className="mt-1 text-sm text-gray-500">Enter the starting salary, increment date and bond details for this employee.</p>
+              <div className="mt-4 grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+            <InputField label="Salary" name="salary" value={form.salary} onChange={handleChange} />
+            {!isEditMode && <CalendarPicker label="Increment Date" mode="date" value={form.nextIncrementDate} onChange={(value) => setForm(current => ({ ...current, nextIncrementDate: value }))} />}
+            {!isEditMode && <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm(current => ({ ...current, bondEndDate: value }))} />}
+
+            <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
+            {isEditMode && <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200 md:mt-[22px]"><input type="checkbox" checked={form.salaryOnHold} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>}
+            {!isEditMode && <label className={`flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200 md:mt-[22px] ${!employmentDetailsComplete ? "cursor-not-allowed opacity-70" : ""}`}><input type="checkbox" checked={Boolean(form.salaryOnHold)} disabled={!employmentDetailsComplete} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>}
+              </div>
+            </section>
           </>
         ) : null}
-        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-[#f84525] hover:bg-[#fff1ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84525]"><FiPlus size={22} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} error={uploadErrors[`qualification-marksheet-${index}`]} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
+        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-[#f84525] hover:bg-[#fff1ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84525]"><FiPlus size={22} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField hidden={!qualificationHasSpecialization(item.level)} label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} error={uploadErrors[`qualification-marksheet-${index}`]} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
 
         {step === 2 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} /> : null}
         {step === 5 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} documents onFiles={handleEmploymentFiles} /> : null}
 
         {step === 3 ? (
           <>
-            <InputField label="Salary" name="salary" value={form.salary} onChange={handleChange} />
-            <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
             <InputField label="Bank Holder Name" name="bankHolderName" value={form.bankHolderName} onChange={handleChange} />
             <InputField label="Bank Name" name="bankName" value={form.bankName} onChange={handleChange} />
             <InputField label="Bank Account Number" name="bankAccountNumber" value={form.bankAccountNumber} onChange={handleChange} />
@@ -397,7 +447,6 @@ const EmployeeCreate = () => {
             <InputField label="Cheque Account Number" name="chequeAccountNumber" value={form.chequeAccountNumber} onChange={handleChange} />
             <InputField label="Cheque Amount" name="chequeAmount" value={form.chequeAmount} onChange={handleChange} />
             <CalendarPicker label="Cheque Date" mode="date" value={form.chequeDate} onChange={(value) => setForm((current) => ({ ...current, chequeDate: value }))} />
-            <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200 md:mt-[22px]"><input type="checkbox" checked={form.salaryOnHold} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
           </>
         ) : null}
 
@@ -421,7 +470,7 @@ const EmployeeCreate = () => {
           <div className="md:col-span-3 space-y-6"><EmployeeChecklist value={form} onChange={handleChecklist} /></div>
         ) : null}
 
-        {step === 7 ? <EmployeeCreateReview isEditMode={isEditMode} form={form} employees={employeeOptions} onEdit={setStep} /> : null}
+        {step === 7 ? <EmployeeCreateReview isEditMode={isEditMode} form={{ ...form, useDefaultPassword }} employees={employeeOptions} onEdit={setStep} /> : null}
 
         <div className="flex justify-between border-t border-gray-100 pt-4 dark:border-gray-800 md:col-span-3">
           <Button type="button" variant="secondary" text="Previous" disabled={step === 1} onClick={() => setStep((value) => Math.max(1, value - 1))} />

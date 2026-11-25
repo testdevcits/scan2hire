@@ -1,3 +1,4 @@
+import SalaryIncrementHistory from "../../../components/common/SalaryIncrementHistory";
 import ProbationManagement from "../../../components/common/ProbationManagement";
 /* eslint-disable */
 import { hrAccessModules } from "../../../config/hrAccessModules";
@@ -11,6 +12,7 @@ import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
 import EmploymentHistory from "../../../components/common/EmploymentHistory";
 import { newEmployment, lastCompanyDocumentFields } from "../../../utils/employmentFields";
+const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
@@ -644,7 +646,7 @@ const EmployeeDetail = () => {
     finally { setSavingPassword(false); }
   };
 
-  const updateQualification = (index, key, value) => setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  const updateQualification = (index, key, value) => setEditForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value, ...(key === "level" && !qualificationHasSpecialization(value) ? { course: "" } : {}) } : item) }));
   const handleQualificationMarksheet = async (index, file) => {
     if (!file) return;
     const target = editForm.qualifications[index];
@@ -803,8 +805,8 @@ const EmployeeDetail = () => {
     const cleanValue = String(value ?? "").trim();
     if (field === "employeeId" && !cleanValue) return "Employee ID is required";
     if (field === "name" && !cleanValue) return "Full name is required";
-    if (field === "mobile" && !/^\d{10}$/.test(cleanValue)) return "Enter a 10-digit mobile number";
-    if (field === "altMobile" && cleanValue && !/^\d{10}$/.test(cleanValue)) return "Enter a 10-digit mobile number";
+    if (field === "mobile" && !/^[6-9]\d{9}$/.test(cleanValue)) return "Enter 10 digits starting with 6, 7, 8 or 9";
+    if (["altMobile", "emergencyNumber"].includes(field) && cleanValue && !/^[6-9]\d{9}$/.test(cleanValue)) return "Enter 10 digits starting with 6, 7, 8 or 9";
     if (field === "name" && cleanValue.length > 100) return "Use 100 characters or fewer";
     if (field === "employeeId" && cleanValue.length > 40) return "Use 40 characters or fewer";
     if (field === "department" && cleanValue.length > 100) return "Use 100 characters or fewer";
@@ -815,7 +817,7 @@ const EmployeeDetail = () => {
 
   const validateEditForm = () => {
     const errors = {};
-    ["employeeId", "name", "mobile", "altMobile", "department", "designation", "dateOfJoining"].forEach((field) => {
+    ["employeeId", "name", "mobile", "altMobile", "emergencyNumber", "department", "designation", "dateOfJoining"].forEach((field) => {
       const error = validateEditField(field, editForm[field]);
       if (error) errors[field] = error;
     });
@@ -828,10 +830,17 @@ const EmployeeDetail = () => {
     });
     return errors;
   };
+  const validateEditStep = (step) => {
+    if (step === 1 && (!editForm.name?.trim() || !editForm.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email))) return "Enter a valid name and email";
+    if (step === 2 && (!editForm.department || !editForm.designation || !editForm.dateOfJoining || !editForm.employeeType)) return "Complete joining date, department, designation and employee type";
+    if (step === 3 && editForm.salary !== "" && (Number.isNaN(Number(editForm.salary)) || Number(editForm.salary) < 0)) return "Enter a valid salary";
+    if (step === 4 && editForm.address?.pincode && !/^\d{6}$/.test(editForm.address.pincode)) return "Enter a valid 6-digit pincode";
+    return "";
+  };
 
   const handleEditFieldChange = (event) => {
     const { name, value } = event.target;
-    const nextValue = name.toLowerCase().includes("mobile")
+    const nextValue = name === "email" ? value.toLowerCase().trim() : ["mobile", "altMobile", "emergencyNumber"].includes(name)
       ? value.replace(/\D/g, "").slice(0, 10)
       : ["firstName", "middleName", "lastName", "fatherOrHusbandName"].includes(name)
         ? value.trimStart().replace(/(^|\s)([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`)
@@ -964,7 +973,7 @@ const EmployeeDetail = () => {
   ];
 
   const recordDefinitions = {
-    current: { title: "Joining / Current Record", fields: [["nextIncrementDate", "Next Increment Date", "date"], ["bondEndDate", "Bond End Date", "date"], ["salary", "Salary"]] },
+    current: { title: "Joining / Current Record", fields: [["nextIncrementDate", "Next Review Date", "date"], ["bondEndDate", "Bond End Date", "date"], ["salary", "Salary"]] },
     nextReview: { title: "Next Review", fields: [["incrementDate", "Increment Date", "date"], ["incrementSalary", "Increment Salary"], ["bondEndDate", "Bond End Date", "date"], ["nextIncrementDate", "Next Increment Date", "date"], ["salary", "Salary"]] },
     leaving: { title: "Leaving Process", fields: [["dateOfJoining", "Date of Joining", "date"], ["bondEndDate", "Bond End Date", "date"], ["resignationDate", "Resignation Date", "date"], ["noticePeriodDays", "Notice Period Days"], ["lastWorkingDate", "Last Working Date", "date"], ["salary", "Salary"]] },
     naf: { title: "NAF Process", fields: [["idCardStatus", "ID card status"], ["nafStatus", "NAF status"]] },
@@ -978,8 +987,8 @@ const EmployeeDetail = () => {
     event.preventDefault();
     setSavingRecord(true);
     try {
-      await hrApi.updateEmployee(employeeId, { employeeRecords: recordDraft });
-      setEmployee((current) => ({ ...current, employeeRecords: recordDraft }));
+      await hrApi.updateEmployee(employeeId, { employeeRecords: { [recordEditor]: recordDraft[recordEditor] } });
+      await loadEmployee({ includeReport: false });
       setRecordEditor(null);
       toast.success("Record saved");
     } catch (err) { toast.error(err.response?.data?.message || "Unable to save record"); }
@@ -1128,7 +1137,7 @@ const EmployeeDetail = () => {
         </div>
 
         <div className="mb-1 flex gap-1 overflow-x-auto border-b border-gray-200 pb-3 dark:border-gray-700">
-          {["Basic details", "Employment", "Bank & salary", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => setEditStep(index + 1)} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
+          {["Basic details", "Employment", "Bank details", "Addresses", "Documents", "Checklists", "Review"].map((label, index) => <button key={label} type="button" onClick={() => setEditStep(index + 1)} className={`min-w-[118px] flex-1 rounded-sm border px-3 py-2 text-xs font-semibold ${editStep === index + 1 ? "border-[#f84525] bg-[#fff1ed] text-[#f84525]" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`}><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10">{index + 1}</span>{label}</button>)}
         </div>
         <div className="grid grid-cols-1 gap-5">
           {editStep === 1 && <section id="edit-step-1" className="min-w-0 scroll-mt-5">
@@ -1153,11 +1162,13 @@ const EmployeeDetail = () => {
             type={type}
             value={editForm[name]}
             onChange={handleEditFieldChange}
+            onBlur={(event) => setEditErrors((current) => ({ ...current, [name]: validateEditField(name, event.target.value) }))}
             required={["name", "mobile"].includes(name)}
             error={editErrors[name]}
-            maxLength={name.toLowerCase().includes("mobile") ? 10 : name === "employeeId" ? 40 : name === "name" ? 100 : 100}
-            inputMode={name.toLowerCase().includes("mobile") ? "numeric" : undefined}
-            pattern={name.toLowerCase().includes("mobile") ? "[0-9]{10}" : undefined}
+            prefix={["mobile", "altMobile", "emergencyNumber"].includes(name) ? "+91" : undefined}
+            maxLength={["mobile", "altMobile", "emergencyNumber"].includes(name) ? 10 : name === "employeeId" ? 40 : name === "name" ? 100 : 100}
+            inputMode={["mobile", "altMobile", "emergencyNumber"].includes(name) ? "numeric" : undefined}
+            pattern={["mobile", "altMobile", "emergencyNumber"].includes(name) ? "[6-9][0-9]{9}" : undefined}
             disabled={["employeeId", "hrFileNo"].includes(name) || savingProfile}
           />
         ))}
@@ -1201,7 +1212,7 @@ const EmployeeDetail = () => {
           placeholder="Select department"
           error={editErrors.department}
         />
-        <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation} placeholder="Select designation" searchable />
+        <CustomDropdown label="Designation" value={editForm.designation} onChange={(value) => setEditForm((current) => ({ ...current, designation: value }))} options={masterOptions.designation.filter((item) => !item.department || item.department === editForm.department).map((item) => item.name || item)} placeholder="Select designation" searchable />
         <CustomDropdown label="Experience" value={editForm.experienceType} onChange={(value) => setEditForm((current) => ({ ...current, experienceType: value, previousEmployments: current.previousEmployments.length ? current.previousEmployments : value === "Experienced" ? [newEmployment(true)] : [] }))} options={["Fresher", "Experienced"]} />
         {editForm.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" name="totalExperienceYears" type="number" value={editForm.totalExperienceYears} onChange={handleEditFieldChange} /> : null}
         <EmploymentHistory className="md:col-span-2" form={editForm} setForm={setEditForm} />
@@ -1211,7 +1222,7 @@ const EmployeeDetail = () => {
             <div className="flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setEditForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div>
             <div className="grid gap-3 md:grid-cols-2">
               <CustomDropdown label="Qualification" value={item.level} options={masterOptions.qualification.map((option) => option.name || option)} onChange={(value) => updateQualification(index, "level", value)} />
-              <InputField label="Course / Specialization" value={item.course} onChange={(event) => updateQualification(index, "course", event.target.value)} />
+              <InputField hidden={!qualificationHasSpecialization(item.level)} label="Course / Specialization" value={item.course} onChange={(event) => updateQualification(index, "course", event.target.value)} />
               <InputField label="Institute / University" value={item.institute} onChange={(event) => updateQualification(index, "institute", event.target.value)} />
               <CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} />
               {canManageDocuments && <div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} name={`qualification-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level || savingProfile} fileName={item.documents?.marksheet?.name} hint="JPG, PNG, WEBP or PDF, up to 5 MB." onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div>}
@@ -1291,6 +1302,16 @@ const EmployeeDetail = () => {
           value={editForm.leavingDate}
           onChange={(value) => setEditForm((current) => ({ ...current, leavingDate: value }))}
         />
+            <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
+        <CustomDropdown
+          label="Bond Period Duration"
+          value={editForm.bondPeriodDuration}
+          onChange={(value) => setEditForm((current) => ({ ...current, bondPeriodDuration: value }))}
+          options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod.map((item) => item.name || item) : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months", "12 Months"]}
+          searchable
+          portalMenu
+        />
+            <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 md:mt-[22px] dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(editForm.salaryOnHold)} onChange={(event) => setEditForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
             </div>
           </section>}
 
@@ -1379,17 +1400,8 @@ const EmployeeDetail = () => {
           <p className="mt-3 text-xs text-gray-500">Documents selected here will be uploaded when you click “Save Changes”.</p>
         </div>}
         {editStep === 3 && <div className="pt-4">
-          <h3 id="edit-step-3" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Salary &amp; Bank</h3>
+          <h3 id="edit-step-3" className="mb-3 scroll-mt-5 text-base font-semibold text-gray-900">Bank Details</h3>
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
-        <CustomDropdown
-          label="Bond Period Duration"
-          value={editForm.bondPeriodDuration}
-          onChange={(value) => setEditForm((current) => ({ ...current, bondPeriodDuration: value }))}
-          options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod.map((item) => item.name || item) : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months", "12 Months"]}
-          searchable
-          portalMenu
-        />
-            <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
             <InputField label="Bank Holder Name" name="bankHolderName" value={editForm.bankHolderName} onChange={handleEditFieldChange} />
             <InputField label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditFieldChange} />
             <InputField label="Bank Account Number" name="bankAccountNumber" value={editForm.bankAccountNumber} onChange={handleEditFieldChange} />
@@ -1398,7 +1410,6 @@ const EmployeeDetail = () => {
             <InputField label="Cheque Account Number" name="chequeAccountNumber" value={editForm.chequeAccountNumber} onChange={handleEditFieldChange} />
             <InputField label="Cheque Amount" name="chequeAmount" value={editForm.chequeAmount} onChange={handleEditFieldChange} />
             <CalendarPicker label="Cheque Date" mode="date" value={editForm.chequeDate} onChange={(value) => setEditForm((current) => ({ ...current, chequeDate: value }))} />
-            <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 md:mt-[22px] dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(editForm.salaryOnHold)} onChange={(event) => setEditForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
           </div>
         </div>}
 
@@ -1413,7 +1424,7 @@ const EmployeeDetail = () => {
         {editStep === 7 && <EmployeeCreateReview isEditMode form={{ ...editForm, photo: documentFiles.photo ? { name: documentFiles.photo.name, dataUri: "selected" } : employee.documents?.photo, documents: { ...employee.documents, ...Object.fromEntries(Object.entries(documentFiles).filter(([, file]) => file).map(([key, file]) => [key, Array.isArray(file) ? file.map((item) => ({ name: item.name, dataUri: "selected" })) : { name: file.name, dataUri: "selected" }])) } }} employees={teamLeadOptions} onEdit={setEditStep} />}
         <div className="flex justify-between border-t border-gray-200 pt-4">
           <Button text="Previous" disabled={editStep === 1 || savingProfile} onClick={() => setEditStep((value) => Math.max(1, value - 1))} variant="secondary" />
-          {editStep < 7 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => setEditStep((value) => Math.min(7, value + 1))} />}
+          {editStep < 7 && <Button key="next-edit-step" text="Next" disabled={savingProfile} onClick={() => { const error = validateEditStep(editStep); if (error) { toast.error(error); return; } setEditStep((value) => Math.min(7, value + 1)); }} />}
         </div>
         </div>
       </form>
@@ -1508,6 +1519,7 @@ const EmployeeDetail = () => {
               </button>;
             })}
           </div>
+          {activeRecord === "nextReview" && recordCanView("nextReview") && <SalaryIncrementHistory employee={employee} canEdit={recordCanUpdate("nextReview")} onChanged={() => loadEmployee({ includeReport: false })} />}
           {recordEditor && recordDefinitions[recordEditor] && activeRecord === recordEditor && (
             <form onSubmit={saveRecord} className="mt-6 rounded border border-orange-200 bg-orange-50 p-4">
               <h3 className="font-semibold text-gray-900">{recordDefinitions[recordEditor].title}</h3>
@@ -1523,7 +1535,7 @@ const EmployeeDetail = () => {
               <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setRecordEditor(null)} text="Cancel" /><Button type="submit" loading={savingRecord} text="Save record" /></div>
             </form>
           )}
-          {!recordEditor && recordDefinitions[activeRecord] && recordCanView(activeRecord) && (
+          {activeRecord !== "nextReview" && !recordEditor && recordDefinitions[activeRecord] && recordCanView(activeRecord) && (
             <div className="mt-6 rounded border border-gray-200 bg-white p-4">
               <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">{recordDefinitions[activeRecord].title} details</h3>{recordCanUpdate(activeRecord) && <Button variant="secondary" onClick={() => openRecordEditor(activeRecord)} text="Add / Update" />}</div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
