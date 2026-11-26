@@ -203,6 +203,9 @@ const EmployeeCreate = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (["firstName", "lastName"].includes(name)) {
+      setFieldErrors((current) => ({ ...current, [name]: value.trim() ? "" : `${name === "firstName" ? "First" : "Last"} name is required` }));
+    }
     if (["bankAccountNumber"].includes(name) && !/^\d{0,18}$/.test(value)) return;
     if (name === "bankIfscCode" && !/^[a-zA-Z0-9]{0,11}$/.test(value)) return;
     if (["bankHolderName", "bankName"].includes(name) && !/^[a-zA-Z .'-]*$/.test(value)) return;
@@ -361,7 +364,9 @@ const EmployeeCreate = () => {
       if (Object.values(mobileErrors).some(Boolean)) { toast.error("Please correct the highlighted mobile numbers"); scrollToFirstError(); return; }
       const emailError = !form.email.trim() ? "Email is required" : !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(form.email) ? "Enter a valid email address, e.g. name@gmail.com" : "";
       setFieldErrors((current) => ({ ...current, email: emailError }));
-      if (!form.firstName.trim() || !form.lastName.trim() || emailError) { toast.error("Complete first name, last name and a valid email before continuing"); scrollToFirstError(); return; }
+      const nameErrors = { firstName: form.firstName.trim() ? "" : "First name is required", lastName: form.lastName.trim() ? "" : "Last name is required" };
+      setFieldErrors((current) => ({ ...current, ...nameErrors }));
+      if (Object.values(nameErrors).some(Boolean) || emailError) { toast.error("First name and last name are required"); scrollToFirstError(); return; }
     }
     if (step === 2 || step === 5) {
       const error = experienceError(form, step === 5);
@@ -447,8 +452,10 @@ const EmployeeCreate = () => {
     if (step !== 7 || saving) return;
     if (!event.currentTarget.form?.reportValidity()) return;
     if (!form.firstName.trim() || !form.lastName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setFieldErrors((current) => ({ ...current, firstName: form.firstName.trim() ? "" : "First name is required", lastName: form.lastName.trim() ? "" : "Last name is required" }));
       setStep(1);
-      toast.error("Complete first name, last name and a valid email before saving");
+      toast.error("First name and last name are required");
+      scrollToFirstError();
       return;
     }
     if (!form.dateOfJoining || !form.department || !form.designation || !form.employeeType) {
@@ -554,9 +561,9 @@ const EmployeeCreate = () => {
         {step === 1 ? (
           <>
             <div className="md:col-span-3 flex items-center gap-4 text-lg font-semibold"><span>Personal information</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
-            <InputField label="First Name" name="firstName" value={form.firstName} onChange={handleChange} required />
+            <InputField label="First Name" name="firstName" value={form.firstName} onChange={handleChange} error={fieldErrors.firstName} required />
             <InputField label="Middle Name" name="middleName" value={form.middleName} onChange={handleChange} />
-            <InputField label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} required />
+            <InputField label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} error={fieldErrors.lastName} required />
             <InputField label="Father / Husband Name" name="fatherOrHusbandName" value={form.fatherOrHusbandName} onChange={handleChange} />
             <CustomDropdown label="Gender" value={form.gender} onChange={handleSelect("gender")} options={masterOptions.gender.length ? masterOptions.gender : ["Male", "Female", "Other"]} />
             <div>
