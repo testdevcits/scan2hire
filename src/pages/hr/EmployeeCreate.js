@@ -78,6 +78,7 @@ const EmployeeCreate = () => {
   const [masterOptions, setMasterOptions] = useState({ bloodGroup: [], gender: [], qualification: [], employeeType: [], designation: [], trainingPeriod: [], bondPeriod: [] });
   const [uploadErrors, setUploadErrors] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
+  const [addressErrors, setAddressErrors] = useState({ permanentAddress: {}, alternateAddress: {} });
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
   const { user } = useContext(AuthContext);
@@ -202,7 +203,15 @@ const EmployeeCreate = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    if (name === "email") { setForm(current => ({ ...current, email: value.toLowerCase().trim() })); return; }
+    if (["bankAccountNumber"].includes(name) && !/^\d{0,18}$/.test(value)) return;
+    if (name === "bankIfscCode" && !/^[a-zA-Z0-9]{0,11}$/.test(value)) return;
+    if (["bankHolderName", "bankName"].includes(name) && !/^[a-zA-Z .'-]*$/.test(value)) return;
+    if (name === "email") {
+      const email = value.toLowerCase().trim();
+      setForm(current => ({ ...current, email }));
+      setFieldErrors((current) => ({ ...current, email: email && !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(email) ? "Enter a valid email address, e.g. name@gmail.com" : "" }));
+      return;
+    }
     if (["mobile", "altMobile", "emergencyNumber"].includes(name)) {
       if (!/^\d{0,10}$/.test(value)) return;
       setFieldErrors((current) => ({ ...current, [name]: "" }));
@@ -226,6 +235,27 @@ const EmployeeCreate = () => {
     if (!value) return "Mobile number is required";
     return /^[6-9]\d{9}$/.test(value) ? "" : `${labels[name]} must be 10 digits and start with 6, 7, 8 or 9`;
   };
+  const validateBankDetails = () => {
+    const errors = {};
+    if (form.bankHolderName && !/^[a-zA-Z][a-zA-Z .'-]{1,99}$/.test(form.bankHolderName.trim())) errors.bankHolderName = "Enter a valid name";
+    if (form.bankName && !/^[a-zA-Z][a-zA-Z .'-]{1,99}$/.test(form.bankName.trim())) errors.bankName = "Enter a valid bank name";
+    if (form.bankAccountNumber && !/^\d{6,18}$/.test(form.bankAccountNumber)) errors.bankAccountNumber = "Account number must be 6-18 digits";
+    if (form.bankIfscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bankIfscCode.toUpperCase())) errors.bankIfscCode = "Enter a valid IFSC code";
+    return errors;
+  };
+  const validateBirthDates = () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const errors = {};
+    if (form.dob && form.dob > today) errors.dob = "Date of birth must be in the past";
+    if (form.celebrateDob && form.celebrateDob > today) errors.celebrateDob = "Birthday must be today or a past date";
+    return errors;
+  };
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const target = document.querySelector('[aria-invalid="true"], [data-invalid="true"]');
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 0);
+  };
   const handleMobileBlur = (event) => {
     const { name, value } = event.target;
     setFieldErrors((current) => ({ ...current, [name]: validateMobileField(name, value) }));
@@ -234,15 +264,28 @@ const EmployeeCreate = () => {
   const handleBondPeriodSelect = (value) => setForm((current) => ({ ...current, bondPeriodDuration: value, bondEndDate: value ? bondEndDateFromDuration(current.dateOfJoining, value) : "" }));
   useEffect(() => {
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
-    if (fullName && !String(form.bankHolderName || "").trim()) setForm((current) => ({ ...current, bankHolderName: fullName }));
+    if (fullName && String(form.bankHolderName || "").trim() !== fullName) setForm((current) => ({ ...current, bankHolderName: fullName }));
   }, [form.firstName, form.middleName, form.lastName, form.bankHolderName]);
   const addQualification = () => setForm((current) => ({ ...current, qualifications: [...current.qualifications, { id: crypto.randomUUID(), level: "", course: "", institute: "", passingYear: "", percentage: "", documents: {} }] }));
   const updateQualification = (index, key, value) => setForm((current) => ({ ...current, qualifications: current.qualifications.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value, ...(key === "level" && !qualificationHasSpecialization(value) ? { course: "" } : {}) } : item) }));
 
+  const validateAddress = (address = {}) => {
+    const errors = {};
+    if (!String(address.street || "").trim()) errors.street = "Address is required";
+    if (!String(address.city || "").trim()) errors.city = "City is required";
+    if (!String(address.state || "").trim()) errors.state = "State is required";
+    if (!String(address.country || "").trim()) errors.country = "Country is required";
+    if (!/^\d{6}$/.test(String(address.pincode || ""))) errors.pincode = "Enter a valid 6-digit pincode";
+    return errors;
+  };
   const handleNamedAddressChange = (addressKey) => (event) => {
     const { name, value } = event.target;
     if (name === "pincode" && !/^\d{0,6}$/.test(value)) return;
-    setForm((current) => ({ ...current, [addressKey]: { ...current[addressKey], [name]: value } }));
+    setForm((current) => {
+      const nextAddress = { ...current[addressKey], [name]: value };
+      setAddressErrors((errors) => ({ ...errors, [addressKey]: { ...errors[addressKey], [name]: validateAddress(nextAddress)[name] || "" } }));
+      return { ...current, [addressKey]: nextAddress };
+    });
   };
   const handleChecklist = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
 
@@ -310,10 +353,15 @@ const EmployeeCreate = () => {
   const nextStep = (event) => {
     event?.preventDefault();
     if (step === 1) {
+      const birthErrors = validateBirthDates();
+      setFieldErrors((current) => ({ ...current, ...birthErrors }));
+      if (Object.keys(birthErrors).length) { toast.error(Object.values(birthErrors)[0]); scrollToFirstError(); return; }
       const mobileErrors = Object.fromEntries(["mobile", "altMobile", "emergencyNumber"].map((name) => [name, validateMobileField(name, form[name])]));
       setFieldErrors((current) => ({ ...current, ...mobileErrors }));
-      if (Object.values(mobileErrors).some(Boolean)) { toast.error("Please correct the highlighted mobile numbers"); return; }
-      if (!form.firstName.trim() || !form.lastName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Complete first name, last name and a valid email before continuing"); return; }
+      if (Object.values(mobileErrors).some(Boolean)) { toast.error("Please correct the highlighted mobile numbers"); scrollToFirstError(); return; }
+      const emailError = !form.email.trim() ? "Email is required" : !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(form.email) ? "Enter a valid email address, e.g. name@gmail.com" : "";
+      setFieldErrors((current) => ({ ...current, email: emailError }));
+      if (!form.firstName.trim() || !form.lastName.trim() || emailError) { toast.error("Complete first name, last name and a valid email before continuing"); scrollToFirstError(); return; }
     }
     if (step === 2 || step === 5) {
       const error = experienceError(form, step === 5);
@@ -321,7 +369,20 @@ const EmployeeCreate = () => {
     }
     if (step === 2 && (!form.dateOfJoining || !form.department || !form.designation || !form.employeeType)) { toast.error("Complete joining date, department, designation and employee type before continuing"); return; }
     if (step === 2 && form.salary !== "" && (Number.isNaN(Number(form.salary)) || Number(form.salary) < 0)) { toast.error("Enter a valid salary"); return; }
-    if (step === 4 && [form.permanentAddress, form.alternateAddress].some((address) => address?.pincode && !/^\d{6}$/.test(address.pincode))) { toast.error("Enter a valid 6-digit pincode"); return; }
+    if (step === 2) {
+      const fullName = [form.firstName, form.middleName, form.lastName].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+      if (fullName) setForm((current) => ({ ...current, bankHolderName: fullName }));
+    }
+    if (step === 3) {
+      const bankErrors = validateBankDetails();
+      if (Object.keys(bankErrors).length) { toast.error(Object.values(bankErrors)[0]); scrollToFirstError(); return; }
+    }
+    if (step === 4) {
+      const permanentErrors = validateAddress(form.permanentAddress);
+      const alternateErrors = validateAddress(form.alternateAddress);
+      setAddressErrors({ permanentAddress: permanentErrors, alternateAddress: alternateErrors });
+      if (Object.keys(permanentErrors).length || Object.keys(alternateErrors).length) { toast.error("Complete both addresses with a valid 6-digit pincode"); scrollToFirstError(); return; }
+    }
     setStep((value) => Math.min(7, value + 1));
   };
 
@@ -395,6 +456,18 @@ const EmployeeCreate = () => {
       toast.error("Complete joining date, department, designation and employee type before saving");
       return;
     }
+    const bankErrors = validateBankDetails();
+    if (Object.keys(bankErrors).length) { setStep(3); toast.error(Object.values(bankErrors)[0]); return; }
+    const permanentErrors = validateAddress(form.permanentAddress);
+    const alternateErrors = validateAddress(form.alternateAddress);
+    if (Object.keys(permanentErrors).length || Object.keys(alternateErrors).length) {
+      setAddressErrors({ permanentAddress: permanentErrors, alternateAddress: alternateErrors });
+      setStep(4);
+      toast.error("Complete both addresses with a valid 6-digit pincode");
+      return;
+    }
+    const birthErrors = validateBirthDates();
+    if (Object.keys(birthErrors).length) { setFieldErrors((current) => ({ ...current, ...birthErrors })); setStep(1); toast.error(Object.values(birthErrors)[0]); return; }
     if (!isEditMode && !useDefaultPassword && !form.password) {
       setStep(1);
       toast.error("Please enter the temporary password before adding the employee.");
@@ -489,10 +562,10 @@ const EmployeeCreate = () => {
             <div>
               <CustomDropdown label="Blood Group" value={form.bloodGroup} onChange={handleSelect("bloodGroup")} options={masterOptions.bloodGroup.length ? masterOptions.bloodGroup : ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]} />
             </div>
-            <CalendarPicker label="Date of Birth / Birthday" mode="date" value={form.dob} onChange={(value) => setForm((current) => ({ ...current, dob: value, celebrateDob: current.celebrateDob === current.dob ? value : current.celebrateDob }))} />
-            <CalendarPicker label="Celebrate DOB" labelAddon={<label className="inline-flex items-center gap-1 text-xs font-normal"><input type="checkbox" checked={Boolean(form.dob && form.celebrateDob === form.dob)} onChange={(event) => setForm((current) => ({ ...current, celebrateDob: event.target.checked ? current.dob : "" }))} /> Same as DOB</label>} mode="date" value={form.celebrateDob} onChange={(value) => setForm((current) => ({ ...current, celebrateDob: value }))} />
+            <CalendarPicker label="Date of Birth / Birthday" mode="date" value={form.dob} error={fieldErrors.dob} onChange={(value) => setForm((current) => ({ ...current, dob: value, celebrateDob: current.celebrateDob === current.dob ? value : current.celebrateDob }))} />
+            <CalendarPicker label="Celebrate DOB" error={fieldErrors.celebrateDob} labelAddon={<label className="inline-flex items-center gap-1 text-xs font-normal"><input type="checkbox" checked={Boolean(form.dob && form.celebrateDob === form.dob)} onChange={(event) => setForm((current) => ({ ...current, celebrateDob: event.target.checked ? current.dob : "" }))} /> Same as DOB</label>} mode="date" value={form.celebrateDob} onChange={(value) => setForm((current) => ({ ...current, celebrateDob: value }))} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Contact details</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
-            <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} required />
+            <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} error={fieldErrors.email} required />
             <InputField label="Mobile" name="mobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.mobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.mobile} required />
             <InputField label="Alternate Mobile" name="altMobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.altMobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.altMobile} />
             <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.emergencyNumber} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.emergencyNumber} />
@@ -505,7 +578,7 @@ const EmployeeCreate = () => {
         {step === 2 ? (
           <>
             <CustomDropdown label="Experience" value={form.experienceType} onChange={handleSelect("experienceType")} options={["Fresher", "Experienced"]} />
-            {form.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" type="number" min="0" step="0.1" value={form.totalExperienceYears} onChange={handleChange} name="totalExperienceYears" /> : null}
+            {form.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" inputMode="numeric" maxLength={2} value={form.totalExperienceYears} onChange={(event) => { const value = event.target.value; if (/^\d{0,2}$/.test(value) && (value === "" || Number(value) <= 20)) handleChange({ target: { name: "totalExperienceYears", value } }); }} name="totalExperienceYears" /> : null}
             <CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value, ...(current.bondPeriodDuration ? { bondEndDate: bondEndDateFromDuration(value, current.bondPeriodDuration) } : {}) }))} />
             <CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu />
             <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation.filter((item) => !item.department || item.department === form.department).map((item) => item.name || item)} searchable portalMenu />
@@ -524,7 +597,7 @@ const EmployeeCreate = () => {
             {!isEditMode && <div className="md:col-span-3 grid grid-cols-1 items-end gap-4 md:grid-cols-3">
               <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
               <CustomDropdown label="Reporting Manager" value={form.teamLead} placeholder="No Reporting Manager" searchable portalMenu onChange={(value) => { const selectedTeamLead = teamLeadOptions.find((item) => item._id === value); setForm((current) => ({ ...current, teamLead: value, reportingManager: selectedTeamLead ? selectedTeamLead.employeeId || selectedTeamLead.name : "" })); }} options={teamLeadOptions.map((teamLead) => ({ value: teamLead._id, label: teamLead.role === "HR" ? `${teamLead.name} — HR` : `${teamLead.employeeId || "-"} - ${teamLead.name}` }))} />
-              <InputField label="Current Salary" name="salary" value={form.salary} onChange={(event) => { if (/^\d*$/.test(event.target.value)) handleChange(event); }} inputMode="numeric" />
+              <InputField label="Current Salary" name="salary" value={form.salary} onChange={(event) => { const value = event.target.value; if (/^\d*$/.test(value) && (value === "" || Number(value) > 0)) handleChange(event); }} inputMode="numeric" />
               <label className={`flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 ${!employmentDetailsComplete ? "cursor-not-allowed opacity-70" : ""}`}><input type="checkbox" checked={Boolean(form.salaryOnHold)} disabled={!employmentDetailsComplete} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
               <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleBondPeriodSelect} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
             </div>}
@@ -551,22 +624,22 @@ const EmployeeCreate = () => {
           </section>
         </div>}
 
-        {step === 2 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} /> : null}
+        {step === 2 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} employeeJoiningDate={form.dateOfJoining} /> : null}
         {step === 5 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} documents onFiles={handleEmploymentFiles} /> : null}
 
         {step === 3 ? (
           <>
-            <InputField label="Bank Holder Name" name="bankHolderName" value={form.bankHolderName} onChange={handleChange} />
-            <InputField label="Bank Name" name="bankName" value={form.bankName} onChange={handleChange} />
-            <InputField label="Bank Account Number" name="bankAccountNumber" value={form.bankAccountNumber} onChange={handleChange} />
-            <InputField label="Bank IFSC Code" name="bankIfscCode" value={form.bankIfscCode} onChange={handleChange} />
+            <InputField label="Bank Holder Name" name="bankHolderName" value={form.bankHolderName} onChange={handleChange} maxLength={100} />
+            <InputField label="Bank Name" name="bankName" value={form.bankName} onChange={handleChange} maxLength={100} />
+            <InputField label="Bank Account Number" name="bankAccountNumber" value={form.bankAccountNumber} onChange={handleChange} inputMode="numeric" maxLength={18} />
+            <InputField label="Bank IFSC Code" name="bankIfscCode" value={form.bankIfscCode} onChange={handleChange} maxLength={11} />
           </>
         ) : null}
 
         {step === 4 ? (
           <div className="md:col-span-3 space-y-5">
-            <div><h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">Permanent Address</h3><AddressFields value={form.permanentAddress} onChange={handleNamedAddressChange("permanentAddress")} /></div>
-            <div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-gray-900 dark:text-gray-100">Alternate / Current Address</h3><label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300"><input type="checkbox" checked={JSON.stringify(form.alternateAddress || {}) === JSON.stringify(form.permanentAddress || {})} onChange={(event) => { if (event.target.checked) setForm((current) => ({ ...current, alternateAddress: { ...(current.permanentAddress || {}) } })); }} /> Same as Permanent Address</label></div><AddressFields value={form.alternateAddress} onChange={handleNamedAddressChange("alternateAddress")} /></div>
+            <div><h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">Permanent Address</h3><AddressFields value={form.permanentAddress} errors={addressErrors.permanentAddress} onChange={handleNamedAddressChange("permanentAddress")} /></div>
+            <div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-gray-900 dark:text-gray-100">Alternate / Current Address</h3><label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300"><input type="checkbox" checked={JSON.stringify(form.alternateAddress || {}) === JSON.stringify(form.permanentAddress || {})} onChange={(event) => { if (event.target.checked) setForm((current) => ({ ...current, alternateAddress: { ...(current.permanentAddress || {}) } })); }} /> Same as Permanent Address</label></div><AddressFields value={form.alternateAddress} errors={addressErrors.alternateAddress} onChange={handleNamedAddressChange("alternateAddress")} /></div>
           </div>
         ) : null}
 
