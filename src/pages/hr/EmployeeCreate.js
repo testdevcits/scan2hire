@@ -19,6 +19,7 @@ import EmployeeCreateReview from "../../components/common/EmployeeCreateReview";
 import { employeeCreateDocumentFields } from "../../utils/employeeDocumentFields";
 import { hasWhitePhotoBackground } from "../../utils/photoBackground";
 import { employeeDraft } from "../../utils/employeeDraft";
+import { bondEndDateFromDuration } from "../../utils/bondDates";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
@@ -229,6 +230,7 @@ const EmployeeCreate = () => {
     setFieldErrors((current) => ({ ...current, [name]: validateMobileField(name, value) }));
   };
   const handleSelect = (name) => (value) => setForm((current) => ({ ...current, [name]: value, ...(name === "experienceType" && value === "Experienced" && !current.previousEmployments.length ? { previousEmployments: [newEmployment(true)] } : {}) }));
+  const handleBondPeriodSelect = (value) => setForm((current) => ({ ...current, bondPeriodDuration: value, bondEndDate: value ? bondEndDateFromDuration(current.dateOfJoining, value) : "" }));
   useEffect(() => {
     const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" ").trim();
     if (fullName && !String(form.bankHolderName || "").trim()) setForm((current) => ({ ...current, bankHolderName: fullName }));
@@ -254,6 +256,10 @@ const EmployeeCreate = () => {
   };
   const handleProof = async (key, file) => {
     if (!file) return;
+    if (key === "aadhaarCard" && !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
+      toast.error("Upload the Aadhaar card or full-page letter as a JPG, PNG, WEBP or PDF file.");
+      return;
+    }
     try { const payload = await fileToPayload(file); if (!payload) return; setForm((current) => ({ ...current, documents: { ...current.documents, [key]: payload } })); }
     catch { toast.error("Unable to read the selected file"); }
   };
@@ -397,6 +403,7 @@ const EmployeeCreate = () => {
     try {
       const payload = {
         ...form,
+        ...(!isEditMode ? { bondEndDate: undefined } : {}),
         useDefaultPassword: !isEditMode && useDefaultPassword,
         password: useDefaultPassword ? "" : form.password,
         salaryOnHold: Boolean(form.salaryOnHold),
@@ -490,7 +497,7 @@ const EmployeeCreate = () => {
           <>
             <CustomDropdown label="Experience" value={form.experienceType} onChange={handleSelect("experienceType")} options={["Fresher", "Experienced"]} />
             {form.experienceType === "Experienced" ? <InputField label="Total Experience (Years)" type="number" min="0" step="0.1" value={form.totalExperienceYears} onChange={handleChange} name="totalExperienceYears" /> : null}
-            <CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value }))} />
+            <CalendarPicker label="Joining Date" mode="date" value={form.dateOfJoining} onChange={(value) => setForm((current) => ({ ...current, dateOfJoining: value, ...(current.bondPeriodDuration ? { bondEndDate: bondEndDateFromDuration(value, current.bondPeriodDuration) } : {}) }))} />
             <CustomDropdown label="Department" value={form.department} onChange={handleSelect("department")} options={departmentOptions} searchable portalMenu />
             <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation.filter((item) => !item.department || item.department === form.department).map((item) => item.name || item)} searchable portalMenu />
             <CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} />
@@ -502,16 +509,15 @@ const EmployeeCreate = () => {
               <CalendarPicker label="Resignation Date" mode="date" value={form.resignationDate} onChange={(value) => setForm((current) => ({ ...current, resignationDate: value }))} />
               <CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} />
               <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(form.salaryOnHold)} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
-              <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm((current) => ({ ...current, bondEndDate: value }))} />
-              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
+              <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} disabled={Boolean(form.bondPeriodDuration)} onChange={(value) => setForm((current) => ({ ...current, bondEndDate: value }))} />
+              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleBondPeriodSelect} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
             </div>}
             {!isEditMode && <div className="md:col-span-3 grid grid-cols-1 items-end gap-4 md:grid-cols-3">
               <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
               <CustomDropdown label="Reporting Manager" value={form.teamLead} placeholder="No Reporting Manager" searchable portalMenu onChange={(value) => { const selectedTeamLead = teamLeadOptions.find((item) => item._id === value); setForm((current) => ({ ...current, teamLead: value, reportingManager: selectedTeamLead ? selectedTeamLead.employeeId || selectedTeamLead.name : "" })); }} options={teamLeadOptions.map((teamLead) => ({ value: teamLead._id, label: teamLead.role === "HR" ? `${teamLead.name} — HR` : `${teamLead.employeeId || "-"} - ${teamLead.name}` }))} />
               <InputField label="Current Salary" name="salary" value={form.salary} onChange={handleChange} />
               <label className={`flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 ${!employmentDetailsComplete ? "cursor-not-allowed opacity-70" : ""}`}><input type="checkbox" checked={Boolean(form.salaryOnHold)} disabled={!employmentDetailsComplete} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
-              <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm((current) => ({ ...current, bondEndDate: value }))} />
-              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
+              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleBondPeriodSelect} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
             </div>}
             <Checkbox label="Bond Document Cheque" description="Select if a cheque is being provided for the bond." compact className="md:col-span-3 min-h-11 rounded-md border border-gray-200 px-3 py-2 dark:border-gray-700" checked={Boolean(form.bondDocumentCheque)} onChange={(checked) => setForm((current) => ({ ...current, bondDocumentCheque: checked, ...(!checked ? { chequeNumber: "", chequeAccountNumber: "", chequeAmount: "", chequeDate: "" } : {}) }))} />
             {form.bondDocumentCheque && <div className="md:col-span-3 grid grid-cols-1 items-start gap-4 md:grid-cols-3"><InputField label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} /><InputField label="Cheque Account Number" name="chequeAccountNumber" value={form.chequeAccountNumber} onChange={handleChange} /><InputField label="Cheque Amount" name="chequeAmount" value={form.chequeAmount} onChange={handleChange} /><CalendarPicker label="Cheque Date" mode="date" value={form.chequeDate} onChange={(value) => setForm((current) => ({ ...current, chequeDate: value }))} /></div>}
@@ -559,7 +565,7 @@ const EmployeeCreate = () => {
           <div className="md:col-span-3">
             <FileUploadField label="Employee Photo" error={uploadErrors["employee-photo"]} name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG or WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} error={uploadErrors[key]} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
+              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} error={uploadErrors[key]} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" hint={key === "aadhaarCard" ? "Aadhaar card or full-page letter · PDF, JPG, PNG or WEBP · up to 5 MB" : undefined} onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
             </div>
           </div>
         ) : null}
