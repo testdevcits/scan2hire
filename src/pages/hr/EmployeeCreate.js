@@ -492,6 +492,7 @@ const EmployeeCreate = () => {
     try {
       const payload = {
         ...form,
+        ...(user?.role === "superadmin" && isEditMode ? { employeeId: form.employeeId, hrFileNo: form.hrFileNo } : { employeeId: undefined, hrFileNo: undefined }),
         ...(!isEditMode ? { bondEndDate: undefined } : {}),
         useDefaultPassword: !isEditMode && useDefaultPassword,
         password: useDefaultPassword ? "" : form.password,
@@ -503,7 +504,6 @@ const EmployeeCreate = () => {
         documents: Object.fromEntries(employeeCreateDocumentFields.filter(([key]) => form.documents[key]).map(([key]) => [key, form.documents[key]])),
         chequeBankName: form.bankName,
         name: `${form.firstName.trim()} ${form.middleName.trim()} ${form.lastName.trim()}`.replace(/\s+/g, " ").trim(),
-        hrFileNo: undefined,
       };
       const sizeErrors = employeeUploadErrors(payload);
       setUploadErrors(sizeErrors);
@@ -577,6 +577,7 @@ const EmployeeCreate = () => {
             <InputField label="Alternate Mobile" name="altMobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.altMobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.altMobile} />
             <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.emergencyNumber} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.emergencyNumber} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Login and identity</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
+            {isEditMode && user?.role === "superadmin" && <><InputField label="Employee ID" name="employeeId" value={form.employeeId || ""} onChange={handleChange} required /><InputField label="HR File Number" name="hrFileNo" value={form.hrFileNo || ""} onChange={handleChange} required /></>}
             {!isEditMode && <div className="md:col-span-3"><Checkbox label="Use temporary password" checked={useDefaultPassword} disabled={!defaultPasswordConfigured} onChange={checked => { setUseDefaultPassword(checked); setForm(current => ({ ...current, password: '' })); }} description={defaultPasswordConfigured ? 'Applies only to this new employee. You can also enter a custom password.' : 'Ask Admin to configure a default password in Settings, or enter a custom password.'} /></div>}
             {!isEditMode && !useDefaultPassword && <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />}
           </>
