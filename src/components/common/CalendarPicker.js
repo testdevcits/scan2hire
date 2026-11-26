@@ -74,12 +74,12 @@ const CalendarPicker = ({ value, onChange, mode = "date", label, labelAddon = nu
     <>
       <div className={inlineLabel ? "flex w-full min-w-0 items-center gap-2" : "flex w-full min-w-0 flex-col"}>
       {label ? <span className={`${inlineLabel ? "w-[92px] shrink-0" : "mb-1 flex w-full items-center justify-between text-left leading-5"} ${labelClassName || "font-medium text-sm text-gray-700 dark:text-gray-200 sm:text-base"}`}><span>{label}</span>{labelAddon}</span> : null}
-      <button type="button" onClick={openPicker} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} className={`inline-flex h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 transition hover:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-900 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
+      <button type="button" onClick={openPicker} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} data-invalid={error ? "true" : undefined} className={`inline-flex h-10 min-w-0 items-center justify-between gap-3 rounded-sm border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 transition hover:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-900 ${inlineLabel ? "flex-1" : "w-full"} ${className}`}>
         <span className="flex min-w-0 items-center gap-2"><FiCalendar className="h-4 w-4 shrink-0 text-[#f84525]" /><span className="truncate">{triggerText}</span></span>
         <FiChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
       </button>
+      {error ? <span className="mt-1 block text-xs leading-4 text-red-500">{error}</span> : null}
       </div>
-      {error ? <span className="mt-1 block text-xs text-red-500">{error}</span> : null}
       {open && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-gray-950/55 p-3 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="calendar-picker-title" className="w-full max-w-[410px] overflow-hidden rounded-2xl border border-orange-100 bg-[#fffdfa] shadow-2xl dark:border-gray-700 dark:bg-gray-900">

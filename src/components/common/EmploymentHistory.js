@@ -4,7 +4,7 @@ import CalendarPicker from "./CalendarPicker";
 import FileUploadField from "./FileUploadField";
 import { employmentDocumentFields, lastCompanyDocumentFields, newEmployment } from "../../utils/employmentFields";
 
-export default function EmploymentHistory({ compact = false, onView, onDownload, uploadErrors = {}, form, setForm, documents = false, onFiles, className = "md:col-span-3" }) {
+export default function EmploymentHistory({ compact = false, onView, onDownload, uploadErrors = {}, form, setForm, documents = false, onFiles, employeeJoiningDate = "", className = "md:col-span-3" }) {
   if (form.experienceType !== "Experienced") return null;
   const companies = form.previousEmployments || [];
   const update = (index, key, value) => setForm((current) => ({ ...current, previousEmployments: current.previousEmployments.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
@@ -25,8 +25,8 @@ export default function EmploymentHistory({ compact = false, onView, onDownload,
       </div> : <div className="grid gap-3 md:grid-cols-2">
         <InputField label="Company Name" value={company.companyName} onChange={(event) => update(index, "companyName", event.target.value)} required />
         <InputField label="Designation" value={company.designation} onChange={(event) => update(index, "designation", event.target.value)} required />
-        <CalendarPicker label="Joining Date" value={company.joiningDate} onChange={(value) => update(index, "joiningDate", value)} />
-        <CalendarPicker label="Leaving Date" value={company.leavingDate} onChange={(value) => update(index, "leavingDate", value)} />
+        <CalendarPicker label="Joining Date" value={company.joiningDate} error={employeeJoiningDate && company.joiningDate && company.joiningDate >= employeeJoiningDate ? "Must be before employee joining date" : ""} onChange={(value) => update(index, "joiningDate", value)} />
+        <CalendarPicker label="Leaving Date" value={company.leavingDate} error={company.joiningDate && company.leavingDate && company.leavingDate < company.joiningDate ? "Must be after company joining date" : employeeJoiningDate && company.leavingDate && company.leavingDate >= employeeJoiningDate ? "Must be before employee joining date" : ""} onChange={(value) => update(index, "leavingDate", value)} />
       </div>}
     </section>)}
   </div>;
