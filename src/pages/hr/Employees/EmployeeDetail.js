@@ -1369,7 +1369,7 @@ const EmployeeDetail = () => {
           value={editForm.leavingDate}
           onChange={(value) => setEditForm((current) => ({ ...current, leavingDate: value }))}
         />
-            <InputField label="Salary" name="salary" value={editForm.salary} onChange={handleEditFieldChange} />
+            <InputField label="Salary" name="salary" value={editForm.salary} onChange={(event) => { if (/^\d*$/.test(event.target.value)) handleEditFieldChange(event); }} inputMode="numeric" />
         <CustomDropdown
           label="Bond Period Duration"
           value={editForm.bondPeriodDuration}
