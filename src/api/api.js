@@ -61,6 +61,8 @@ export const candidateApi = {
 
 export const hrApi = {
   getAppraisalReminders: () => API.get("/hr/appraisal-reminders"),
+  addSalaryIncrement: (employeeId, payload) => API.post(`/hr/employees/${employeeId}/salary-increments`, payload),
+  updateSalaryIncrement: (employeeId, incrementId, payload) => API.patch(`/hr/employees/${employeeId}/salary-increments/${incrementId}`, payload),
   getDefaultEmployeePasswordStatus: () => API.get("/hr/default-employee-password"),
   getCandidates: (params) => API.get("/hr/candidates", { params }),
   getCandidate: (candidateId) => API.get(`/hr/candidates/${candidateId}`),

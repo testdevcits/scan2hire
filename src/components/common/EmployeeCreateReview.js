@@ -32,17 +32,16 @@ export default function EmployeeCreateReview({ form, employees = [], onEdit, isE
       ...(!isEditMode ? [["Temporary Password", form.useDefaultPassword ? "Admin default password" : form.password ? "•••••••• (set)" : "Not provided"]] : []),
     ], 1],
     ["Employment", [
-      ["Salary", form.salary], ...(!isEditMode ? [["Increment Date", form.nextIncrementDate], ["Bond End Date", form.bondEndDate]] : []), ...(isEditMode ? [["Salary on Hold", form.salaryOnHold]] : []), ["Bond Period Duration", form.bondPeriodDuration],
+      ["Salary", form.salary], ...(form.initialSalaryReviews || []).map((review, index) => [`Scheduled increment ${index + 1}`, `Date: ${review.effectiveDate || "Not set"}, increment: ₹${review.incrementAmount || "Not set"}, next review: ${review.nextIncrementDate || "Not set"}, remarks: ${review.reason || "Not set"}`]), ...(isEditMode ? [["Salary on Hold", form.salaryOnHold]] : []), ["Bond End Date", form.bondEndDate], ["Bond Period Duration", form.bondPeriodDuration],
       ["Joining Date", form.dateOfJoining], ["Department", form.department], ["Designation", form.designation],
       ["Employee Type", form.employeeType], ["Experience", form.experienceType], ...(form.experienceType === "Experienced" ? [["Total Experience (Years)", form.totalExperienceYears]] : []),
       ["Probation Period", form.trainingPeriod], ["Attendance Mode", form.attendanceMode === "work_from_home" ? "Work From Home" : "Office"],
       ["Reporting Manager", manager ? `${manager.employeeId || ""} ${manager.name}`.trim() : form.reportingManager],
-      ["Resignation Date", form.resignationDate], ["Leaving Date", form.leavingDate], ["Qualifications", form.qualifications],
+      ["Resignation Date", form.resignationDate], ["Leaving Date", form.leavingDate], ["Bond Document Cheque", form.bondDocumentCheque], ...((form.bondDocumentCheque || isEditMode) ? [["Cheque Number", form.chequeNumber], ["Cheque Account Number", form.chequeAccountNumber], ["Cheque Amount", form.chequeAmount], ["Cheque Date", form.chequeDate]] : []), ["Qualifications", form.qualifications],
     ], 2],
     ["Bank Details", [
       ["Bank Holder Name", form.bankHolderName], ["Bank Name", form.bankName], ["Bank Account Number", form.bankAccountNumber],
-      ["Bank IFSC Code", form.bankIfscCode], ["Cheque Number", form.chequeNumber], ["Cheque Account Number", form.chequeAccountNumber],
-      ["Cheque Amount", form.chequeAmount], ["Cheque Date", form.chequeDate], ["Cheque Bank Name", form.bankName],
+      ["Bank IFSC Code", form.bankIfscCode],
     ], 3],
     ["Addresses", [["Permanent Address", form.permanentAddress], ["Alternate / Current Address", form.alternateAddress]], 4],
     ["Documents & Previous Employment", [

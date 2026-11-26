@@ -4,7 +4,7 @@ import { useApi } from "../../contexts/ApiContext";
 import { employeeUploadErrors } from "../../utils/employeeUploadSize";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiX } from "react-icons/fi";
 
 import AddressFields from "../../components/common/AddressFields";
 import Button from "../../components/common/Button";
@@ -31,11 +31,11 @@ const initialForm = {
   email: "",
   mobile: "",
   altMobile: "", gender: "Other", attendanceMode: "office",
-  hrFileNo: "", fatherOrHusbandName: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: true, bondPeriodDuration: "", nextIncrementDate: "", bondEndDate: "",
+  hrFileNo: "", fatherOrHusbandName: "", emergencyNumber: "", bloodGroup: "", trainingPeriod: "", salary: "", salaryOnHold: true, bondPeriodDuration: "", nextIncrementDate: "", bondEndDate: "", initialSalaryReviews: [],
   experienceType: "Fresher", totalExperienceYears: "", previousEmployments: [],
   qualifications: [],
   bankHolderName: "", bankAccountNumber: "", bankIfscCode: "", bankName: "",
-  chequeNumber: "", chequeAccountNumber: "", chequeAmount: "", chequeDate: "", chequeBankName: "",
+  chequeNumber: "", chequeAccountNumber: "", chequeAmount: "", chequeDate: "", chequeBankName: "", bondDocumentCheque: false,
   resignationDate: "", leavingDate: "",
   password: "",
   department: "",
@@ -57,6 +57,7 @@ const initialForm = {
 };
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
+const dateInputValue = (value) => value ? String(value).slice(0, 10) : "";
 
 
 const EmployeeCreate = () => {
@@ -68,6 +69,7 @@ const EmployeeCreate = () => {
   useEffect(() => { if (!isEditMode) hrApi.getDefaultEmployeePasswordStatus().then(res => { const configured = res.data.configured === true; setDefaultPasswordConfigured(configured); setUseDefaultPassword(configured); }).catch(() => setDefaultPasswordConfigured(false)); }, [isEditMode]);
 
   const [form, setForm] = useState(initialForm);
+  const originalSalaryReviews = useRef([]);
   const [departments, setDepartments] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [reportingManagerOptions, setReportingManagerOptions] = useState([]);
@@ -86,7 +88,7 @@ const EmployeeCreate = () => {
   const [draftStatus, setDraftStatus] = useState("Loading draft…");
   const draftFinished = useRef(false);
   const draftReady = Boolean(draftKey && loadedDraftKey === draftKey);
-  const employmentDetailsComplete = Boolean(form.dateOfJoining && form.department && form.designation && form.employeeType && form.attendanceMode && form.salary && form.bondPeriodDuration);
+  const employmentDetailsComplete = Boolean(form.dateOfJoining && form.department && form.designation && form.employeeType && form.attendanceMode && form.salary);
 
   useEffect(() => {
     if (isEditMode || !draftKey || !["hr", "superadmin"].includes(user?.role)) return;
@@ -124,9 +126,36 @@ const EmployeeCreate = () => {
     hrApi.getEmployee(employeeId).then((response) => {
       if (!active) return;
       const data = response.data?.data || {};
+      const scheduledReviews = (data.salaryReviewHistory || [])
+        .filter((review) => review.status === "scheduled")
+        .slice()
+        .sort((left, right) => String(left.effectiveDate).slice(0, 10).localeCompare(String(right.effectiveDate).slice(0, 10)))
+        .map((review) => ({
+          _id: review._id,
+          effectiveDate: String(review.effectiveDate || "").slice(0, 10),
+          incrementAmount: String(review.incrementAmount ?? ""),
+          nextIncrementDate: String(review.nextIncrementDate || "").slice(0, 10),
+          reason: review.reason || "",
+        }));
+      const storedNameParts = String(data.name || "").trim().split(/\s+/).filter(Boolean);
+      originalSalaryReviews.current = scheduledReviews.map((review) => ({ ...review }));
       setForm((current) => ({ ...current, ...data, password: "", photo: null, documents: {},
+        firstName: data.firstName || storedNameParts[0] || "",
+        middleName: data.middleName || "",
+        lastName: data.lastName || storedNameParts.slice(1).join(" "),
+        dob: dateInputValue(data.dob),
+        celebrateDob: dateInputValue(data.celebrateDob),
+        dateOfJoining: dateInputValue(data.dateOfJoining),
+        resignationDate: dateInputValue(data.resignationDate),
+        leavingDate: dateInputValue(data.leavingDate),
+        chequeDate: dateInputValue(data.chequeDate),
+        initialSalaryReviews: scheduledReviews,
+        teamLead: data.reportingManagerUser ? `hr:${data.reportingManagerUser._id || data.reportingManagerUser}` : data.teamLead?._id || data.teamLead || "",
+        bondEndDate: dateInputValue(data.employeeRecords?.current?.bondEndDate || data.bondEndDate),
+        bondPeriodDuration: data.employeeRecords?.current?.bondPeriodDuration || data.bondPeriodDuration || "",
         qualifications: (data.qualifications || []).map((item) => ({ ...item, id: item.id || crypto.randomUUID(), documents: item.documents || {} })),
-        previousEmployments: (data.previousEmployments || []).map((item, index, items) => ({ ...item, id: item.id || crypto.randomUUID(), documents: item.documents || {}, isLastCompany: items.some((entry) => entry.isLastCompany) ? Boolean(item.isLastCompany) : index === items.length - 1 })),
+        previousEmployments: (data.previousEmployments || []).map((item, index, items) => ({ ...item, joiningDate: dateInputValue(item.joiningDate), leavingDate: dateInputValue(item.leavingDate), id: item.id || crypto.randomUUID(), documents: item.documents || {}, isLastCompany: items.some((entry) => entry.isLastCompany) ? Boolean(item.isLastCompany) : index === items.length - 1 })),
+        bondDocumentCheque: Boolean(data.chequeNumber || data.chequeAccountNumber || data.chequeAmount || data.chequeDate),
         permanentAddress: data.permanentAddress || current.permanentAddress,
         alternateAddress: data.alternateAddress || current.alternateAddress,
       }));
@@ -269,21 +298,88 @@ const EmployeeCreate = () => {
       const mobileErrors = Object.fromEntries(["mobile", "altMobile", "emergencyNumber"].map((name) => [name, validateMobileField(name, form[name])]));
       setFieldErrors((current) => ({ ...current, ...mobileErrors }));
       if (Object.values(mobileErrors).some(Boolean)) { toast.error("Please correct the highlighted mobile numbers"); return; }
+      if (!form.firstName.trim() || !form.lastName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Complete first name, last name and a valid email before continuing"); return; }
     }
     if (step === 2 || step === 5) {
       const error = experienceError(form, step === 5);
       if (error) { toast.error(error); return; }
     }
     if (step === 2 && (!form.dateOfJoining || !form.department || !form.designation || !form.employeeType)) { toast.error("Complete joining date, department, designation and employee type before continuing"); return; }
-    if (step === 3 && form.salary !== "" && (Number.isNaN(Number(form.salary)) || Number(form.salary) < 0)) { toast.error("Enter a valid salary"); return; }
+    if (step === 2 && form.salary !== "" && (Number.isNaN(Number(form.salary)) || Number(form.salary) < 0)) { toast.error("Enter a valid salary"); return; }
     if (step === 4 && [form.permanentAddress, form.alternateAddress].some((address) => address?.pincode && !/^\d{6}$/.test(address.pincode))) { toast.error("Enter a valid 6-digit pincode"); return; }
     setStep((value) => Math.min(7, value + 1));
+  };
+
+  const saveEditedSalaryReviews = async () => {
+    const reviews = (form.initialSalaryReviews || []).slice();
+    if (!reviews.length) return;
+    const sorted = reviews.slice().sort((left, right) => left.effectiveDate.localeCompare(right.effectiveDate));
+    const originalIds = originalSalaryReviews.current.map((review) => review._id);
+    const sortedExistingIds = sorted.filter((review) => review._id).map((review) => review._id);
+    if (originalIds.some((id, index) => sortedExistingIds[index] !== id)) {
+      throw new Error("Keep saved salary increments in their current date order. Update the dates without moving one past another.");
+    }
+    let plannedSalary = Number(form.salary);
+    if (!Number.isFinite(plannedSalary) || plannedSalary < 0) throw new Error("Enter a valid current salary before saving increments.");
+    let previousDate = "";
+    const latestSavedDate = originalSalaryReviews.current.map((review) => review.effectiveDate).sort().at(-1) || "";
+    for (const review of sorted) {
+      const amount = Number(review.incrementAmount);
+      if (!review.effectiveDate || !review.nextIncrementDate || review.nextIncrementDate <= review.effectiveDate || !Number.isFinite(amount) || amount <= 0 || !review.reason?.trim()) {
+        throw new Error("Complete each scheduled increment with a date, positive amount, later next review date, and remarks.");
+      }
+      if (!review._id && review.effectiveDate <= new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) {
+        throw new Error("New salary increments must have a future effective date.");
+      }
+      if (previousDate && review.effectiveDate <= previousDate) throw new Error("Schedule salary increments in increasing date order.");
+      if (!review._id && latestSavedDate && review.effectiveDate <= latestSavedDate) throw new Error("New increments must be scheduled after the saved increments.");
+      if (review._id) {
+        await hrApi.updateSalaryIncrement(employeeId, review._id, {
+          effectiveDate: review.effectiveDate,
+          newSalary: plannedSalary + amount,
+          nextIncrementDate: review.nextIncrementDate,
+          reason: review.reason.trim(),
+        });
+      } else {
+        const response = await hrApi.addSalaryIncrement(employeeId, {
+          effectiveDate: review.effectiveDate,
+          incrementAmount: amount,
+          nextIncrementDate: review.nextIncrementDate,
+          reason: review.reason.trim(),
+        });
+        const incrementId = response.data?.incrementId;
+        if (incrementId) {
+          review._id = incrementId;
+          setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item) => item._clientId === review._clientId ? { ...item, _id: incrementId, _clientId: undefined } : item) }));
+        }
+      }
+      plannedSalary += amount;
+      previousDate = review.effectiveDate;
+    }
+    const refreshed = await hrApi.getEmployee(employeeId);
+    const savedReviews = (refreshed.data?.data?.salaryReviewHistory || [])
+      .filter((review) => review.status === "scheduled")
+      .slice()
+      .sort((left, right) => String(left.effectiveDate).slice(0, 10).localeCompare(String(right.effectiveDate).slice(0, 10)))
+      .map((review) => ({ _id: review._id, effectiveDate: String(review.effectiveDate || "").slice(0, 10), incrementAmount: String(review.incrementAmount ?? ""), nextIncrementDate: String(review.nextIncrementDate || "").slice(0, 10), reason: review.reason || "" }));
+    originalSalaryReviews.current = savedReviews.map((review) => ({ ...review }));
+    setForm((current) => ({ ...current, initialSalaryReviews: savedReviews }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (step !== 7 || saving) return;
     if (!event.currentTarget.form?.reportValidity()) return;
+    if (!form.firstName.trim() || !form.lastName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setStep(1);
+      toast.error("Complete first name, last name and a valid email before saving");
+      return;
+    }
+    if (!form.dateOfJoining || !form.department || !form.designation || !form.employeeType) {
+      setStep(2);
+      toast.error("Complete joining date, department, designation and employee type before saving");
+      return;
+    }
     if (!isEditMode && !useDefaultPassword && !form.password) {
       setStep(1);
       toast.error("Please enter the temporary password before adding the employee.");
@@ -297,12 +393,14 @@ const EmployeeCreate = () => {
     const error = experienceError(form);
     if (error) { setStep(5); toast.error(error); return; }
     setSaving(true);
+    let profileSaved = false;
     try {
       const payload = {
         ...form,
         useDefaultPassword: !isEditMode && useDefaultPassword,
         password: useDefaultPassword ? "" : form.password,
         salaryOnHold: Boolean(form.salaryOnHold),
+        ...(isEditMode ? { employeeRecords: { current: { bondEndDate: form.bondEndDate, bondPeriodDuration: form.bondPeriodDuration } } } : {}),
         previousEmployments: form.experienceType === "Experienced" ? form.previousEmployments : [],
         totalExperienceYears: form.experienceType === "Experienced" ? form.totalExperienceYears : 0,
         salarySlips: [],
@@ -321,6 +419,8 @@ const EmployeeCreate = () => {
       if (isEditMode) {
         const { password, photo, documents, ...profilePayload } = payload;
         await hrApi.updateEmployee(employeeId, profilePayload);
+        profileSaved = true;
+        await saveEditedSalaryReviews();
         const documentPayload = { ...documents, ...(photo ? { photo } : {}) };
         if (Object.keys(documentPayload).length) await hrApi.updateEmployeeDocuments(employeeId, documentPayload);
       } else await createEmployee(payload);
@@ -330,7 +430,7 @@ const EmployeeCreate = () => {
       toast.success(isEditMode ? "Employee updated successfully" : "Employee added successfully");
       navigate(employeesPath, { replace: true });
     } catch (error) {
-      toast.error(error.response?.status === 413 ? "Uploads exceed the server request limit. Compress the selected files and try again." : error.response?.data?.message || "Unable to add employee. Check your connection and try again.");
+      toast.error(profileSaved ? `Employee details saved, but salary increments could not be saved: ${error.response?.data?.message || error.message}` : error.response?.status === 413 ? "Uploads exceed the server request limit. Compress the selected files and try again." : error.response?.data?.message || "Unable to add employee. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -361,7 +461,7 @@ const EmployeeCreate = () => {
         ))}
       </div>
 
-      <form onSubmit={(event) => event.preventDefault()} autoComplete="off" className="grid grid-cols-1 gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-3">
+      <form onSubmit={(event) => event.preventDefault()} autoComplete="off" className="grid grid-cols-1 items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-3">
         {step === 1 ? (
           <>
             <div className="md:col-span-3 flex items-center gap-4 text-lg font-semibold"><span>Personal information</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
@@ -395,44 +495,46 @@ const EmployeeCreate = () => {
             <CustomDropdown label="Designation" value={form.designation} onChange={handleSelect("designation")} options={masterOptions.designation.filter((item) => !item.department || item.department === form.department).map((item) => item.name || item)} searchable portalMenu />
             <CustomDropdown label="Employee Type" value={form.employeeType} onChange={handleSelect("employeeType")} options={masterOptions.employeeType.length ? masterOptions.employeeType : ["Permanent", "Probation", "Intern"]} />
             <CustomDropdown label="Probation Period" value={form.trainingPeriod} onChange={handleSelect("trainingPeriod")} options={masterOptions.trainingPeriod.length ? masterOptions.trainingPeriod : ["1 Month", "3 Months", "6 Months"]} />
-            <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
-            <CustomDropdown
-              label="Reporting Manager"
-              value={form.teamLead}
-              placeholder="No Reporting Manager"
-              searchable
-              portalMenu
-              onChange={(value) => {
-                const selectedTeamLead = teamLeadOptions.find((item) => item._id === value);
-                setForm((current) => ({
-                  ...current,
-                  teamLead: value,
-                  reportingManager: selectedTeamLead ? selectedTeamLead.employeeId || selectedTeamLead.name : "",
-                }));
-              }}
-              options={teamLeadOptions.map((teamLead) => ({
-                value: teamLead._id,
-                label: `${teamLead.employeeId || "-"} - ${teamLead.name}`,
-              }))}
-            />
-            <CalendarPicker label="Resignation Date" mode="date" value={form.resignationDate} onChange={(value) => setForm((current) => ({ ...current, resignationDate: value }))} />
-            <CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} />
-            <section className="md:col-span-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-900">
-              <h3 className="text-base font-semibold">Joining / Current Record</h3>
-              <p className="mt-1 text-sm text-gray-500">Enter the starting salary, increment date and bond details for this employee.</p>
-              <div className="mt-4 grid grid-cols-1 items-start gap-4 md:grid-cols-3">
-            <InputField label="Salary" name="salary" value={form.salary} onChange={handleChange} />
-            {!isEditMode && <CalendarPicker label="Increment Date" mode="date" value={form.nextIncrementDate} onChange={(value) => setForm(current => ({ ...current, nextIncrementDate: value }))} />}
-            {!isEditMode && <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm(current => ({ ...current, bondEndDate: value }))} />}
-
-            <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
-            {isEditMode && <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200 md:mt-[22px]"><input type="checkbox" checked={form.salaryOnHold} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>}
-            {!isEditMode && <label className={`flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200 md:mt-[22px] ${!employmentDetailsComplete ? "cursor-not-allowed opacity-70" : ""}`}><input type="checkbox" checked={Boolean(form.salaryOnHold)} disabled={!employmentDetailsComplete} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>}
-              </div>
-            </section>
+            {isEditMode && <div className="md:col-span-3 grid grid-cols-1 items-end gap-4 md:grid-cols-3">
+              <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
+              <CustomDropdown label="Reporting Manager" value={form.teamLead} placeholder="No Reporting Manager" searchable portalMenu onChange={(value) => { const selectedManager = teamLeadOptions.find((item) => item._id === value); setForm((current) => ({ ...current, teamLead: value, reportingManager: selectedManager ? selectedManager.employeeId || selectedManager.name : "" })); }} options={teamLeadOptions.map((manager) => ({ value: manager._id, label: manager.role === "HR" ? `${manager.name} — HR` : `${manager.employeeId || "-"} - ${manager.name}` }))} />
+              <InputField label="Salary" name="salary" value={form.salary} onChange={handleChange} />
+              <CalendarPicker label="Resignation Date" mode="date" value={form.resignationDate} onChange={(value) => setForm((current) => ({ ...current, resignationDate: value }))} />
+              <CalendarPicker label="Leaving Date" mode="date" value={form.leavingDate} onChange={(value) => setForm((current) => ({ ...current, leavingDate: value }))} />
+              <label className="flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200"><input type="checkbox" checked={Boolean(form.salaryOnHold)} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
+              <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm((current) => ({ ...current, bondEndDate: value }))} />
+              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
+            </div>}
+            {!isEditMode && <div className="md:col-span-3 grid grid-cols-1 items-end gap-4 md:grid-cols-3">
+              <CustomDropdown label="Attendance Mode" value={form.attendanceMode} onChange={handleSelect("attendanceMode")} options={[{ value: "office", label: "Office" }, { value: "work_from_home", label: "Work From Home" }]} />
+              <CustomDropdown label="Reporting Manager" value={form.teamLead} placeholder="No Reporting Manager" searchable portalMenu onChange={(value) => { const selectedTeamLead = teamLeadOptions.find((item) => item._id === value); setForm((current) => ({ ...current, teamLead: value, reportingManager: selectedTeamLead ? selectedTeamLead.employeeId || selectedTeamLead.name : "" })); }} options={teamLeadOptions.map((teamLead) => ({ value: teamLead._id, label: teamLead.role === "HR" ? `${teamLead.name} — HR` : `${teamLead.employeeId || "-"} - ${teamLead.name}` }))} />
+              <InputField label="Current Salary" name="salary" value={form.salary} onChange={handleChange} />
+              <label className={`flex h-[42px] items-center gap-2 rounded-md border border-gray-200 px-3 text-sm text-gray-700 ${!employmentDetailsComplete ? "cursor-not-allowed opacity-70" : ""}`}><input type="checkbox" checked={Boolean(form.salaryOnHold)} disabled={!employmentDetailsComplete} onChange={(event) => setForm((current) => ({ ...current, salaryOnHold: event.target.checked }))} /> Salary on hold</label>
+              <CalendarPicker label="Bond End Date" mode="date" value={form.bondEndDate} onChange={(value) => setForm((current) => ({ ...current, bondEndDate: value }))} />
+              <CustomDropdown label="Bond Period Duration" value={form.bondPeriodDuration} onChange={handleSelect("bondPeriodDuration")} options={masterOptions.bondPeriod.length ? masterOptions.bondPeriod : ["15 Days", "1 Month", "2 Months", "3 Months", "6 Months"]} searchable portalMenu />
+            </div>}
+            <Checkbox label="Bond Document Cheque" description="Select if a cheque is being provided for the bond." compact className="md:col-span-3 min-h-11 rounded-md border border-gray-200 px-3 py-2 dark:border-gray-700" checked={Boolean(form.bondDocumentCheque)} onChange={(checked) => setForm((current) => ({ ...current, bondDocumentCheque: checked, ...(!checked ? { chequeNumber: "", chequeAccountNumber: "", chequeAmount: "", chequeDate: "" } : {}) }))} />
+            {form.bondDocumentCheque && <div className="md:col-span-3 grid grid-cols-1 items-start gap-4 md:grid-cols-3"><InputField label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} /><InputField label="Cheque Account Number" name="chequeAccountNumber" value={form.chequeAccountNumber} onChange={handleChange} /><InputField label="Cheque Amount" name="chequeAmount" value={form.chequeAmount} onChange={handleChange} /><CalendarPicker label="Cheque Date" mode="date" value={form.chequeDate} onChange={(value) => setForm((current) => ({ ...current, chequeDate: value }))} /></div>}
           </>
         ) : null}
-        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-[#f84525] hover:bg-[#fff1ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84525]"><FiPlus size={22} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField hidden={!qualificationHasSpecialization(item.level)} label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => updateQualification(index, "passingYear", value)} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} error={uploadErrors[`qualification-marksheet-${index}`]} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
+        {step === 2 ? <div className="md:col-span-3 space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Qualification Details</h3><button type="button" onClick={addQualification} aria-label="Add qualification" title="Add qualification" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-[#f84525] transition hover:bg-[#ffe1d8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f84525]"><FiPlus size={21} aria-hidden="true" /></button></div>{form.qualifications.map((item, index) => <div key={index} className="rounded-lg border p-3"><div className="mb-2 flex justify-end"><button type="button" className="text-xs font-semibold text-red-600" onClick={() => setForm((current) => ({ ...current, qualifications: current.qualifications.filter((_, itemIndex) => itemIndex !== index) }))}>Remove</button></div><div className="grid gap-3 md:grid-cols-2"><CustomDropdown label="Qualification" value={item.level} onChange={(value) => updateQualification(index, "level", value)} options={masterOptions.qualification} placeholder="Select qualification" /><InputField hidden={!qualificationHasSpecialization(item.level)} label="Course / Specialization" value={item.course} onChange={(e) => updateQualification(index, "course", e.target.value)} /><InputField label="Institute / University" value={item.institute} onChange={(e) => updateQualification(index, "institute", e.target.value)} /><CalendarPicker label="Passing Year" mode="year" value={item.passingYear} onChange={(value) => setForm((current) => ({ ...current, qualifications: current.qualifications.map((entry, itemIndex) => itemIndex === index ? { ...entry, passingYear: value } : entry) }))} /><div className="md:col-span-2"><FileUploadField label={`${item.level || "Qualification"} Marksheet`} error={uploadErrors[`qualification-marksheet-${index}`]} name={`qualification-marksheet-${index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={!item.level} hint="Select qualification first. JPG, PNG, WEBP or PDF, up to 5 MB." fileName={item.documents?.marksheet?.name} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} /></div></div></div>)}</div> : null}
+        {step === 2 && <div className="md:col-span-3 space-y-4">
+          <section className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><h3 className="text-sm font-semibold text-gray-900">Future salary increments</h3><p className="mt-1 text-xs text-gray-500">Add planned increments. Each amount is added to the previous planned salary.</p></div>
+              <button type="button" onClick={() => setForm((current) => ({ ...current, initialSalaryReviews: [...(current.initialSalaryReviews || []), { _clientId: crypto.randomUUID(), effectiveDate: "", incrementAmount: "", nextIncrementDate: "", reason: "" }] }))} aria-label="Add scheduled salary increment" title="Add scheduled salary increment" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-[#f84525] transition hover:bg-[#ffe1d8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f84525]"><FiPlus size={21} aria-hidden="true" /></button>
+            </div>
+            {(form.initialSalaryReviews || []).map((review, index) => <div key={review._id || review._clientId || index} className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="mb-4 flex items-center justify-between"><h4 className="text-sm font-semibold text-gray-800">Scheduled increment {index + 1}{review._id ? " · saved" : ""}</h4>{!review._id && <button type="button" onClick={() => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.filter((_, itemIndex) => itemIndex !== index) }))} aria-label={`Remove scheduled increment ${index + 1}`} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"><FiX size={15} /> Remove</button>}</div>
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+                <CalendarPicker label="Effective Date" mode="date" value={review.effectiveDate} onChange={(value) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveDate: value } : item) }))} />
+                <InputField label="Increment Amount" type="number" min="0.01" step="0.01" value={review.incrementAmount} onChange={(event) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, incrementAmount: event.target.value } : item) }))} />
+                <CalendarPicker label="Next Review Date" mode="date" value={review.nextIncrementDate} onChange={(value) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, nextIncrementDate: value } : item) }))} />
+                <label className="block text-sm font-medium text-gray-700 md:col-span-3">Review remarks<textarea maxLength={1000} value={review.reason} onChange={(event) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, reason: event.target.value } : item) }))} className="mt-1 min-h-20 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-[#f84525] focus:outline-none focus:ring-1 focus:ring-[#f84525]" /></label>
+              </div>
+            </div>)}
+          </section>
+        </div>}
 
         {step === 2 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} /> : null}
         {step === 5 ? <EmploymentHistory uploadErrors={uploadErrors} form={form} setForm={setForm} documents onFiles={handleEmploymentFiles} /> : null}
@@ -443,10 +545,6 @@ const EmployeeCreate = () => {
             <InputField label="Bank Name" name="bankName" value={form.bankName} onChange={handleChange} />
             <InputField label="Bank Account Number" name="bankAccountNumber" value={form.bankAccountNumber} onChange={handleChange} />
             <InputField label="Bank IFSC Code" name="bankIfscCode" value={form.bankIfscCode} onChange={handleChange} />
-            <InputField label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
-            <InputField label="Cheque Account Number" name="chequeAccountNumber" value={form.chequeAccountNumber} onChange={handleChange} />
-            <InputField label="Cheque Amount" name="chequeAmount" value={form.chequeAmount} onChange={handleChange} />
-            <CalendarPicker label="Cheque Date" mode="date" value={form.chequeDate} onChange={(value) => setForm((current) => ({ ...current, chequeDate: value }))} />
           </>
         ) : null}
 
