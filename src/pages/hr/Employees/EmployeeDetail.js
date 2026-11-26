@@ -9,6 +9,7 @@ import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../co
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
+import { bondPeriodLabel } from "../../../utils/bondDates";
 import EmploymentHistory from "../../../components/common/EmploymentHistory";
 import { newEmployment, lastCompanyDocumentFields } from "../../../utils/employmentFields";
 const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
@@ -103,12 +104,6 @@ const normalizePhoto = (file, targetWidth, targetHeight) => new Promise((resolve
 });
 const normalizePassportPhoto = (file) => normalizePhoto(file, 413, 531);
 const normalizePanPhoto = (file) => normalizePhoto(file, 197, 276);
-const readImageSize = (file) => new Promise((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => { URL.revokeObjectURL(image.src); resolve({ width: image.width, height: image.height }); };
-  image.onerror = () => { URL.revokeObjectURL(image.src); reject(new Error("Invalid image")); };
-  image.src = URL.createObjectURL(file);
-});
 const normalizeSupportingImage = (file) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => {
@@ -1052,9 +1047,7 @@ const EmployeeDetail = () => {
 <div className={`employee-details-layout ${documentsPanelOpen && hrCanViewModule("employeeDocuments") ? "employee-details-layout-open" : ""}`}>
 <div className="min-w-0 space-y-4">
 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"><h3 className="mb-4 border-b border-gray-100 pb-3 text-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">Personal & Contact</h3><div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
-<DetailItem plain icon={<FiUser />} label="First Name" value={detailFallback(employee.firstName)} />
-<DetailItem plain icon={<FiUser />} label="Middle Name" value={detailFallback(employee.middleName)} />
-<DetailItem plain icon={<FiUser />} label="Last Name" value={detailFallback(employee.lastName)} />
+<DetailItem plain icon={<FiUser />} label="Full Name" value={detailFallback([employee.firstName, employee.middleName, employee.lastName].filter(Boolean).join(" "))} />
 <DetailItem plain icon={<FiUser />} label="Gender" value={detailFallback(employee.gender)} />
 <DetailItem plain icon={<FiUser />} label="Blood Group" value={detailFallback(employee.bloodGroup)} />
 <DetailItem plain icon={<FiCalendar />} label="Date of Birth" value={formatDate(employee.dob)} />
@@ -1081,7 +1074,7 @@ const EmployeeDetail = () => {
 <DetailItem plain icon={<FiCalendar />} label="Probation Period" value={detailFallback(employee.trainingPeriod)} />
 <DetailItem plain icon={<FiShield />} label="Salary" value={employee.salary ?? "N/A"} />
 <DetailItem plain icon={<FiShield />} label="Salary Status" value={employee.salaryOnHold ? "On hold" : "Active"} />
-<DetailItem plain icon={<FiShield />} label="Bond Period" value={detailFallback(employee.bondPeriodDuration)} />
+<DetailItem plain icon={<FiShield />} label="Bond Period" value={bondPeriodLabel(employee.employeeRecords?.current?.bondPeriodDuration || employee.bondPeriodDuration, employee.dateOfJoining, employee.employeeRecords?.current?.bondEndDate || employee.bondEndDate)} />
 <div className="md:col-span-2"><ProbationManagement employee={employee} canManage={canManage && hrCanEditModule("employees")} onChanged={() => loadEmployee({ includeReport: false })} /></div>
 <DetailItem plain icon={<FiShield />} label="Work Role" value={labelize(employee.workRole || "employee")} />
 <DetailItem plain
@@ -1395,7 +1388,7 @@ const EmployeeDetail = () => {
                 label={label}
                 name={key}
                 accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"}
-                hint={key === "photo" ? "JPEG · 413 × 531 px · 630 × 810 also supported" : key === "aadhaarCard" ? "Landscape Aadhaar card scan only" : "PDF, JPG, PNG or WEBP"}
+                hint={key === "photo" ? "JPEG · 413 × 531 px · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar card or full-page letter · PDF, JPG, PNG or WEBP · up to 5 MB" : "PDF, JPG, PNG or WEBP"}
                 fileName={documentFiles[key]?.name || existingDocumentFiles[key]}
                 selectedFile={documentFiles[key] || null}
                 uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])}
@@ -1598,7 +1591,7 @@ const EmployeeDetail = () => {
             if (!uploadableFields.length) return null;
             return <section key={title}>
               <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{uploadableFields.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{uploadableFields.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar card or full-page letter · PDF, JPG, PNG or WEBP · up to 5 MB" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div>
             </section>;
           })}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
