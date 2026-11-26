@@ -20,6 +20,7 @@ import { employeeCreateDocumentFields } from "../../utils/employeeDocumentFields
 import { hasWhitePhotoBackground } from "../../utils/photoBackground";
 import { employeeDraft } from "../../utils/employeeDraft";
 import { bondEndDateFromDuration } from "../../utils/bondDates";
+import { validateAadhaarLetterFormat, validateWhiteBackgroundDocument } from "../../utils/documentValidation";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useEmployee } from "../../contexts/Hr/EmployeeContext";
@@ -256,8 +257,16 @@ const EmployeeCreate = () => {
   };
   const handleProof = async (key, file) => {
     if (!file) return;
-    if (key === "aadhaarCard" && !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
-      toast.error("Upload the Aadhaar card or full-page letter as a JPG, PNG, WEBP or PDF file.");
+    if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
+      toast.error("Upload documents as PDF, JPG, PNG or WEBP files.");
+      return;
+    }
+    if (["aadhaarCard", "panCard", "bloodGroupProof"].includes(key) && !(await validateWhiteBackgroundDocument(file))) {
+      toast.error("Use a clear scan with a white or light background, or upload the full-page PDF.");
+      return;
+    }
+    if (key === "aadhaarCard" && !(await validateAadhaarLetterFormat(file))) {
+      toast.error("Upload the full-page Aadhaar letter image in portrait format, or upload its PDF.");
       return;
     }
     try { const payload = await fileToPayload(file); if (!payload) return; setForm((current) => ({ ...current, documents: { ...current.documents, [key]: payload } })); }
@@ -563,9 +572,9 @@ const EmployeeCreate = () => {
 
         {step === 5 ? (
           <div className="md:col-span-3">
-            <FileUploadField label="Employee Photo" error={uploadErrors["employee-photo"]} name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="Upload JPG, PNG or WEBP" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
+            <FileUploadField label="Employee Photo" error={uploadErrors["employee-photo"]} name="employee-photo" accept=".jpg,.jpeg,.png,.webp" hint="White-background JPG, PNG or WEBP · up to 5 MB" onChange={(event) => handlePhoto(event.target.files?.[0])} fileName={form.photo?.name} />
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} error={uploadErrors[key]} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" hint={key === "aadhaarCard" ? "Aadhaar card or full-page letter · PDF, JPG, PNG or WEBP · up to 5 MB" : undefined} onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
+              {employeeCreateDocumentFields.map(([key, label]) => <FileUploadField key={key} error={uploadErrors[key]} label={label} name={key} accept=".pdf,.jpg,.jpeg,.png,.webp" hint={["aadhaarCard", "panCard", "bloodGroupProof"].includes(key) ? "White-background scan or full-page PDF · JPG, PNG, WEBP or PDF · up to 5 MB" : "PDF, JPG, PNG or WEBP · up to 5 MB"} onChange={(event) => handleProof(key, event.target.files?.[0])} fileName={form.documents[key]?.name} />)}
             </div>
           </div>
         ) : null}

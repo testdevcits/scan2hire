@@ -10,6 +10,8 @@ import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocum
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
 import { bondPeriodLabel } from "../../../utils/bondDates";
+import { validateAadhaarLetterFormat, validateWhiteBackgroundDocument } from "../../../utils/documentValidation";
+import { hasWhitePhotoBackground } from "../../../utils/photoBackground";
 import EmploymentHistory from "../../../components/common/EmploymentHistory";
 import { newEmployment, lastCompanyDocumentFields } from "../../../utils/employmentFields";
 const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
@@ -129,7 +131,7 @@ const profileAccessModules = [["profile", "Profile", ["view"], { view: "View Pro
 const employeeAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["attendance", "Attendance", ["view", "edit"], { view: "View Attendance", edit: "Update Attendance" }], ["interviews", "Interviews", ["view", "edit"], { view: "View Interviews", edit: "Submit Review" }], ["leaves", "Leaves", ["view", "add"], { view: "View Leaves", add: "Apply Leave" }], ["leaveDrafts", "Leave Drafts", ["view", "add", "edit", "delete"], { view: "View Drafts", add: "Create Draft", edit: "Update Draft", delete: "Delete Draft" }], ["leaveCalendar", "Conative Calendar", ["view"], { view: "View Calendar" }], ["systemAllotment", "My System", employeeModuleActions, { view: "View System", add: "Add Item", edit: "Update Item", delete: "Delete Item" }], ["documents", "Company Documents", ["view", "edit", "download"], { view: "View PDFs", edit: "Sign / Submit", download: "Download PDFs" }], ...profileAccessModules, ["credentials", "Credentials", employeeModuleActions, { view: "View Credentials", add: "Add Credential", edit: "Update Credential", delete: "Delete Credential" }], ["settings", "Settings", ["view", "edit"], { view: "View Settings", edit: "Update Settings" }]];
 const teamLeadAccessModules = [["dashboard", "Dashboard", ["view"], { view: "View Dashboard" }], ["yourTeam", "My Team / Team List", ["view", "edit"], { view: "View Team", edit: "Manage Team" }], ...employeeAccessModules.slice(1)];
 const documentLabelMap = {
-  photo: "Photo",
+  photo: "Profile Photo",
   aadhaarCard: "Aadhaar Card",
   panCard: "PAN Card",
   passbook: "Bank Proof / Passbook",
@@ -693,10 +695,18 @@ const EmployeeDetail = () => {
     }
     setSavingProfile(true);
     try {
+      const selectedManager = String(editForm.teamLead || "");
+      const hrManagerId = selectedManager.startsWith("hr:") ? selectedManager.slice(3) : "";
+      const validHrManagerId = /^[a-f\d]{24}$/i.test(hrManagerId) ? hrManagerId : "";
+      if (selectedManager.startsWith("hr:") && !validHrManagerId) {
+        setSavingProfile(false);
+        toast.error("Please select a valid reporting manager again.");
+        return;
+      }
       const payload = {
         ...editForm,
-        reportingManagerUser: editForm.teamLead.startsWith("hr:") ? editForm.teamLead.slice(3) : null,
-        teamLead: editForm.teamLead.startsWith("hr:") ? "" : editForm.teamLead,
+        reportingManagerUser: validHrManagerId || null,
+        teamLead: selectedManager.startsWith("hr:") ? "" : selectedManager,
         employeeId: editForm.employeeId.trim(),
         name: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
         bankHolderName: editForm.bankHolderName,
@@ -763,6 +773,45 @@ const EmployeeDetail = () => {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+
+  const handleDocumentSelection = async (key, file) => {
+    if (!file) return;
+    const isProfilePhoto = key === "photo";
+    const allowedTypes = isProfilePhoto
+      ? ["image/jpeg", "image/png", "image/webp"]
+      : ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setDocumentErrors((current) => ({ ...current, [key]: isProfilePhoto ? "Profile photo must be JPG, PNG or WEBP." : "Upload a PDF, JPG, PNG or WEBP file." }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setDocumentErrors((current) => ({ ...current, [key]: "Maximum file size is 5 MB." }));
+      return;
+    }
+    try {
+      const hasValidBackground = key === "photo"
+        ? await hasWhitePhotoBackground(file)
+        : ["aadhaarCard", "panCard", "bloodGroupProof"].includes(key)
+          ? await validateWhiteBackgroundDocument(file)
+          : true;
+      if (key === "aadhaarCard" && !(await validateAadhaarLetterFormat(file))) {
+        throw new Error("Upload the full-page Aadhaar letter image in portrait format, or upload its PDF.");
+      }
+      if (!hasValidBackground) {
+        throw new Error(key === "photo" ? "Profile photo must have a white or light background." : "Use a clear scan with a white or light background, or upload the full-page PDF.");
+      }
+      const normalizedFile = isProfilePhoto
+        ? await normalizePassportPhoto(file)
+        : key === "panCard" && file.type !== "application/pdf"
+          ? await normalizePanPhoto(file)
+          : file;
+      setDocumentErrors((current) => ({ ...current, [key]: "" }));
+      setDocumentFiles((current) => ({ ...current, [key]: normalizedFile }));
+      toast.success(`${documentLabelMap[key] || "Document"} selected. Save Documents to replace it.`);
+    } catch (error) {
+      setDocumentErrors((current) => ({ ...current, [key]: error.message || "Unable to process this document." }));
+    }
+  };
 
   const saveEmployeeDocuments = async (event) => {
     event.preventDefault();
@@ -951,7 +1000,7 @@ const EmployeeDetail = () => {
   if (!employee) return <p className="text-red-500">Employee not found</p>;
 
   const documentItems = [
-    ["photo", "Photo"],
+    ["photo", "Profile Photo"],
     ["aadhaarCard", "Aadhaar Card"],
     ["panCard", "PAN Card"],
     ["passbook", "Bank Proof / Passbook"],
@@ -1572,7 +1621,15 @@ const EmployeeDetail = () => {
           {documentItems.map(([key, label]) => {
             const item = Array.isArray(employee.documents?.[key]) ? employee.documents[key][0] : employee.documents?.[key];
             if (!item?.url) return null;
-            return <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><span className="font-medium text-gray-800 dark:text-gray-100">{label}</span><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>{hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}{canManageDocuments && <button type="button" onClick={() => document.getElementById(`${key}-file-upload`)?.click()} className="inline-flex items-center gap-1.5 rounded-sm border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 dark:border-gray-600 dark:text-green-300 dark:hover:bg-gray-800">Update</button>}</div></div>;
+            return (
+              <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-100">{label}</span>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>
+                  {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}
+                </div>
+              </div>
+            );
           })}
           {!documentItems.some(([key]) => { const item = employee.documents?.[key]; return Array.isArray(item) ? item.length > 0 : Boolean(item?.url); }) && <p className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">No uploaded documents found.</p>}
           </div>
@@ -1591,7 +1648,7 @@ const EmployeeDetail = () => {
             if (!uploadableFields.length) return null;
             return <section key={title}>
               <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{uploadableFields.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar card or full-page letter · PDF, JPG, PNG or WEBP · up to 5 MB" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{uploadableFields.map(([key, label]) => <FileUploadField key={key} label={label} name={key} accept={key === "photo" ? ".jpg,.jpeg,.png,.webp" : ".pdf,.jpg,.jpeg,.png,.webp"} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : ["aadhaarCard", "panCard", "bloodGroupProof"].includes(key) ? "White-background scan or full-page PDF · JPG, PNG, WEBP or PDF · up to 5 MB" : "PDF, JPG, PNG or WEBP · up to 5 MB"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={(event) => handleDocumentSelection(key, event.target.files?.[0])} disabled={savingDocuments} />)}</div>
             </section>;
           })}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
