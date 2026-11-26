@@ -1547,7 +1547,7 @@ const EmployeeDetail = () => {
           )}
           {activeRecord !== "nextReview" && !recordEditor && recordDefinitions[activeRecord] && recordCanView(activeRecord) && (
             <div className="mt-6 rounded border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">{recordDefinitions[activeRecord].title} details</h3>{recordCanUpdate(activeRecord) && <Button variant="secondary" onClick={() => openRecordEditor(activeRecord)} text={recordHasSavedValues(activeRecord) ? "Update" : "Add"} />}</div>
+              <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">{recordDefinitions[activeRecord].title} details</h3>{recordCanUpdate(activeRecord) && <Button onClick={() => openRecordEditor(activeRecord)} text={recordHasSavedValues(activeRecord) ? "Update" : "Add"} />}</div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                 {recordDefinitions[activeRecord].fields.map(([field, label]) => <div key={field} className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{label}</p><p className="mt-1 font-medium text-gray-900">{recordDraft?.[activeRecord]?.[field] || "Not added"}</p></div>)}
               </div>
