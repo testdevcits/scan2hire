@@ -117,7 +117,7 @@ const ManageEmployees = () => {
   };
   const editEmployee = (employee) => {
     const employeeRecordId = employee.isHrAccount ? employee.linkedEmployeeId : employee._id;
-    if (employeeRecordId) navigate(`${employeesPath}/${employeeRecordId}?tab=edit`);
+    if (employeeRecordId) navigate(`${employeesPath}/${employeeRecordId}/edit`);
   };
   const deleteEmployee = async (employee) => {
     const confirmed = await confirm({ title: "Delete Employee", message: `Delete ${employee.name || "this employee"}? This action cannot be undone.`, confirmText: "Delete", tone: "danger" });

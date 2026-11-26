@@ -35,7 +35,7 @@ import {
   FiUsers,
   FiUserX,
 } from "react-icons/fi";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import Button from "../../../components/common/Button";
 import AddressFields from "../../../components/common/AddressFields";
@@ -344,6 +344,10 @@ const EmployeeDetail = () => {
   };
 
   const changeActiveTab = (tab) => {
+    if (tab === "edit") {
+      navigate(`${location.pathname}/edit`);
+      return;
+    }
     const params = new URLSearchParams(location.search);
     params.set("tab", tab);
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
@@ -397,7 +401,13 @@ const EmployeeDetail = () => {
           ? { salarySlips: `${employeeData.documents.salarySlips.length} file(s) saved` }
           : {}),
       });
-      setRecordDraft(employeeData.employeeRecords || {});
+      setRecordDraft({
+        ...(employeeData.employeeRecords || {}),
+        current: {
+          ...(employeeData.employeeRecords?.current || {}),
+          bondPeriodDuration: employeeData.employeeRecords?.current?.bondPeriodDuration || employeeData.bondPeriodDuration || "",
+        },
+      });
       const detectedRole = employeeData.workRole === "teamlead" || employeeData.user?.role === "teamlead"
         ? "teamlead"
         : employeeData.user?.role === "hr" || employeeData.workRole === "hr" ? "hr" : "employee";
@@ -942,6 +952,7 @@ const EmployeeDetail = () => {
   };
 
   if (loading) return <CommonLoader text="Loading employee..." />;
+  if (activeTab === "edit") return <Navigate to={`${location.pathname}/edit`} replace />;
   if (!employee) return <p className="text-red-500">Employee not found</p>;
 
   const documentItems = [
@@ -970,7 +981,6 @@ const EmployeeDetail = () => {
     : "border-red-200 bg-red-50 text-red-700";
   const employeeTabs = [
     { value: "details", label: "Details" },
-    ...(canManage && hrCanEditModule("employees") ? [{ value: "edit", label: "Edit Profile" }] : []),
     { value: "attendance", label: "Attendance" },
     ...(hrCanViewModule("leaveReports") ? [{ value: "leaves", label: "Leaves" }] : []),
     ...(hrCanViewModule("employeeDocuments") ? [{ value: "documents", label: "Documents" }] : []),
@@ -983,7 +993,7 @@ const EmployeeDetail = () => {
   ];
 
   const recordDefinitions = {
-    current: { title: "Joining / Current Record", fields: [["nextIncrementDate", "Next Review Date", "date"], ["bondEndDate", "Bond End Date", "date"], ["salary", "Salary"]] },
+    current: { title: "Salary Record", fields: [["nextIncrementDate", "Next Review Date", "date"], ["bondEndDate", "Bond End Date", "date"], ["bondPeriodDuration", "Bond Period Duration"], ["salary", "Salary"]] },
     nextReview: { title: "Next Review", fields: [["incrementDate", "Increment Date", "date"], ["incrementSalary", "Increment Salary"], ["bondEndDate", "Bond End Date", "date"], ["nextIncrementDate", "Next Increment Date", "date"], ["salary", "Salary"]] },
     leaving: { title: "Leaving Process", fields: [["dateOfJoining", "Date of Joining", "date"], ["bondEndDate", "Bond End Date", "date"], ["resignationDate", "Resignation Date", "date"], ["noticePeriodDays", "Notice Period Days"], ["lastWorkingDate", "Last Working Date", "date"], ["salary", "Salary"]] },
     naf: { title: "NAF Process", fields: [["idCardStatus", "ID card status"], ["nafStatus", "NAF status"]] },
@@ -998,7 +1008,11 @@ const EmployeeDetail = () => {
     event.preventDefault();
     setSavingRecord(true);
     try {
-      await hrApi.updateEmployee(employeeId, { employeeRecords: { [recordEditor]: recordDraft[recordEditor] } });
+      const record = recordDraft[recordEditor];
+      await hrApi.updateEmployee(employeeId, {
+        employeeRecords: { [recordEditor]: record },
+        ...(recordEditor === "current" && record.bondPeriodDuration !== undefined ? { bondPeriodDuration: record.bondPeriodDuration } : {}),
+      });
       await loadEmployee({ includeReport: false });
       setRecordEditor(null);
       toast.success("Record saved");
@@ -1517,7 +1531,7 @@ const EmployeeDetail = () => {
           <SectionHeader title="Appraisal Review" subtitle="Schedule, update, and complete this employee's salary reviews." />
           <div className="mt-5 flex flex-wrap gap-2 rounded border border-gray-200 bg-gray-50 p-2">
             {[
-              ["current", "Joining / Current Record", "Current salary, bond and next increment details."],
+              ["current", "Salary Record", "Salary, bond and next review details."],
               ["nextReview", "Appraisal Review", "Schedule and manage salary appraisal reviews."],
               ["leaving", "Leaving Process", "Notice, last working date and exit record."],
               ["naf", "NAF Process", "NAF and ID card process details."],
@@ -1578,9 +1592,15 @@ const EmployeeDetail = () => {
             ["Education & Resume", ["degree", "resume"]],
             ["Employment & Letters", ["offerLetter", "appointmentLetter", "leavingLetter", "experienceCertificate", "previousCompanyDocument", "documentXerox"]],
             ["Bond Documents", ["bondDocument", "bondLetter"]],
-          ].map(([title, keys]) => <section key={title}>
-            <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{documentItems.filter(([key]) => keys.includes(key)).map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div></section>)}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
+          ].map(([title, keys]) => {
+            const fields = documentItems.filter(([key]) => keys.includes(key));
+            const uploadableFields = fields.filter(([key]) => !existingDocumentFiles[key] || documentFiles[key]);
+            if (!uploadableFields.length) return null;
+            return <section key={title}>
+              <div className="mb-3 flex items-center gap-3"><h4 className="shrink-0 text-sm font-semibold text-[#c6381d] dark:text-orange-300">{title}</h4><span aria-hidden="true" className="h-px flex-1 bg-gray-200 dark:bg-gray-700" /></div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{uploadableFields.map(([key, label]) => { const isSupporting = key === "addressProof"; const isResume = key === "resume"; const isScan = ["aadhaarCard", "panCard", "passbook", "bloodGroupProof", "addressProof", "degree"].includes(key); const accept = key === "photo" ? ".jpg,.jpeg,.png,.webp" : (isSupporting || isResume) ? ".pdf,.jpg,.jpeg" : ".pdf,.jpg,.jpeg,.png,.webp"; return <FileUploadField key={key} label={label} name={key} accept={accept} hint={key === "photo" ? "JPEG · 413 × 531 px (default) · 630 × 810 also supported" : key === "aadhaarCard" ? "Aadhaar scan only · landscape card image required" : key === "panCard" ? "Image: 197 × 276 px (NSDL) · PDF also allowed" : isResume ? "PDF or JPG/JPEG · no fixed dimensions · keep text readable" : isSupporting ? "PDF, JPG, JPEG · max 500 KB · 150–200 DPI" : isScan ? "PDF or JPG/JPEG scan · 150–300 DPI · keep within portal limit" : "PDF, JPG, PNG, WEBP"} fileName={documentFiles[key]?.name || existingDocumentFiles[key]} selectedFile={documentFiles[key] || null} uploaded={Boolean(documentFiles[key] || existingDocumentFiles[key])} error={documentErrors[key]} onChange={async (event) => { const file = event.target.files?.[0] || null; if (!file) return; const extension = file.name.split(".").pop()?.toLowerCase(); const allowed = key === "photo" ? ["jpg", "jpeg", "png", "webp"] : (isSupporting || isResume) ? ["pdf", "jpg", "jpeg"] : ["pdf", "jpg", "jpeg", "png", "webp"]; if (!allowed.includes(extension) || (isSupporting && file.size > 500 * 1024 && extension === "pdf")) { setDocumentErrors((current) => ({ ...current, [key]: `Invalid file for ${label}. Allowed: ${allowed.join(", ")} and max 500 KB.` })); setDocumentFiles((current) => ({ ...current, [key]: null })); return; } try { if (key === "aadhaarCard" && extension !== "pdf") { const { width, height } = await readImageSize(file); const ratio = width / height; if (ratio < 1.3 || ratio > 2.1) throw new Error("Aadhaar card image must be landscape"); } const normalizedFile = key === "photo" ? await normalizePassportPhoto(file) : key === "panCard" && extension !== "pdf" ? await normalizePanPhoto(file) : isSupporting && extension !== "pdf" ? await normalizeSupportingImage(file) : file; setDocumentErrors((current) => ({ ...current, [key]: "" })); setDocumentFiles((current) => ({ ...current, [key]: normalizedFile })); } catch (error) { setDocumentErrors((current) => ({ ...current, [key]: error.message === "Aadhaar card image must be landscape" ? "Invalid Aadhaar image. Upload a landscape Aadhaar card scan, not a normal portrait photo." : "Unable to process this document" })); setDocumentFiles((current) => ({ ...current, [key]: null })); } }} disabled={savingDocuments} />; })}</div>
+            </section>;
+          })}</div><div className="mt-6 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-700"><Button type="submit" loading={savingDocuments} text="Save Documents" /></div></form>}
       </section>}
 
       {user?.role === "superadmin" && activeTab === "versionHistory" && <section id="versionHistory-panel" role="tabpanel" aria-labelledby="versionHistory-tab" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">

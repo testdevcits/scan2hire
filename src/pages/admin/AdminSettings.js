@@ -66,6 +66,7 @@ const GeneralSettings = () => {
     mailEnabled: true,
     notificationsEnabled: true,
     noticeNotificationsEnabled: true,
+    autoApplyScheduledSalaryIncrements: false,
     adminApprovalEmail: "",
     employeeVaultPassword: "",
   });
@@ -109,6 +110,7 @@ const GeneralSettings = () => {
           mailEnabled: Boolean(data.mailEnabled),
           notificationsEnabled: Boolean(data.notificationsEnabled),
           noticeNotificationsEnabled: Boolean(data.noticeNotificationsEnabled),
+          autoApplyScheduledSalaryIncrements: Boolean(data.autoApplyScheduledSalaryIncrements),
           adminApprovalEmail: data.adminApprovalEmail || "",
         }));
         setHasVaultPassword(Boolean(data.hasEmployeeVaultPassword));
@@ -153,6 +155,7 @@ const GeneralSettings = () => {
         mailEnabled: form.mailEnabled,
         notificationsEnabled: form.notificationsEnabled,
         noticeNotificationsEnabled: form.noticeNotificationsEnabled,
+        autoApplyScheduledSalaryIncrements: form.autoApplyScheduledSalaryIncrements,
         adminApprovalEmail: form.adminApprovalEmail,
         employeeVaultPassword: form.employeeVaultPassword,
       };
@@ -474,6 +477,18 @@ const GeneralSettings = () => {
                   className={inputClass}
                 />
               </label>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader icon={<FiSettings />} title="Salary Review Automation" subtitle="Choose how scheduled salary increments are applied." />
+            <div className="space-y-3 p-5">
+              <ToggleRow
+                label="Automatically apply scheduled salary increments"
+                checked={form.autoApplyScheduledSalaryIncrements}
+                onChange={(e) => setForm((prev) => ({ ...prev, autoApplyScheduledSalaryIncrements: e.target.checked }))}
+              />
+              <p className="pl-4 text-xs text-gray-500 dark:text-gray-400">When enabled, due increments update the employee’s current salary automatically. When disabled, HR must select Mark Done.</p>
             </div>
           </Card>
 

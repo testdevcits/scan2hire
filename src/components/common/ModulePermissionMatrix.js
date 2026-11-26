@@ -13,7 +13,7 @@ const ModulePermissionMatrix = ({ modules, value, onChange, actions = ["view", "
           if (next.view === true) onChange("employees", { ...(value.employees || {}), view: true });
         };
         const recordChildren = [
-          ["currentRecordControl", "Joining / Current Record", ["currentView", "current"], { currentView: "View", current: "Add / Update" }],
+          ["currentRecordControl", "Salary Record", ["currentView", "current"], { currentView: "View", current: "Add / Update" }],
           ["nextReviewControl", "Appraisal Review", ["nextReviewView", "nextReview"], { nextReviewView: "View", nextReview: "Add / Update" }],
           ["leavingControl", "Leaving Process", ["leavingView", "leaving"], { leavingView: "View", leaving: "Add / Update" }],
           ["nafControl", "NAF Process", ["nafView", "naf"], { nafView: "View", naf: "Add / Update" }],
