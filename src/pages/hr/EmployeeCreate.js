@@ -60,6 +60,15 @@ const initialForm = {
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth)\b/i.test(String(level).trim());
 const dateInputValue = (value) => value ? String(value).slice(0, 10) : "";
+const employeeEditRequestCache = new Map();
+const shareEmployeeEditRequest = (key, createRequest) => {
+  if (!employeeEditRequestCache.has(key)) {
+    const request = createRequest();
+    employeeEditRequestCache.set(key, request);
+    request.then(() => employeeEditRequestCache.delete(key), () => employeeEditRequestCache.delete(key));
+  }
+  return employeeEditRequestCache.get(key);
+};
 
 
 const EmployeeCreate = () => {
@@ -82,6 +91,22 @@ const EmployeeCreate = () => {
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(1);
   const { user } = useContext(AuthContext);
+  const [hrModuleAccess, setHrModuleAccess] = useState(user?.moduleAccess || null);
+  const [accessLoading, setAccessLoading] = useState(user?.role === "hr" && isEditMode);
+  useEffect(() => {
+    if (user?.role !== "hr" || !isEditMode) return undefined;
+    let active = true;
+    authApi.getProfile()
+      .then((response) => { if (active) setHrModuleAccess(response.data.data?.moduleAccess || {}); })
+      .catch(() => { if (active) setHrModuleAccess({}); })
+      .finally(() => { if (active) setAccessLoading(false); });
+    return () => { active = false; };
+  }, [authApi, isEditMode, user?.role]);
+  const effectiveHrAccess = hrModuleAccess || user?.moduleAccess || {};
+  const canEditEmployee = user?.role === "superadmin"
+    || (user?.role === "hr" && effectiveHrAccess.employees?.edit === true);
+  const canEditEmployeeId = user?.role === "superadmin"
+    || (user?.role === "hr" && (effectiveHrAccess.employeeIdentity?.edit === true || effectiveHrAccess.employees?.editIdentity === true));
   const { createEmployee } = useEmployee();
   const toast = useToast();
   const navigate = useNavigate();
@@ -126,7 +151,7 @@ const EmployeeCreate = () => {
     if (!isEditMode || !employeeId) return;
     let active = true;
     setEditLoading(true);
-    hrApi.getEmployee(employeeId).then((response) => {
+    shareEmployeeEditRequest(`employee:${employeeId}`, () => hrApi.getEmployee(employeeId)).then((response) => {
       if (!active) return;
       const data = response.data?.data || {};
       const scheduledReviews = (data.salaryReviewHistory || [])
@@ -172,33 +197,19 @@ const EmployeeCreate = () => {
 
   useEffect(() => {
     if (user?.role !== "hr" && user?.role !== "superadmin") return;
-    Promise.all([
-      authApi.getDepartments(),
-      authApi.getMasterOptions("bloodGroup"),
-      authApi.getMasterOptions("gender"),
-      authApi.getMasterOptions("qualification"),
-      authApi.getMasterOptions("employeeType"),
-      authApi.getMasterOptions("designation"),
-      authApi.getMasterOptions("trainingPeriod"),
-      authApi.getMasterOptions("bondPeriod"),
-      hrApi.getEmployees(),
-      hrApi.getReportingManagers(),
-    ])
-      .then(([departmentResponse, bloodResponse, genderResponse, qualificationResponse, typeResponse, designationResponse, trainingResponse, bondResponse, employeesResponse, managersResponse]) => {
-        setDepartments(departmentResponse.data.data || []);
-        setMasterOptions({
-          bloodGroup: (bloodResponse.data.data || []).map((item) => item.name),
-          gender: (genderResponse.data.data || []).map((item) => item.name),
-          qualification: (qualificationResponse.data.data || []).map((item) => item.name),
-          employeeType: (typeResponse.data.data || []).map((item) => item.name),
-          designation: (designationResponse.data.data || []).map((item) => item.name),
-          trainingPeriod: (trainingResponse.data.data || []).map((item) => item.name),
-          bondPeriod: (bondResponse.data.data || []).map((item) => item.name),
-        });
-        setEmployeeOptions(employeesResponse?.data?.data || []);
-        setReportingManagerOptions(managersResponse?.data?.data || []);
+    let active = true;
+    shareEmployeeEditRequest("employee-edit-options", () => hrApi.getEmployeeEditOptions())
+      .then((response) => {
+        if (!active) return;
+        const options = response.data.data || {};
+        const managers = options.reportingManagers || [];
+        setDepartments(options.departments || []);
+        setMasterOptions(Object.fromEntries(Object.entries(options.masterOptions || {}).map(([key, values]) => [key, values.map((item) => item.name)])));
+        setEmployeeOptions(managers);
+        setReportingManagerOptions(managers);
       })
       .catch(() => setDepartments([]));
+    return () => { active = false; };
   }, [user?.role]);
 
   const handleChange = (event) => {
@@ -492,7 +503,7 @@ const EmployeeCreate = () => {
     try {
       const payload = {
         ...form,
-        ...(user?.role === "superadmin" && isEditMode ? { employeeId: form.employeeId, hrFileNo: form.hrFileNo } : { employeeId: undefined, hrFileNo: undefined }),
+        ...(canEditEmployeeId && isEditMode ? { employeeId: form.employeeId, hrFileNo: form.hrFileNo } : { employeeId: undefined, hrFileNo: undefined }),
         ...(!isEditMode ? { bondEndDate: undefined } : {}),
         useDefaultPassword: !isEditMode && useDefaultPassword,
         password: useDefaultPassword ? "" : form.password,
@@ -533,6 +544,12 @@ const EmployeeCreate = () => {
   };
 
   if (user?.role !== "hr" && user?.role !== "superadmin") {
+    return <Navigate to={employeesPath} replace />;
+  }
+
+  if (isEditMode && accessLoading) return <div className="p-4 text-sm" role="status">Checking employee edit access…</div>;
+
+  if (isEditMode && !canEditEmployee) {
     return <Navigate to={employeesPath} replace />;
   }
 
@@ -577,7 +594,7 @@ const EmployeeCreate = () => {
             <InputField label="Alternate Mobile" name="altMobile" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.altMobile} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.altMobile} />
             <InputField label="Emergency Contact Number" name="emergencyNumber" type="tel" prefix="+91" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={form.emergencyNumber} onChange={handleChange} onBlur={handleMobileBlur} error={fieldErrors.emergencyNumber} />
             <div className="md:col-span-3 flex items-center gap-4 pt-3 text-lg font-semibold"><span>Login and identity</span><span aria-hidden="true" className="h-0.5 flex-1 bg-gray-300 dark:bg-gray-600" /></div>
-            {isEditMode && user?.role === "superadmin" && <><InputField label="Employee ID" name="employeeId" value={form.employeeId || ""} onChange={handleChange} required /><InputField label="HR File Number" name="hrFileNo" value={form.hrFileNo || ""} onChange={handleChange} required /></>}
+            {isEditMode && canEditEmployeeId && <><InputField label="Employee ID" name="employeeId" value={form.employeeId || ""} onChange={handleChange} required /><InputField label="HR File Number" name="hrFileNo" value={form.hrFileNo || ""} onChange={handleChange} required /></>}
             {!isEditMode && <div className="md:col-span-3"><Checkbox label="Use temporary password" checked={useDefaultPassword} disabled={!defaultPasswordConfigured} onChange={checked => { setUseDefaultPassword(checked); setForm(current => ({ ...current, password: '' })); }} description={defaultPasswordConfigured ? 'Applies only to this new employee. You can also enter a custom password.' : 'Ask Admin to configure a default password in Settings, or enter a custom password.'} /></div>}
             {!isEditMode && !useDefaultPassword && <InputField label="Temporary Password" name="password" type="password" passwordToggle value={form.password} onChange={handleChange} required autoComplete="new-password" />}
           </>

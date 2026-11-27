@@ -348,7 +348,7 @@ const EmployeeAccessControl = () => {
       <Card className="overflow-hidden">
         <div className="p-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Roles &amp; Access Control</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Employee &amp; Team Access</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Select an employee, grant the required role, then assign team members to a Team Lead.
             </p>
