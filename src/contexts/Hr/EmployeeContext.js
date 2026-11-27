@@ -62,7 +62,7 @@ export const EmployeeProvider = ({ children }) => {
       setPagination(cached.pagination);
       setError(null);
       setLoading(false);
-      return;
+      return { employees: cached.employees, pagination: cached.pagination };
     }
 
     let request = inFlightRequests.current.get(cacheKey);
@@ -101,6 +101,7 @@ export const EmployeeProvider = ({ children }) => {
         const oldestKey = queryCache.current.keys().next().value;
         queryCache.current.delete(oldestKey);
       }
+      return result;
     } catch (err) {
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED" || err.name === "AbortError") return;
       if (requestId !== latestRequestId.current) return;

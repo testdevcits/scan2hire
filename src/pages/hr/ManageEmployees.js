@@ -38,10 +38,15 @@ const ManageEmployees = () => {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Load one page of up to 100 staff so searches across a typical team stay local and instant.
+  const [pageSize, setPageSize] = useState(100);
   const [hasLoadedEmployees, setHasLoadedEmployees] = useState(false);
+  const [unfilteredEmployeeSnapshot, setUnfilteredEmployeeSnapshot] = useState(null);
   const isServerPaginated = user?.role !== "superadmin";
-  const searchPending = searchInput.trim() !== debouncedSearch;
+  const canSearchLoadedList = isServerPaginated
+    && Boolean(unfilteredEmployeeSnapshot)
+    && unfilteredEmployeeSnapshot.totalItems <= unfilteredEmployeeSnapshot.employees.length;
+  const searchPending = !canSearchLoadedList && searchInput.trim() !== debouncedSearch;
 
   useEffect(() => {
     if (user?.role !== "hr") return undefined;
@@ -70,12 +75,21 @@ const ManageEmployees = () => {
   }, [searchInput]);
 
   useEffect(() => {
-    if (!isServerPaginated || searchPending) return;
+    if (!isServerPaginated || canSearchLoadedList || searchPending) return;
     const params = viewMode === "list"
-      ? { page, limit: pageSize, search: debouncedSearch, sort: "name" }
-      : { search: debouncedSearch, sort: "name" };
-    fetchEmployees(params).finally(() => setHasLoadedEmployees(true));
-  }, [debouncedSearch, fetchEmployees, isServerPaginated, page, pageSize, searchPending, viewMode]);
+      ? { page, limit: pageSize, search: debouncedSearch, sort: "name", view: "list" }
+      : { search: debouncedSearch, sort: "name", view: "list" };
+    fetchEmployees(params)
+      .then((result) => {
+        if (!debouncedSearch && result && result.pagination.totalItems <= result.employees.length) {
+          setUnfilteredEmployeeSnapshot({
+            employees: result.employees,
+            totalItems: result.pagination.totalItems,
+          });
+        }
+      })
+      .finally(() => setHasLoadedEmployees(true));
+  }, [canSearchLoadedList, debouncedSearch, fetchEmployees, isServerPaginated, page, pageSize, searchPending, viewMode]);
 
   const hrRows = useMemo(() => hrUsers.map((hr) => {
     const linked = hr.employeeProfile?._id || hr.employeeProfile || employees.find((item) => String(item.email || "").toLowerCase() === String(hr.email || "").toLowerCase() || String(item.name || "").trim().toLowerCase() === String(hr.name || "").trim().toLowerCase())?._id;
@@ -98,16 +112,20 @@ const ManageEmployees = () => {
       )
     : sortedHrEmployees, [hrRows, nonHrEmployees, sortedHrEmployees, user?.role]);
   const filteredEmployees = useMemo(() => {
-    if (isServerPaginated || !searchInput.trim()) return displayEmployees;
+    if ((isServerPaginated && !canSearchLoadedList) || !searchInput.trim()) return displayEmployees;
+    const sourceEmployees = canSearchLoadedList ? unfilteredEmployeeSnapshot.employees : displayEmployees;
     const term = searchInput.trim().toLowerCase();
-    return displayEmployees.filter((employee) => [
+    return sourceEmployees.filter((employee) => [
       employee.employeeId, employee.name, employee.email, employee.mobile, employee.department, employee.designation,
     ].some((value) => String(value || "").toLowerCase().includes(term)));
-  }, [displayEmployees, isServerPaginated, searchInput]);
-  const employeePagination = usePagination(isServerPaginated ? [] : filteredEmployees, [viewMode, user?.role, searchInput]);
-  const pagedEmployees = isServerPaginated ? employees : employeePagination.pageItems;
-  const totalEmployees = isServerPaginated ? serverPagination.totalItems : filteredEmployees.length;
-  const totalPages = isServerPaginated ? serverPagination.totalPages : employeePagination.totalPages;
+  }, [canSearchLoadedList, displayEmployees, isServerPaginated, searchInput, unfilteredEmployeeSnapshot]);
+  const employeePagination = usePagination(
+    isServerPaginated && !canSearchLoadedList ? [] : filteredEmployees,
+    [viewMode, user?.role, searchInput]
+  );
+  const pagedEmployees = isServerPaginated && !canSearchLoadedList ? employees : employeePagination.pageItems;
+  const totalEmployees = isServerPaginated && !canSearchLoadedList ? serverPagination.totalItems : filteredEmployees.length;
+  const totalPages = isServerPaginated && !canSearchLoadedList ? serverPagination.totalPages : employeePagination.totalPages;
 
   const formatValue = (value) => value || "N/A";
   const isTeamLead = (user?.effectiveRole || user?.role) === "teamlead";
@@ -126,15 +144,18 @@ const ManageEmployees = () => {
     try {
       await hrApi.deleteEmployee(employee._id);
       invalidateEmployeesCache();
+      setUnfilteredEmployeeSnapshot(null);
       toast.success("Employee deleted successfully");
-      await fetchEmployees();
+      await fetchEmployees(isServerPaginated
+        ? { page, limit: pageSize, search: debouncedSearch, sort: "name", view: "list" }
+        : {}, { force: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Only super admin can delete employees");
     } finally { setDeletingId(""); }
   };
   const employeesPath = user?.role === "superadmin" ? "/admin/employees" : "/hr/employees";
 
-  const paginationProps = isServerPaginated
+  const paginationProps = isServerPaginated && !canSearchLoadedList
     ? {
         page,
         pageSize,
@@ -199,7 +220,7 @@ const ManageEmployees = () => {
       loadingText={hasLoadedEmployees ? "Searching…" : "Loading…"}
     />
   );
-  const cardEmployees = isServerPaginated ? employees : filteredEmployees;
+  const cardEmployees = isServerPaginated && !canSearchLoadedList ? employees : filteredEmployees;
   const employeeOnlyCount = filteredEmployees.filter((item) => item.user?.role !== "hr" && item.workRole !== "hr").length;
 
   if (loading && !hasLoadedEmployees) return <CommonLoader text="Fetching employees..." />;
