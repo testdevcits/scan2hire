@@ -107,7 +107,7 @@ const EmployeeCreate = () => {
     || (user?.role === "hr" && effectiveHrAccess.employees?.edit === true);
   const canEditEmployeeId = user?.role === "superadmin"
     || (user?.role === "hr" && (effectiveHrAccess.employeeIdentity?.edit === true || effectiveHrAccess.employees?.editIdentity === true));
-  const { createEmployee } = useEmployee();
+  const { createEmployee, invalidateEmployeesCache } = useEmployee();
   const toast = useToast();
   const navigate = useNavigate();
   const [editLoading, setEditLoading] = useState(false);
@@ -526,6 +526,7 @@ const EmployeeCreate = () => {
       if (isEditMode) {
         const { password, photo, documents, ...profilePayload } = payload;
         await hrApi.updateEmployee(employeeId, profilePayload);
+        invalidateEmployeesCache();
         profileSaved = true;
         await saveEditedSalaryReviews();
         const documentPayload = { ...documents, ...(photo ? { photo } : {}) };
