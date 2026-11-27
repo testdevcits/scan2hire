@@ -4,7 +4,6 @@ import { createContext, useCallback, useContext, useRef, useState } from "react"
 import { useApi } from "../ApiContext";
 import { AuthContext } from "../AuthContext";
 
-const EMPLOYEE_QUERY_CACHE_TTL = 8000;
 const EMPLOYEE_QUERY_CACHE_LIMIT = 40;
 
 const normalizeParams = (params = {}) => Object.fromEntries(
@@ -24,10 +23,23 @@ export const EmployeeProvider = ({ children }) => {
   const latestRequestId = useRef(0);
   const activeRequest = useRef(null);
   const queryCache = useRef(new Map());
+  const inFlightRequests = useRef(new Map());
   const cacheScope = `${user?._id || user?.id || "anonymous"}:${user?.role || ""}:${user?.effectiveRole || ""}`;
+
+  const abortActiveRequest = () => {
+    if (!activeRequest.current) return;
+    const { key, controller } = activeRequest.current;
+    controller.abort();
+    inFlightRequests.current.delete(key);
+    activeRequest.current = null;
+  };
 
   const invalidateEmployeesCache = useCallback(() => {
     queryCache.current.clear();
+    inFlightRequests.current.clear();
+    latestRequestId.current += 1;
+    abortActiveRequest();
+    setLoading(false);
   }, []);
 
   // -------------------------
@@ -40,8 +52,12 @@ export const EmployeeProvider = ({ children }) => {
     const cacheKey = `${cacheScope}:${JSON.stringify(normalizeParams(params))}`;
     const cached = queryCache.current.get(cacheKey);
 
-    if (!force && cached && Date.now() - cached.cachedAt < EMPLOYEE_QUERY_CACHE_TTL) {
-      if (activeRequest.current) activeRequest.current.abort();
+    if (!force && cached) {
+      queryCache.current.delete(cacheKey);
+      queryCache.current.set(cacheKey, cached);
+      if (activeRequest.current?.key !== cacheKey) {
+        abortActiveRequest();
+      }
       setEmployees(cached.employees);
       setPagination(cached.pagination);
       setError(null);
@@ -49,30 +65,37 @@ export const EmployeeProvider = ({ children }) => {
       return;
     }
 
-    if (cached) queryCache.current.delete(cacheKey);
-    try {
-      if (activeRequest.current) activeRequest.current.abort();
+    let request = inFlightRequests.current.get(cacheKey);
+    if (!request) {
+      if (activeRequest.current?.key !== cacheKey) {
+        abortActiveRequest();
+      }
       const controller = new AbortController();
-      activeRequest.current = controller;
+      activeRequest.current = { key: cacheKey, controller };
+      request = hrApi.getEmployees(params, { signal: controller.signal }).then((res) => ({
+        employees: res.data.data || [],
+        pagination: res.data.pagination || {
+          page: 1,
+          limit: Math.max((res.data.data || []).length, 1),
+          totalItems: res.data.count ?? (res.data.data || []).length,
+          totalPages: 1,
+        },
+      }));
+      inFlightRequests.current.set(cacheKey, request);
+    }
+
+    try {
       setLoading(true);
       setError(null);
 
-      const res = await hrApi.getEmployees(params, { signal: controller.signal });
+      const result = await request;
       if (requestId !== latestRequestId.current) return;
 
-      const rows = res.data.data || [];
-      setEmployees(rows);
-      const nextPagination = res.data.pagination || {
-        page: 1,
-        limit: Math.max(rows.length, 1),
-        totalItems: res.data.count ?? rows.length,
-        totalPages: 1,
-      };
-      setPagination(nextPagination);
+      setEmployees(result.employees);
+      setPagination(result.pagination);
       queryCache.current.set(cacheKey, {
-        employees: rows,
-        pagination: nextPagination,
-        cachedAt: Date.now(),
+        employees: result.employees,
+        pagination: result.pagination,
       });
       if (queryCache.current.size > EMPLOYEE_QUERY_CACHE_LIMIT) {
         const oldestKey = queryCache.current.keys().next().value;
@@ -84,6 +107,10 @@ export const EmployeeProvider = ({ children }) => {
       console.error("Fetch Employees Error:", err);
       setError(err.response?.data?.message || "Something went wrong");
     } finally {
+      if (inFlightRequests.current.get(cacheKey) === request) {
+        inFlightRequests.current.delete(cacheKey);
+      }
+      if (activeRequest.current?.key === cacheKey) activeRequest.current = null;
       if (requestId === latestRequestId.current) setLoading(false);
     }
   // hrApi is a stable value supplied by ApiProvider.
