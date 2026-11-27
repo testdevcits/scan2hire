@@ -62,7 +62,9 @@ const qualificationHasSpecialization = (level = "") => !/^(10(?:th|ᵗʰ)?|tenth
 const dateInputValue = (value) => value ? String(value).slice(0, 10) : "";
 const currentDateValue = () => {
   const now = new Date();
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const values = Object.fromEntries(parts.filter(({ type }) => type !== "literal").map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
 };
 const employeeEditRequestCache = new Map();
 const shareEmployeeEditRequest = (key, createRequest) => {
@@ -406,11 +408,10 @@ const EmployeeCreate = () => {
     setStep((value) => Math.min(7, value + 1));
   };
 
-  const saveEditedSalaryReviews = async () => {
-    const firstNewIndex = (form.initialSalaryReviews || []).findIndex((review) => !review._id);
-    const reviews = (form.initialSalaryReviews || []).map((review, index) => index === firstNewIndex ? { ...review, effectiveDate: currentDateValue(), useCurrentDate: true } : { ...review });
-    if (!reviews.length) return;
-    const sorted = reviews.slice().sort((left, right) => left.effectiveDate.localeCompare(right.effectiveDate));
+  const validateEditedSalaryReviews = () => {
+    const reviews = (form.initialSalaryReviews || []).map((review) => ({ ...review }));
+    if (!reviews.length) return [];
+    const sorted = reviews.slice().sort((left, right) => (left.effectiveDate || "").localeCompare(right.effectiveDate || ""));
     const originalIds = originalSalaryReviews.current.map((review) => review._id);
     const sortedExistingIds = sorted.filter((review) => review._id).map((review) => review._id);
     if (originalIds.some((id, index) => sortedExistingIds[index] !== id)) {
@@ -422,11 +423,25 @@ const EmployeeCreate = () => {
     const latestSavedDate = originalSalaryReviews.current.map((review) => review.effectiveDate).sort().at(-1) || "";
     for (const review of sorted) {
       const amount = Number(review.incrementAmount);
-      if (!review.effectiveDate || !review.nextIncrementDate || review.nextIncrementDate <= review.effectiveDate || !Number.isFinite(amount) || amount <= 0 || !review.reason?.trim()) {
-        throw new Error("Complete each scheduled increment with a date, positive amount, later next review date, and remarks.");
-      }
+      const label = `Increment ${reviews.indexOf(review) + 1}`;
+      if (!review.effectiveDate) throw new Error(`${label}: select an Effective Date.`);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error(`${label}: enter an Increment Amount greater than zero.`);
+      if (!review.nextIncrementDate) throw new Error(`${label}: select a Next Review Date.`);
+      if (review.nextIncrementDate <= review.effectiveDate) throw new Error(`${label}: Next Review Date must be after ${review.effectiveDate}${review.useCurrentDate ? " (today, the automatic effective date)" : ""}.`);
+      if (!review.reason?.trim()) throw new Error(`${label}: enter Review remarks.`);
+      if (review.reason.length > 1000) throw new Error(`${label}: Review remarks must be at most 1000 characters.`);
       if (previousDate && review.effectiveDate <= previousDate) throw new Error("Schedule salary increments in increasing date order.");
       if (!review._id && latestSavedDate && review.effectiveDate <= latestSavedDate) throw new Error("New increments must be scheduled after the saved increments.");
+      previousDate = review.effectiveDate;
+    }
+    return sorted;
+  };
+
+  const saveEditedSalaryReviews = async (sorted) => {
+    if (!sorted.length) return;
+    let plannedSalary = Number(form.salary);
+    for (const review of sorted) {
+      const amount = Number(review.incrementAmount);
       if (review._id) {
         await hrApi.updateSalaryIncrement(employeeId, review._id, {
           effectiveDate: review.effectiveDate,
@@ -449,7 +464,6 @@ const EmployeeCreate = () => {
         }
       }
       plannedSalary += amount;
-      previousDate = review.effectiveDate;
     }
     const refreshed = await hrApi.getEmployee(employeeId);
     const savedReviews = (refreshed.data?.data?.salaryReviewHistory || [])
@@ -501,12 +515,17 @@ const EmployeeCreate = () => {
     }
     const error = experienceError(form);
     if (error) { setStep(5); toast.error(error); return; }
+    let validatedReviews = [];
+    if (isEditMode) {
+      try { validatedReviews = validateEditedSalaryReviews(); }
+      catch (error) { setStep(2); toast.error(error.message); return; }
+    }
     setSaving(true);
     let profileSaved = false;
     try {
       const payload = {
         ...form,
-        initialSalaryReviews: (form.initialSalaryReviews || []).map((review, index) => !isEditMode && index === 0 ? { ...review, effectiveDate: currentDateValue() } : review),
+        initialSalaryReviews: form.initialSalaryReviews || [],
         ...(canEditEmployeeId && isEditMode ? { employeeId: form.employeeId, hrFileNo: form.hrFileNo } : { employeeId: undefined, hrFileNo: undefined }),
         ...(!isEditMode ? { bondEndDate: undefined } : {}),
         useDefaultPassword: !isEditMode && useDefaultPassword,
@@ -532,7 +551,7 @@ const EmployeeCreate = () => {
         await hrApi.updateEmployee(employeeId, profilePayload);
         invalidateEmployeesCache();
         profileSaved = true;
-        await saveEditedSalaryReviews();
+        await saveEditedSalaryReviews(validatedReviews);
         const documentPayload = { ...documents, ...(photo ? { photo } : {}) };
         if (Object.keys(documentPayload).length) await hrApi.updateEmployeeDocuments(employeeId, documentPayload);
       } else await createEmployee(payload);
@@ -640,12 +659,12 @@ const EmployeeCreate = () => {
           <section className="border-t border-gray-200 pt-4">
             <div className="flex items-center justify-between gap-3">
               <div><h3 className="text-sm font-semibold text-gray-900">Salary increment history</h3><p className="mt-1 text-xs text-gray-500">Add past or planned increments. Past entries are marked applied; future entries stay scheduled.</p></div>
-              <button type="button" onClick={() => setForm((current) => ({ ...current, initialSalaryReviews: [...(current.initialSalaryReviews || []), { _clientId: crypto.randomUUID(), effectiveDate: !current.initialSalaryReviews?.some((review) => !review._id) ? currentDateValue() : "", incrementAmount: "", nextIncrementDate: "", reason: "" }] }))} aria-label="Add salary increment" title="Add salary increment" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-[#f84525] transition hover:bg-[#ffe1d8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f84525]"><FiPlus size={21} aria-hidden="true" /></button>
+              <button type="button" onClick={() => setForm((current) => ({ ...current, initialSalaryReviews: [...(current.initialSalaryReviews || []), { _clientId: crypto.randomUUID(), effectiveDate: "", incrementAmount: "", nextIncrementDate: "", reason: "" }] }))} aria-label="Add salary increment" title="Add salary increment" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-[#f84525] transition hover:bg-[#ffe1d8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f84525]"><FiPlus size={21} aria-hidden="true" /></button>
             </div>
             {(form.initialSalaryReviews || []).map((review, index) => <div key={review._id || review._clientId || index} className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
               <div className="mb-4 flex items-center justify-between"><h4 className="text-sm font-semibold text-gray-800">Increment {index + 1}{review._id ? " · saved" : ""}</h4>{!review._id && <button type="button" onClick={() => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.filter((_, itemIndex) => itemIndex !== index) }))} aria-label={`Remove salary increment ${index + 1}`} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"><FiX size={15} /> Remove</button>}</div>
               <div className={`grid grid-cols-1 items-start gap-4 ${review._id || index !== (form.initialSalaryReviews || []).findIndex((item) => !item._id) ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
-                {(review._id || index !== (form.initialSalaryReviews || []).findIndex((item) => !item._id)) && <CalendarPicker label="Effective Date" mode="date" value={review.effectiveDate} onChange={(value) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveDate: value } : item) }))} />}
+                <CalendarPicker label="Effective Date" mode="date" value={review.effectiveDate} onChange={(value) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, effectiveDate: value } : item) }))} />
                 <InputField label="Increment Amount" type="number" min="0.01" step="0.01" value={review.incrementAmount} onChange={(event) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, incrementAmount: event.target.value } : item) }))} />
                 <CalendarPicker label="Next Review Date" mode="date" value={review.nextIncrementDate} onChange={(value) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, nextIncrementDate: value } : item) }))} />
                 <label className="block text-sm font-medium text-gray-700 md:col-span-full">Review remarks<textarea maxLength={1000} value={review.reason} onChange={(event) => setForm((current) => ({ ...current, initialSalaryReviews: current.initialSalaryReviews.map((item, itemIndex) => itemIndex === index ? { ...item, reason: event.target.value } : item) }))} className="mt-1 min-h-20 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-[#f84525] focus:outline-none focus:ring-1 focus:ring-[#f84525]" /></label>
