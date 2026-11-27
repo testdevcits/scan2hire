@@ -4,6 +4,7 @@ import ProbationManagement from "../../../components/common/ProbationManagement"
 import { hrAccessModules } from "../../../config/hrAccessModules";
 import EmployeeDocumentReview from "../../../components/documents/EmployeeDocumentReview";
 import { useApi } from "../../../contexts/ApiContext";
+import { useEmployee } from "../../../contexts/Hr/EmployeeContext";
 import "./EmployeeDetail.css";
 import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../components/common/EmployeeBackgroundDetails";
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
@@ -164,6 +165,7 @@ const resolveEmployeeTab = (requestedTab, canManage, canEditEmployee, isSuperAdm
 
 const EmployeeDetail = () => {
   const { authApi, hrApi } = useApi();
+  const { invalidateEmployeesCache } = useEmployee();
   const { employeeId } = useParams();
   const location = useLocation();
   const editFormRef = useRef(null);
@@ -617,6 +619,7 @@ const EmployeeDetail = () => {
 
     try {
       await hrApi.deactivateEmployee(employeeId);
+      invalidateEmployeesCache();
       toast.success("Employee deactivated");
       await loadEmployee({ includeReport: false });
     } catch (err) {
@@ -627,6 +630,7 @@ const EmployeeDetail = () => {
   const activateEmployee = async () => {
     try {
       await hrApi.activateEmployee(employeeId);
+      invalidateEmployeesCache();
       toast.success("Employee activated");
       await loadEmployee({ includeReport: false });
     } catch (err) {
@@ -646,6 +650,7 @@ const EmployeeDetail = () => {
     try {
       setDeletingEmployee(true);
       await hrApi.deleteEmployee(employeeId);
+      invalidateEmployeesCache();
       toast.success("Employee deleted");
       navigate(user?.role === "superadmin" ? "/admin/employees" : "/hr/employees");
     } catch (err) {
@@ -731,6 +736,7 @@ const EmployeeDetail = () => {
         chequeBankName: editForm.bankName,
       };
       await hrApi.updateEmployee(employeeId, payload);
+      invalidateEmployeesCache();
       const documentEntries = Object.entries(documentFiles).filter(([, file]) => file);
       if (documentEntries.length) {
         const documentPayload = {};
@@ -742,6 +748,7 @@ const EmployeeDetail = () => {
           }
         }
         await hrApi.updateEmployeeDocuments(employeeId, documentPayload);
+        invalidateEmployeesCache();
         setDocumentFiles({});
       }
       toast.success("Employee updated");
@@ -845,6 +852,7 @@ const EmployeeDetail = () => {
         }
       }
       const response = await hrApi.updateEmployeeDocuments(employeeId, payload);
+      invalidateEmployeesCache();
       setEmployee(response.data.data || employee);
       setDocumentFiles({});
       toast.success(response.data.message || "Employee documents updated");
@@ -1068,6 +1076,7 @@ const EmployeeDetail = () => {
         employeeRecords: { [recordEditor]: record },
         ...(recordEditor === "current" && record.bondPeriodDuration !== undefined ? { bondPeriodDuration: record.bondPeriodDuration } : {}),
       });
+      invalidateEmployeesCache();
       await loadEmployee({ includeReport: false });
       setRecordEditor(null);
       toast.success("Record saved");

@@ -20,7 +20,7 @@ import { useToast } from "../../contexts/ToastContext";
 
 const ManageEmployees = () => {
   const { authApi, hrApi } = useApi();
-  const { employees, loading, error, pagination: serverPagination, fetchEmployees } =
+  const { employees, loading, error, pagination: serverPagination, fetchEmployees, invalidateEmployeesCache } =
     useEmployee();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -70,12 +70,12 @@ const ManageEmployees = () => {
   }, [searchInput]);
 
   useEffect(() => {
-    if (!isServerPaginated) return;
+    if (!isServerPaginated || searchPending) return;
     const params = viewMode === "list"
       ? { page, limit: pageSize, search: debouncedSearch, sort: "name" }
       : { search: debouncedSearch, sort: "name" };
     fetchEmployees(params).finally(() => setHasLoadedEmployees(true));
-  }, [debouncedSearch, fetchEmployees, isServerPaginated, page, pageSize, viewMode]);
+  }, [debouncedSearch, fetchEmployees, isServerPaginated, page, pageSize, searchPending, viewMode]);
 
   const hrRows = useMemo(() => hrUsers.map((hr) => {
     const linked = hr.employeeProfile?._id || hr.employeeProfile || employees.find((item) => String(item.email || "").toLowerCase() === String(hr.email || "").toLowerCase() || String(item.name || "").trim().toLowerCase() === String(hr.name || "").trim().toLowerCase())?._id;
@@ -125,6 +125,7 @@ const ManageEmployees = () => {
     setDeletingId(employee._id);
     try {
       await hrApi.deleteEmployee(employee._id);
+      invalidateEmployeesCache();
       toast.success("Employee deleted successfully");
       await fetchEmployees();
     } catch (err) {
@@ -187,9 +188,15 @@ const ManageEmployees = () => {
       onChange={(value) => { setSearchInput(value); setPage(1); }}
       label="Search employees"
       placeholder="Name, ID, email, mobile, department..."
-      summary={searchInput.trim() ? `${totalEmployees} matching` : `Showing ${totalEmployees} employees`}
+      summary={searchPending
+        ? "Waiting to search…"
+        : loading && hasLoadedEmployees
+          ? "Updating results…"
+          : searchInput.trim()
+            ? `${totalEmployees} matching`
+            : `Showing ${totalEmployees} employees`}
       loading={loading || searchPending}
-      loadingText={searchPending && !loading ? "Searching…" : "Loading…"}
+      loadingText={hasLoadedEmployees ? "Searching…" : "Loading…"}
     />
   );
   const cardEmployees = isServerPaginated ? employees : filteredEmployees;
@@ -237,7 +244,7 @@ const ManageEmployees = () => {
           columns={employeeColumns}
           data={pagedEmployees}
           pagination={paginationProps}
-          loading={loading}
+          loading={loading && !hasLoadedEmployees}
           loadingText="Loading employees..."
           error={error}
           emptyText={searchInput.trim() ? "No employees match this search" : "No employees found"}
@@ -247,7 +254,7 @@ const ManageEmployees = () => {
         <>
           {employeeToolbar}
           {error && <EmptyState variant="error" text={error} className="mt-3" />}
-          {loading && <CommonLoader text="Loading employees..." compact />}
+          {loading && !hasLoadedEmployees && <CommonLoader text="Loading employees..." compact />}
           {cardEmployees.length === 0 ? (
             !loading && !error && <EmptyState text={searchInput.trim() ? "No employees match this search" : "No employees found"} />
           ) : (
