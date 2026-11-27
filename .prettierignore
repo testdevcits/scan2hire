@@ -3,4 +3,4 @@ build/
 coverage/
 .git/
 .env*
-public/pdf.worker.min.mjs
+public/assets/workers/pdf.worker.min.mjs

@@ -10,10 +10,10 @@ function walk(dir) {
     else if (
       /\.(js|jsx)$/.test(entry.name) &&
       !/\.test\./.test(entry.name) &&
-      !file.includes(`${path.sep}api${path.sep}`) &&
-      !file.endsWith("ApiContext.js") &&
-      !file.endsWith("AuthContext.js") &&
-      !file.includes(`${path.sep}contexts${path.sep}Hr${path.sep}`)
+      !file.includes(`${path.sep}services${path.sep}`) &&
+      !file.endsWith("ApiContext.jsx") &&
+      !file.endsWith("AuthContext.jsx") &&
+      !file.includes(`${path.sep}contexts${path.sep}`)
     )
       files.push(file);
   }

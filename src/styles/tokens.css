@@ -1,0 +1,17 @@
+:root {
+  --color-primary: #f84525;
+  --color-secondary: #ffa826;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-surface: #ffffff;
+  --color-text: #111827;
+  --radius-control: 2px;
+  --control-height: 2.5rem;
+  --control-border: #d1d5db;
+  --control-focus: #f84525;
+  --control-focus-ring: 0 0 0 3px rgb(248 69 37 / 12%);
+}
+
+.dark {
+  --control-border: #374151;
+}

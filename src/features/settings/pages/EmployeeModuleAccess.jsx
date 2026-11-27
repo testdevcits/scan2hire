@@ -1,0 +1,290 @@
+/* eslint-disable */
+import { useApi } from "../../../contexts/ApiContext";
+import { useEffect, useState } from "react";
+
+import ModulePermissionMatrix from "../components/ModulePermissionMatrix";
+import CommonLoader from "../../../components/ui/CommonLoader";
+import { useToast } from "../../../contexts/ToastContext";
+import CustomDropdown from "../../../components/ui/Select/CustomDropdown";
+
+const profileModules = [
+  ["profile", "Profile", ["view"], { view: "View Profile" }],
+  ["profilePersonal", "Personal Details", ["view"], { view: "View Personal Details" }],
+  ["profileWork", "Work Details", ["view"], { view: "View Work Details" }],
+  ["profileSalary", "Salary Details", ["view"], { view: "View Salary Details" }],
+  ["profileBank", "Bank Details", ["view"], { view: "View Bank Details" }],
+  [
+    "profileDocuments",
+    "Personal Documents",
+    ["view", "download", "add", "edit"],
+    {
+      view: "View Documents",
+      download: "Download",
+      add: "Upload Missing",
+      edit: "Submit Replacement",
+    },
+  ],
+];
+const employeeModules = [
+  ["dashboard", "Dashboard"],
+  ["attendance", "Attendance"],
+  ["interviews", "Interviews"],
+  ["leaves", "Leaves"],
+  [
+    "leaveDrafts",
+    "Leave Drafts",
+    ["view", "add", "edit", "delete"],
+    { view: "View", add: "Create", edit: "Update", delete: "Delete" },
+  ],
+  ["leaveCalendar", "Conative Calendar"],
+  ["systemAllotment", "My System"],
+  [
+    "documents",
+    "Company Documents",
+    ["view", "edit", "download"],
+    { view: "View PDFs", edit: "Sign / Submit", download: "Download PDFs" },
+  ],
+  ...profileModules,
+  ["credentials", "Credentials"],
+  ["settings", "Settings"],
+];
+const teamLeadModules = [
+  ["dashboard", "Dashboard"],
+  ["yourTeam", "Your Team"],
+  ["candidates", "Candidates"],
+  ["checkins", "Today Check-ins"],
+  ["attendance", "Attendance"],
+  ["attendanceReports", "Attendance Reports"],
+  ["leaveReports", "Leave Reports"],
+  ["interviews", "Interviews"],
+  ["leaves", "Leaves"],
+  ["leaveCalendar", "Conative Calendar"],
+  ["systemAllotment", "System Allotments"],
+  ["tasks", "Tasks"],
+  ...profileModules,
+  [
+    "documents",
+    "Company Documents",
+    ["view", "edit", "download"],
+    { view: "View PDFs", edit: "Sign / Submit", download: "Download PDFs" },
+  ],
+  ["credentials", "Credentials"],
+  ["rolesAccess", "Roles & Access"],
+  ["settings", "Settings"],
+];
+
+export default function EmployeeModuleAccess({
+  role = "employee",
+  title = "Employee Role & Access",
+}) {
+  const { authApi, hrApi } = useApi();
+  const modules = role === "teamlead" ? teamLeadModules : employeeModules;
+  const initial = Object.fromEntries(
+    modules.map(([key]) => [
+      key,
+      key === "profile"
+        ? { view: true }
+        : key.startsWith("profile")
+          ? { view: false }
+          : { view: true, edit: true },
+    ])
+  );
+  const [permissions, setPermissions] = useState(initial);
+  const [savedPermissions, setSavedPermissions] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [personal, setPersonal] = useState(initial);
+  const [selectedRole, setSelectedRole] = useState(role);
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const openDrawer = () => {
+    setDrawer(true);
+    hrApi
+      .getEmployees({ limit: 100 })
+      .then((r) =>
+        setEmployees(
+          (r.data.data || []).filter((e) =>
+            role === "teamlead"
+              ? e.workRole === "teamlead" || e.user?.role === "teamlead"
+              : e.user?.role === "employee" && e.workRole !== "teamlead"
+          )
+        )
+      )
+      .catch(() => setEmployees([]));
+  };
+  const selectEmployee = (employee) => {
+    setSelected(employee);
+    setSelectedRole(
+      employee.user?.role === "teamlead" || employee.workRole === "teamlead"
+        ? "teamlead"
+        : "employee"
+    );
+    setPersonal(
+      Object.fromEntries(
+        modules.map(([key]) => [key, employee.user?.moduleAccess?.[key] || permissions[key]])
+      )
+    );
+  };
+  const savePersonal = async () => {
+    if (!selected?.user?._id) return;
+    setSavingPersonal(true);
+    try {
+      await authApi.updateEmployeeRole(selected.user._id, selectedRole);
+      await authApi.updateEmployeeModuleAccess(selected.user._id, personal);
+      toast.success("Role and access updated");
+      setDrawer(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update role and access");
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    authApi
+      .getDefaultEmployeeModuleAccess(role)
+      .then((res) => {
+        const saved = res.data.data?.moduleAccess;
+        if (saved) {
+          const next = Object.fromEntries(
+            modules.map(([key]) => [key, saved[key] || initial[key]])
+          );
+          setPermissions(next);
+          setSavedPermissions(next);
+        }
+      })
+      .catch((err) => toast.error(err.response?.data?.message || "Unable to load employee access"))
+      .finally(() => setLoading(false));
+  }, [role, toast]);
+  const save = async () => {
+    if (JSON.stringify(permissions) === JSON.stringify(savedPermissions)) {
+      toast.info("No changes to save");
+      return;
+    }
+    setSaving(true);
+    try {
+      await authApi.updateDefaultEmployeeModuleAccess(permissions, role);
+      setSavedPermissions(permissions);
+      toast.success("Default employee access updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Unable to update employee access");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="space-y-4 p-0">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900 md:text-xl">{title}</h1>
+          <p className="mt-1 text-xs text-gray-500 md:text-sm">
+            Set default access for all employees, or add a personal override.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openDrawer}
+          className="rounded bg-[#f84525] px-4 py-2 text-sm font-semibold text-white"
+        >
+          Manage Individual Access
+        </button>
+      </div>
+      <div className="rounded border bg-white p-5">
+        {loading ? (
+          <CommonLoader text="Loading employee access..." />
+        ) : (
+          <>
+            <div className="mb-4 rounded bg-orange-50 p-3 text-sm text-orange-900">
+              These permissions apply to all employee accounts by default.
+            </div>
+            <ModulePermissionMatrix
+              modules={modules}
+              value={permissions}
+              onChange={(key, value) => setPermissions((current) => ({ ...current, [key]: value }))}
+            />
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={save}
+                className="rounded bg-[#f84525] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {saving ? "Saving..." : "Save Default Access"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      {drawer && (
+        <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setDrawer(false)}>
+          <aside
+            className="animate-slide-in-right absolute right-0 top-0 flex h-full w-full max-w-xl flex-col bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b p-5">
+              <h2 className="text-lg font-semibold">Individual Employee Access</h2>
+              <button onClick={() => setDrawer(false)} className="text-xl">
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <CustomDropdown
+                label="Employee"
+                value={selected?._id || ""}
+                options={employees.map((e) => ({
+                  value: e._id,
+                  label: `${e.name} (${e.employeeId})`,
+                }))}
+                searchable
+                portalMenu
+                placeholder="Select employee"
+                onChange={(id) => selectEmployee(employees.find((e) => e._id === id))}
+              />
+              <div className="mt-5">
+                <CustomDropdown
+                  label="Role"
+                  value={selectedRole}
+                  showPlaceholder={false}
+                  options={[
+                    { value: "employee", label: "Employee" },
+                    { value: "teamlead", label: "Team Lead" },
+                  ]}
+                  onChange={setSelectedRole}
+                />
+                {selected ? (
+                  <>
+                    <p className="mb-3 font-semibold">{selected.name} access</p>
+                    <ModulePermissionMatrix
+                      modules={modules}
+                      value={personal}
+                      onChange={(key, value) =>
+                        setPersonal((current) => ({ ...current, [key]: value }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Select an employee to customize access.</p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t bg-gray-50 p-4">
+              <button onClick={() => setDrawer(false)} className="rounded border px-4 py-2">
+                Cancel
+              </button>
+              <button
+                disabled={!selected || savingPersonal}
+                onClick={savePersonal}
+                className="rounded bg-[#f84525] px-4 py-2 text-white"
+              >
+                {savingPersonal ? "Saving..." : "Save Employee Access"}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}
