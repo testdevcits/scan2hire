@@ -9,16 +9,7 @@ import TableToolbar from "../../../components/common/TableToolbar";
 import ViewSwitcher from "../../../components/common/ViewSwitcher";
 import { AuthContext } from "../../../contexts/AuthContext";
 import { useContext } from "react";
-
-const roundLabels = {
-  hr_round: "HR Round",
-  first_round: "Technical Round",
-  second_round: "Machine Test",
-  final: "Final Round",
-  third_round: "Final Round",
-  selected: "Selected",
-  rejected: "Rejected",
-};
+import { roundLabels } from "../../../utils/candidateInterview";
 
 const formatDayKey = (candidate) => {
   const value = candidate.updatedAt || candidate.createdAt;
