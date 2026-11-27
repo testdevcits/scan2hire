@@ -1194,7 +1194,7 @@ const EmployeeDetail = () => {
                 return <div key={key} className={`flex items-center justify-between rounded-lg border px-3 py-3 text-sm ${uploaded ? "border-green-200 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
                   <span title={label} className="min-w-0 break-words text-xs leading-5">{label}</span>
                   {uploaded ? <div className="ml-2 flex shrink-0 gap-2">
-                    {canViewDocument && <button type="button" onClick={() => setDocumentPreview({ label, url, type: documentItem?.resource_type || documentItem?.format })} className="inline-flex items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button>}
+                    {canViewDocument && <button type="button" onClick={() => setDocumentPreview({ label, url, type: documentItem?.resource_type || documentItem?.format || documentItem?.mimeType || documentItem?.mime_type })} className="inline-flex items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button>}
                     {canDownloadDocument && <button type="button" onClick={() => downloadEmployeeDocument(url, label)} className="inline-flex items-center gap-1 rounded-sm border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"><FiDownload /> Download</button>}
                   </div> : <span className="ml-2 shrink-0 text-xs font-semibold">Not uploaded</span>}
                 </div>;
@@ -1208,7 +1208,7 @@ const EmployeeDetail = () => {
 </section>}
 
       {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
-        {String(documentPreview.type || "").toLowerCase().includes("pdf") || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
+        {String(documentPreview.type || "").toLowerCase().includes("pdf") || String(documentPreview.type || "").toLowerCase() === "raw" || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(documentPreview.url)}`} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
       </CommonModal>}
 
       {canEditEmployee && activeTab === "edit" && (
@@ -1625,7 +1625,7 @@ const EmployeeDetail = () => {
             <div className="mt-6 rounded border border-gray-200 bg-white p-4">
               <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">{recordDefinitions[activeRecord].title} details</h3>{recordCanUpdate(activeRecord) && <Button onClick={() => openRecordEditor(activeRecord)} text={recordHasSavedValues(activeRecord) ? "Update" : "Add"} />}</div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                {recordDefinitions[activeRecord].fields.map(([field, label]) => <div key={field} className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{label}</p><p className="mt-1 font-medium text-gray-900">{recordDraft?.[activeRecord]?.[field] || "Not added"}</p></div>)}
+                {recordDefinitions[activeRecord].fields.map(([field, label]) => <div key={field} className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{label}</p><p className="mt-1 font-medium text-gray-900">{recordDraft?.[activeRecord]?.[field] ? (field.toLowerCase().includes("date") ? String(recordDraft[activeRecord][field]).slice(0, 10) : recordDraft[activeRecord][field]) : "Not added"}</p></div>)}
               </div>
             </div>
           )}
