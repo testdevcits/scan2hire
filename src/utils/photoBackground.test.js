@@ -2,10 +2,11 @@ import { hasLightNeutralBackground } from "./photoBackground";
 
 const photo = (background, portrait = false) => {
   const pixels = new Uint8ClampedArray(100 * 100 * 4);
-  for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) {
-    const subject = portrait && (y > 55 || (x > 20 && x < 80));
-    pixels.set([...(subject ? [40, 35, 30] : background), 255], (y * 100 + x) * 4);
-  }
+  for (let y = 0; y < 100; y++)
+    for (let x = 0; x < 100; x++) {
+      const subject = portrait && (y > 55 || (x > 20 && x < 80));
+      pixels.set([...(subject ? [40, 35, 30] : background), 255], (y * 100 + x) * 4);
+    }
   return pixels;
 };
 

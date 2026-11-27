@@ -68,7 +68,11 @@ const Step1 = ({ formData, setFormData, errors, setErrors }) => {
         [name]: value,
         ...(name === "qualification" ? { branch: "" } : {}),
       }));
-      setErrors((prev) => ({ ...prev, [name]: "", ...(name === "qualification" ? { branch: "" } : {}) })); // Clear error
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+        ...(name === "qualification" ? { branch: "" } : {}),
+      })); // Clear error
     }
   };
 

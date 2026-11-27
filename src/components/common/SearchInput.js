@@ -1,8 +1,19 @@
 import { FiSearch, FiX } from "react-icons/fi";
 
-const SearchInput = ({ value, onChange, placeholder = "Search...", label, className = "", inputClassName = "" }) => (
+const SearchInput = ({
+  value,
+  onChange,
+  placeholder = "Search...",
+  label,
+  className = "",
+  inputClassName = "",
+}) => (
   <label className={`relative block ${className}`}>
-    {label && <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>}
+    {label && (
+      <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
+    )}
     <span className="relative block">
       <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       <input

@@ -35,7 +35,9 @@ const FileUploadField = ({
   const handleChange = (event) => {
     const oversized = Array.from(event.target.files || []).find((file) => file.size > maxSizeBytes);
     if (oversized) {
-      setSizeError(`${oversized.name}: ${(oversized.size / 1024 / 1024).toFixed(2)} MB. Maximum file size is ${(maxSizeBytes / 1024 / 1024).toFixed(1)} MB. Choose a smaller file.`);
+      setSizeError(
+        `${oversized.name}: ${(oversized.size / 1024 / 1024).toFixed(2)} MB. Maximum file size is ${(maxSizeBytes / 1024 / 1024).toFixed(1)} MB. Choose a smaller file.`
+      );
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
@@ -47,7 +49,10 @@ const FileUploadField = ({
   const [dragging, setDragging] = useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = useState("");
   useEffect(() => {
-    if (!selectedFile) { setLocalPreviewUrl(""); return undefined; }
+    if (!selectedFile) {
+      setLocalPreviewUrl("");
+      return undefined;
+    }
     const url = URL.createObjectURL(selectedFile);
     setLocalPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -71,41 +76,136 @@ const FileUploadField = ({
   };
   const emitFile = (file) => file && handleChange({ target: { name, files: [file] } });
 
-  const isPdfPreview = previewType === "pdf" || String(activePreviewUrl || "").startsWith("data:application/pdf") || /\.pdf(?:$|[?#])/i.test(String(activePreviewUrl || ""));
+  const isPdfPreview =
+    previewType === "pdf" ||
+    String(activePreviewUrl || "").startsWith("data:application/pdf") ||
+    /\.pdf(?:$|[?#])/i.test(String(activePreviewUrl || ""));
   const canShowImagePreview = Boolean(
-    activePreviewUrl && !isPdfPreview && (
-      previewType === "image" ||
+    activePreviewUrl &&
+    !isPdfPreview &&
+    (previewType === "image" ||
       String(activePreviewUrl).startsWith("data:image/") ||
-      /\.(jpg|jpeg|png|webp|gif|bmp)(?:$|[?#])/i.test(String(activePreviewUrl))
-    )
+      /\.(jpg|jpeg|png|webp|gif|bmp)(?:$|[?#])/i.test(String(activePreviewUrl)))
   );
   const canShowPdfPreview = Boolean(activePreviewUrl && isPdfPreview);
 
-  if (compact) return <div className={`min-w-0 rounded-xl border bg-white p-4 dark:bg-gray-900 ${sizeError || error ? "border-red-400" : "border-gray-200 dark:border-gray-700"} ${className}`}>
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2"><span className="rounded-lg bg-orange-50 p-2 text-[#f84525] dark:bg-gray-800"><FiFileText size={18} /></span><label htmlFor={`${name}-file-upload`} className="min-w-0 text-sm font-semibold text-gray-800 dark:text-gray-100">{label}{required ? " *" : ""}</label></div>
-      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${selectedFile || (fileName && !uploaded) ? "bg-orange-50 text-orange-700" : uploaded ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>{selectedFile || (fileName && !uploaded) ? "Selected" : uploaded ? "Uploaded" : "Not uploaded"}</span>
-    </div>
-    <p title={fileName || ""} className="mt-3 truncate text-xs text-gray-600 dark:text-gray-300">{fileName || "No file selected"}</p>
-    <p className="mt-1 min-h-[32px] text-[11px] leading-4 text-gray-500">{hint}</p>
-    {canUpload && <input ref={inputRef} id={`${name}-file-upload`} type="file" name={name} accept={accept} multiple={multiple} onChange={handleChange} required={required} disabled={disabled} className="hidden" />}
-    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-      {canUpload && <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-md border border-orange-200 px-3 py-1.5 text-xs font-semibold text-[#f84525] hover:bg-orange-50 disabled:opacity-50"><FiUploadCloud />{fileName ? "Replace" : "Choose file"}</button>}
-      {onPreviewCurrent && <button type="button" onClick={onPreviewCurrent} className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"><FiEye />View</button>}
-      {onDownloadCurrent && <button type="button" onClick={onDownloadCurrent} className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"><FiDownload />Download</button>}
-    </div>
-    {selectedFile && activePreviewUrl && <a href={activePreviewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-[#f84525] underline">Preview selected file</a>}
-    {sizeError || error ? <p role="alert" className="mt-2 text-xs text-red-600">{sizeError || error}</p> : null}
-  </div>;
+  if (compact)
+    return (
+      <div
+        className={`min-w-0 rounded-xl border bg-white p-4 dark:bg-gray-900 ${sizeError || error ? "border-red-400" : "border-gray-200 dark:border-gray-700"} ${className}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="rounded-lg bg-orange-50 p-2 text-[#f84525] dark:bg-gray-800">
+              <FiFileText size={18} />
+            </span>
+            <label
+              htmlFor={`${name}-file-upload`}
+              className="min-w-0 text-sm font-semibold text-gray-800 dark:text-gray-100"
+            >
+              {label}
+              {required ? " *" : ""}
+            </label>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${selectedFile || (fileName && !uploaded) ? "bg-orange-50 text-orange-700" : uploaded ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}
+          >
+            {selectedFile || (fileName && !uploaded)
+              ? "Selected"
+              : uploaded
+                ? "Uploaded"
+                : "Not uploaded"}
+          </span>
+        </div>
+        <p
+          title={fileName || ""}
+          className="mt-3 truncate text-xs text-gray-600 dark:text-gray-300"
+        >
+          {fileName || "No file selected"}
+        </p>
+        <p className="mt-1 min-h-[32px] text-[11px] leading-4 text-gray-500">{hint}</p>
+        {canUpload && (
+          <input
+            ref={inputRef}
+            id={`${name}-file-upload`}
+            type="file"
+            name={name}
+            accept={accept}
+            multiple={multiple}
+            onChange={handleChange}
+            required={required}
+            disabled={disabled}
+            className="hidden"
+          />
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+          {canUpload && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => inputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-orange-200 px-3 py-1.5 text-xs font-semibold text-[#f84525] hover:bg-orange-50 disabled:opacity-50"
+            >
+              <FiUploadCloud />
+              {fileName ? "Replace" : "Choose file"}
+            </button>
+          )}
+          {onPreviewCurrent && (
+            <button
+              type="button"
+              onClick={onPreviewCurrent}
+              className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"
+            >
+              <FiEye />
+              View
+            </button>
+          )}
+          {onDownloadCurrent && (
+            <button
+              type="button"
+              onClick={onDownloadCurrent}
+              className="inline-flex items-center gap-1 px-1 py-1.5 text-xs text-gray-600 dark:text-gray-300"
+            >
+              <FiDownload />
+              Download
+            </button>
+          )}
+        </div>
+        {selectedFile && activePreviewUrl && (
+          <a
+            href={activePreviewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-xs text-[#f84525] underline"
+          >
+            Preview selected file
+          </a>
+        )}
+        {sizeError || error ? (
+          <p role="alert" className="mt-2 text-xs text-red-600">
+            {sizeError || error}
+          </p>
+        ) : null}
+      </div>
+    );
 
   return (
-    <div className={`${uploaded && !selectedFile ? "hidden" : "flex"} flex-col text-sm font-medium text-gray-700 dark:text-gray-200 ${className}`}>
+    <div
+      className={`${uploaded && !selectedFile ? "hidden" : "flex"} flex-col text-sm font-medium text-gray-700 dark:text-gray-200 ${className}`}
+    >
       <div
         tabIndex={0}
         onPaste={handlePaste}
-        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(event) => { event.preventDefault(); setDragging(false); emitFile(event.dataTransfer.files?.[0]); }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+          emitFile(event.dataTransfer.files?.[0]);
+        }}
         className={`mt-1 cursor-pointer rounded-lg border border-dashed p-3 focus:outline-none focus:ring-2 focus:ring-[#f84525] ${dragging ? "border-[#f84525] bg-orange-50" : uploaded ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20" : "border-[#f7a08f] bg-[#fffaf8] dark:border-gray-600 dark:bg-gray-800"}`}
       >
         <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
@@ -113,7 +213,10 @@ const FileUploadField = ({
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[#f84525] shadow-sm dark:bg-gray-900">
               <FiUploadCloud className="h-4 w-4" />
             </span>
-            <span className="min-w-0">{label}{required ? <span className="text-red-500"> *</span> : null}</span>
+            <span className="min-w-0">
+              {label}
+              {required ? <span className="text-red-500"> *</span> : null}
+            </span>
           </label>
           <input
             ref={inputRef}
@@ -128,11 +231,22 @@ const FileUploadField = ({
             className="hidden"
           />
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:flex-1">
-            <span className="min-w-0 flex-1 truncate rounded-md bg-white px-2.5 py-2 text-xs text-gray-600 ring-1 ring-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700">{fileName || "No file chosen"}</span>
-            <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="h-9 w-full shrink-0 rounded-md bg-[#f84525] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#de391a] disabled:opacity-60 sm:w-auto">Choose file</button>
+            <span className="min-w-0 flex-1 truncate rounded-md bg-white px-2.5 py-2 text-xs text-gray-600 ring-1 ring-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700">
+              {fileName || "No file chosen"}
+            </span>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={disabled}
+              className="h-9 w-full shrink-0 rounded-md bg-[#f84525] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#de391a] disabled:opacity-60 sm:w-auto"
+            >
+              Choose file
+            </button>
           </div>
         </div>
-        <p className="mt-2 border-t border-[#f1d7cf] pt-2 text-[11px] leading-4 text-gray-500 dark:border-gray-700 dark:text-gray-400">{hint}</p>
+        <p className="mt-2 border-t border-[#f1d7cf] pt-2 text-[11px] leading-4 text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          {hint}
+        </p>
         {currentFileLabel && !activePreviewUrl ? (
           <p className="mt-3 rounded-sm border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300">
             {currentFileLabel}
@@ -141,13 +255,15 @@ const FileUploadField = ({
         {currentStatus || onCurrentAction ? (
           <div className="mt-3 flex items-center justify-end gap-2">
             {currentStatus ? (
-              <span className={`rounded-sm px-2 py-1 text-[11px] font-semibold capitalize ${
-                currentStatus === "pending"
-                  ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
-                  : currentStatus === "approved"
-                  ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                  : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}>
+              <span
+                className={`rounded-sm px-2 py-1 text-[11px] font-semibold capitalize ${
+                  currentStatus === "pending"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                    : currentStatus === "approved"
+                      ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
                 {currentStatus}
               </span>
             ) : null}
@@ -163,24 +279,42 @@ const FileUploadField = ({
             ) : null}
           </div>
         ) : null}
-        {selectedFile && localPreviewUrl && !selectedPreviewUrl ? <div className="mt-2 flex items-center gap-2 text-xs text-green-700"><FiEye /> Preview ready</div> : null}
+        {selectedFile && localPreviewUrl && !selectedPreviewUrl ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-green-700">
+            <FiEye /> Preview ready
+          </div>
+        ) : null}
         {canShowImagePreview ? (
           <div className="mt-3 flex items-center gap-3 rounded-sm border border-[#f7a08f] bg-white p-2 dark:border-gray-600 dark:bg-gray-900">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-[#ffd8cf] bg-[#fff5f3] dark:border-gray-700 dark:bg-gray-800">
               <img src={activePreviewUrl} alt={label} className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{previewTitle}</p>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {previewTitle}
+              </p>
               <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
                 {fileName || (currentFileLabel ? "Saved image" : "Preview ready")}
               </p>
             </div>
             {onPreviewCurrent ? (
               <div className="flex shrink-0 gap-2">
-                <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
+                <button
+                  type="button"
+                  onClick={onPreviewCurrent}
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800"
+                >
                   <FiEye /> Preview
                 </button>
-                {onDownloadCurrent ? <button type="button" onClick={onDownloadCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"><FiDownload /> Download</button> : null}
+                {onDownloadCurrent ? (
+                  <button
+                    type="button"
+                    onClick={onDownloadCurrent}
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"
+                  >
+                    <FiDownload /> Download
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -194,21 +328,42 @@ const FileUploadField = ({
               </div>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{previewTitle === "Selected image" ? "PDF preview" : previewTitle}</p>
-              <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{fileName || (currentFileLabel ? "Saved PDF · Preview opens in modal" : "PDF · Preview opens in modal")}</p>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {previewTitle === "Selected image" ? "PDF preview" : previewTitle}
+              </p>
+              <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                {fileName ||
+                  (currentFileLabel
+                    ? "Saved PDF · Preview opens in modal"
+                    : "PDF · Preview opens in modal")}
+              </p>
             </div>
             {onPreviewCurrent ? (
               <div className="flex shrink-0 gap-2">
-                <button type="button" onClick={onPreviewCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800">
+                <button
+                  type="button"
+                  onClick={onPreviewCurrent}
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[#ffd0c7] px-2.5 py-1 text-xs font-semibold text-[#f84525] hover:bg-[#fff1ed] dark:border-gray-600 dark:text-[#ff8066] dark:hover:bg-gray-800"
+                >
                   <FiEye /> Preview
                 </button>
-                {onDownloadCurrent ? <button type="button" onClick={onDownloadCurrent} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"><FiDownload /> Download</button> : null}
+                {onDownloadCurrent ? (
+                  <button
+                    type="button"
+                    onClick={onDownloadCurrent}
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-gray-600 dark:text-blue-300"
+                  >
+                    <FiDownload /> Download
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
         ) : null}
       </div>
-      {fileName && !canShowImagePreview && !canShowPdfPreview ? <span className="mt-1 text-xs text-gray-500 dark:text-gray-400">{fileName}</span> : null}
+      {fileName && !canShowImagePreview && !canShowPdfPreview ? (
+        <span className="mt-1 text-xs text-gray-500 dark:text-gray-400">{fileName}</span>
+      ) : null}
       {previewText && onPreview ? (
         <button
           type="button"
@@ -218,7 +373,11 @@ const FileUploadField = ({
           {previewText}
         </button>
       ) : null}
-      {sizeError || error ? <span role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">{sizeError || error}</span> : null}
+      {sizeError || error ? (
+        <span role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">
+          {sizeError || error}
+        </span>
+      ) : null}
     </div>
   );
 };

@@ -1,5 +1,9 @@
 const Tabs = ({ tabs = [], value, onChange, label = "Sections" }) => (
-  <div role="tablist" aria-label={label} className="flex min-w-0 gap-1 overflow-x-auto border-b border-gray-200 px-1 scrollbar-thin dark:border-gray-700">
+  <div
+    role="tablist"
+    aria-label={label}
+    className="flex min-w-0 gap-1 overflow-x-auto border-b border-gray-200 px-1 scrollbar-thin dark:border-gray-700"
+  >
     {tabs.map((tab) => {
       const selected = value === tab.value;
       return (

@@ -15,7 +15,25 @@ test("review lists every upload field even when no files are selected", () => {
 });
 
 test("review maps each previous company document and salary slip", () => {
-  render(<EmployeeCreateReview form={{ experienceType: "Experienced", previousEmployments: [{ id: "last", companyName: "Company B", isLastCompany: true, documents: { bankStatement: { name: "statement.pdf" }, salarySlips: [{ name: "january.pdf" }, { name: "february.pdf" }] } }] }} onEdit={jest.fn()} />);
+  render(
+    <EmployeeCreateReview
+      form={{
+        experienceType: "Experienced",
+        previousEmployments: [
+          {
+            id: "last",
+            companyName: "Company B",
+            isLastCompany: true,
+            documents: {
+              bankStatement: { name: "statement.pdf" },
+              salarySlips: [{ name: "january.pdf" }, { name: "february.pdf" }],
+            },
+          },
+        ],
+      }}
+      onEdit={jest.fn()}
+    />
+  );
   const section = screen.getByRole("heading", { name: "Step 5: Documents" }).closest("section");
   expect(within(section).getByText("statement.pdf")).toBeTruthy();
   expect(within(section).getByText("january.pdf, february.pdf")).toBeTruthy();

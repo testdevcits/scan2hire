@@ -168,12 +168,18 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
     }
   };
 
-  const canUpdateAvatar = !isHrSettings && profile?.moduleAccess?.profileDocuments?.view === true && profile?.moduleAccess?.profileDocuments?.[profile?.documents?.photo?.url ? "edit" : "add"] === true;
+  const canUpdateAvatar =
+    !isHrSettings &&
+    profile?.moduleAccess?.profileDocuments?.view === true &&
+    profile?.moduleAccess?.profileDocuments?.[profile?.documents?.photo?.url ? "edit" : "add"] ===
+      true;
   const profileDetails = profile?.employeeProfile || profile;
   const profileAccess = profile?.moduleAccess || {};
   const canViewProfileGroup = (key) => isHrSettings || profileAccess?.[key]?.view === true;
-  const canDownloadProfileDocuments = isHrSettings || profileAccess?.profileDocuments?.download === true;
-  const getDocumentUrl = (value) => Array.isArray(value) ? value.find((item) => item?.url)?.url : value?.url;
+  const canDownloadProfileDocuments =
+    isHrSettings || profileAccess?.profileDocuments?.download === true;
+  const getDocumentUrl = (value) =>
+    Array.isArray(value) ? value.find((item) => item?.url)?.url : value?.url;
   const profilePhotoUrl = isHrSettings
     ? profile?.documents?.photo?.url || profileDetails?.documents?.photo?.url || ""
     : profileDetails?.documents?.photo?.url || profile?.documents?.photo?.url || "";
@@ -197,17 +203,25 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
             title={canUpdateAvatar ? "Submit a new photo for HR/Admin approval" : "Profile photo"}
           >
             {profileImagePreview || profilePhotoUrl ? (
-              <img src={profileImagePreview || profilePhotoUrl} alt={profileDetails?.name || profile?.name} className="w-full h-full object-cover" />
+              <img
+                src={profileImagePreview || profilePhotoUrl}
+                alt={profileDetails?.name || profile?.name}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <span className="text-3xl font-semibold text-[#f84525]">{profileDetails?.name?.[0] || profile?.name?.[0] || "E"}</span>
+              <span className="text-3xl font-semibold text-[#f84525]">
+                {profileDetails?.name?.[0] || profile?.name?.[0] || "E"}
+              </span>
             )}
-            {canUpdateAvatar && <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white py-2 flex items-center justify-center">
-              {profileImageSaving ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <FiCamera />
-              )}
-            </span>}
+            {canUpdateAvatar && (
+              <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white py-2 flex items-center justify-center">
+                {profileImageSaving ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <FiCamera />
+                )}
+              </span>
+            )}
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp"
@@ -217,36 +231,91 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
             />
           </label>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{isProfilePage ? "My Profile" : "Settings"}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isProfilePage ? "My Profile" : "Settings"}
+            </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {canUpdateAvatar ? "View your profile details and manage your account." : "View your profile details."}
+              {canUpdateAvatar
+                ? "View your profile details and manage your account."
+                : "View your profile details."}
             </p>
           </div>
         </div>
       </section>
-      {showProfileTabs && <section className="rounded-sm bg-white p-2 shadow">
-            <div className="grid grid-cols-1 gap-2 border-b pb-3 sm:grid-cols-3">
-              {[{ key: "overview", label: "Overview", show: true }, { key: "profileDocuments", label: "Documents", show: canViewProfileGroup("profileDocuments") }, { key: "password", label: "Update Password", show: true }].filter((tab) => tab.show).map((tab) => <button type="button" key={tab.key} onClick={() => setActiveProfileTab(tab.key)} className={`relative flex min-h-16 w-full items-center justify-center rounded-lg border px-4 py-3 text-base font-semibold transition-colors ${activeProfileTab === tab.key ? "border-[#f84525] bg-[#fff5f3] text-[#f84525] after:absolute after:bottom-0 after:left-1/2 after:h-1 after:w-2/3 after:-translate-x-1/2 after:rounded-t-full after:bg-[#f84525]" : "border-gray-200 bg-white text-gray-600 hover:border-[#f84525] hover:bg-[#fffaf8]"}`}>{tab.label}</button>)}
-            </div>
-      </section>}
+      {showProfileTabs && (
+        <section className="rounded-sm bg-white p-2 shadow">
+          <div className="grid grid-cols-1 gap-2 border-b pb-3 sm:grid-cols-3">
+            {[
+              { key: "overview", label: "Overview", show: true },
+              {
+                key: "profileDocuments",
+                label: "Documents",
+                show: canViewProfileGroup("profileDocuments"),
+              },
+              { key: "password", label: "Update Password", show: true },
+            ]
+              .filter((tab) => tab.show)
+              .map((tab) => (
+                <button
+                  type="button"
+                  key={tab.key}
+                  onClick={() => setActiveProfileTab(tab.key)}
+                  className={`relative flex min-h-16 w-full items-center justify-center rounded-lg border px-4 py-3 text-base font-semibold transition-colors ${activeProfileTab === tab.key ? "border-[#f84525] bg-[#fff5f3] text-[#f84525] after:absolute after:bottom-0 after:left-1/2 after:h-1 after:w-2/3 after:-translate-x-1/2 after:rounded-t-full after:bg-[#f84525]" : "border-gray-200 bg-white text-gray-600 hover:border-[#f84525] hover:bg-[#fffaf8]"}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+          </div>
+        </section>
+      )}
 
       {showProfileTabs && activeProfileTab !== "password" && (
         <section className="rounded-sm bg-white p-0 shadow-none">
-              <div className="grid grid-cols-1 gap-4 rounded-sm bg-white p-2 text-sm lg:grid-cols-2">
-                {activeProfileTab === "profileDocuments" && !isHrSettings && <div className="lg:col-span-2"><PersonalDocuments /></div>}
-                {activeProfileTab === "profileDocuments" && isHrSettings && <div className="lg:col-span-2 space-y-3">{Object.entries(profileDetails?.documents || {}).map(([key, value]) => <div key={key} className="flex justify-between rounded border p-3"><span>{key.replace(/([A-Z])/g, " $1")}</span>{getDocumentUrl(value) && <button className="text-sm text-[#f84525]" onClick={() => setPreview({ title: key, url: getDocumentUrl(value) })}>View</button>}</div>)}</div>}
-                {activeProfileTab === "overview" && <SubmittedProfileDetails employee={profileDetails || {}} canView={canViewProfileGroup} protectSalary={!isHrSettings} />}
-
+          <div className="grid grid-cols-1 gap-4 rounded-sm bg-white p-2 text-sm lg:grid-cols-2">
+            {activeProfileTab === "profileDocuments" && !isHrSettings && (
+              <div className="lg:col-span-2">
+                <PersonalDocuments />
               </div>
+            )}
+            {activeProfileTab === "profileDocuments" && isHrSettings && (
+              <div className="lg:col-span-2 space-y-3">
+                {Object.entries(profileDetails?.documents || {}).map(([key, value]) => (
+                  <div key={key} className="flex justify-between rounded border p-3">
+                    <span>{key.replace(/([A-Z])/g, " $1")}</span>
+                    {getDocumentUrl(value) && (
+                      <button
+                        className="text-sm text-[#f84525]"
+                        onClick={() => setPreview({ title: key, url: getDocumentUrl(value) })}
+                      >
+                        View
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {activeProfileTab === "overview" && (
+              <SubmittedProfileDetails
+                employee={profileDetails || {}}
+                canView={canViewProfileGroup}
+                protectSalary={!isHrSettings}
+              />
+            )}
+          </div>
         </section>
       )}
 
       {isHrSettings && (
         <>
-          <form onSubmit={saveDocuments} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form
+            onSubmit={saveDocuments}
+            className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <div className="md:col-span-2">
               <h2 className="font-semibold text-gray-900">Documents</h2>
-              <p className="text-sm text-gray-500 mt-1">Upload or replace your account documents.</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Upload or replace your account documents.
+              </p>
             </div>
             {docFields.map(([name, label]) => (
               <FileUploadField
@@ -255,9 +324,15 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={(e) => handleDocumentFile(name, e.target.files?.[0])}
                 fileName={docs[name]?.name}
-                selectedPreviewUrl={docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined}
+                selectedPreviewUrl={
+                  docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined
+                }
                 previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
-                onPreview={profile?.documents?.[name]?.url ? () => setPreview({ title: label, url: profile.documents[name].url }) : undefined}
+                onPreview={
+                  profile?.documents?.[name]?.url
+                    ? () => setPreview({ title: label, url: profile.documents[name].url })
+                    : undefined
+                }
               />
             ))}
             <Button
@@ -274,12 +349,18 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
               <h2 className="font-semibold text-gray-900">Document History</h2>
             </div>
             {profile?.documentHistory?.length ? (
-              profile.documentHistory.slice().reverse().map((item, index) => (
-                <div key={`${item.updatedAt}-${index}`} className="grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm">
-                  <span>{new Date(item.updatedAt).toLocaleString()}</span>
-                  <span>{item.documents?.join(", ") || "Documents"}</span>
-                </div>
-              ))
+              profile.documentHistory
+                .slice()
+                .reverse()
+                .map((item, index) => (
+                  <div
+                    key={`${item.updatedAt}-${index}`}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm"
+                  >
+                    <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                    <span>{item.documents?.join(", ") || "Documents"}</span>
+                  </div>
+                ))
             ) : (
               <p className="p-4 text-sm text-gray-500">No document update history.</p>
             )}
@@ -287,63 +368,69 @@ const EmployeeSettings = ({ requireProfileAccess = false }) => {
         </>
       )}
 
-      {activeProfileTab === "password" && <form onSubmit={changePassword} className="bg-white rounded-sm shadow overflow-hidden">
-        <div className="border-b border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center shrink-0">
-              <FiShield />
+      {activeProfileTab === "password" && (
+        <form onSubmit={changePassword} className="bg-white rounded-sm shadow overflow-hidden">
+          <div className="border-b border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center shrink-0">
+                <FiShield />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">Update Password</h2>
+                <p className="text-sm text-gray-500 mt-1">Change your login password securely.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-semibold text-gray-900">Update Password</h2>
-              <p className="text-sm text-gray-500 mt-1">Change your login password securely.</p>
-            </div>
+            <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-sm px-3 py-2 w-fit">
+              Account
+            </span>
           </div>
-          <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-sm px-3 py-2 w-fit">
-            Account
-          </span>
-        </div>
-        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="text-sm font-medium text-gray-700">
-            Current Password
-            <div className="mt-1 relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full border border-gray-300 rounded-sm pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525] focus:border-[#f84525]"
-                placeholder="Enter current password"
-                required
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="text-sm font-medium text-gray-700">
+              Current Password
+              <div className="mt-1 relative">
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-sm pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525] focus:border-[#f84525]"
+                  placeholder="Enter current password"
+                  required
+                />
+              </div>
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              New Password
+              <div className="mt-1 relative">
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-sm pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525] focus:border-[#f84525]"
+                  placeholder="Enter new password"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </label>
+            <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+              <p className="text-xs text-gray-500">Use at least 6 characters.</p>
+              <Button
+                text={passwordSaving ? "Updating..." : "Update Password"}
+                loading={passwordSaving}
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={!passwordForm.currentPassword || !passwordForm.newPassword}
               />
             </div>
-          </label>
-          <label className="text-sm font-medium text-gray-700">
-            New Password
-            <div className="mt-1 relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                className="w-full border border-gray-300 rounded-sm pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#f84525] focus:border-[#f84525]"
-                placeholder="Enter new password"
-                required
-                minLength={6}
-              />
-            </div>
-          </label>
-          <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-            <p className="text-xs text-gray-500">Use at least 6 characters.</p>
-            <Button
-              text={passwordSaving ? "Updating..." : "Update Password"}
-              loading={passwordSaving}
-              type="submit"
-              className="w-full sm:w-auto"
-              disabled={!passwordForm.currentPassword || !passwordForm.newPassword}
-            />
           </div>
-        </div>
-      </form>}
+        </form>
+      )}
 
       {preview && (
         <FilePreviewModal

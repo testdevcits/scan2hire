@@ -1,13 +1,6 @@
 import { FiCalendar, FiRotateCcw } from "react-icons/fi";
 
-const DateRangeFilter = ({
-  from,
-  to,
-  onFromChange,
-  onToChange,
-  onApply,
-  onClear,
-}) => {
+const DateRangeFilter = ({ from, to, onFromChange, onToChange, onApply, onClear }) => {
   const clearFilters = () => {
     onFromChange("");
     onToChange("");
@@ -19,9 +12,7 @@ const DateRangeFilter = ({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
       <div className="min-w-[170px]">
-        <label className="mb-1 block text-xs font-semibold text-gray-500">
-          From date
-        </label>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">From date</label>
         <div className="relative">
           <FiCalendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -35,9 +26,7 @@ const DateRangeFilter = ({
       </div>
 
       <div className="min-w-[170px]">
-        <label className="mb-1 block text-xs font-semibold text-gray-500">
-          To date
-        </label>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">To date</label>
         <div className="relative">
           <FiCalendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input

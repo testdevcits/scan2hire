@@ -130,24 +130,30 @@ const EmployeeSavedCredentials = () => {
     return (
       <div className="min-h-[calc(100vh-160px)] flex items-center justify-center">
         <div className="w-full max-w-xl space-y-5">
-        <section className="text-center">
-          <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
-          <p className="text-sm text-gray-500 mt-1">Enter your login password to open saved credentials.</p>
-        </section>
-        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
-          <label className="block text-sm font-medium text-gray-700">
-            Login Password
-            <input
-              type="password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-              required
-              autoFocus
+          <section className="text-center">
+            <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Enter your login password to open saved credentials.
+            </p>
+          </section>
+          <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Login Password
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+                required
+                autoFocus
+              />
+            </label>
+            <Button
+              text={unlockingPage ? "Verifying..." : "Open Page"}
+              loading={unlockingPage}
+              type="submit"
             />
-          </label>
-          <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
-        </form>
+          </form>
         </div>
       </div>
     );
@@ -161,7 +167,9 @@ const EmployeeSavedCredentials = () => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Saved Account Credentials</h1>
-            <p className="text-sm text-gray-500 mt-1">Save multiple account logins for your own work and copy them when needed.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Save multiple account logins for your own work and copy them when needed.
+            </p>
           </div>
           <div className="flex gap-2">
             <button
@@ -187,39 +195,67 @@ const EmployeeSavedCredentials = () => {
       </section>
 
       {showForm && (
-      <form onSubmit={saveCredential} className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label className="text-sm font-medium text-gray-700">
-          Account Type
-          <select
-            value={form.accountType}
-            onChange={(e) => setForm((prev) => ({ ...prev, accountType: e.target.value }))}
-            className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
-          >
-            <option>Email</option>
-            <option>Hosting</option>
-            <option>Social</option>
-            <option>Client Panel</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Title
-          <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Login / Email
-          <input value={form.loginId} onChange={(e) => setForm((prev) => ({ ...prev, loginId: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
-        </label>
-        <label className="text-sm font-medium text-gray-700">
-          Password
-          <input type="password" value={form.password} onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2" required />
-        </label>
-        <label className="text-sm font-medium text-gray-700 md:col-span-2">
-          Notes
-          <textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 min-h-[96px]" />
-        </label>
-        <Button text="Save Credential" type="submit" loading={saving} className="md:col-span-2 justify-self-start" />
-      </form>
+        <form
+          onSubmit={saveCredential}
+          className="bg-white rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <label className="text-sm font-medium text-gray-700">
+            Account Type
+            <select
+              value={form.accountType}
+              onChange={(e) => setForm((prev) => ({ ...prev, accountType: e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+            >
+              <option>Email</option>
+              <option>Hosting</option>
+              <option>Social</option>
+              <option>Client Panel</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            Title
+            <input
+              value={form.title}
+              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+              required
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            Login / Email
+            <input
+              value={form.loginId}
+              onChange={(e) => setForm((prev) => ({ ...prev, loginId: e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+              required
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            Password
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2"
+              required
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700 md:col-span-2">
+            Notes
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+              className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 min-h-[96px]"
+            />
+          </label>
+          <Button
+            text="Save Credential"
+            type="submit"
+            loading={saving}
+            className="md:col-span-2 justify-self-start"
+          />
+        </form>
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
@@ -230,25 +266,48 @@ const EmployeeSavedCredentials = () => {
           <p className="p-4 text-sm text-gray-500">No saved credentials yet.</p>
         ) : (
           credentials.map((item) => (
-            <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
+            <div
+              key={item._id}
+              className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3"
+            >
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900">{item.title}</p>
                 <p className="text-xs text-gray-500">{item.accountType}</p>
                 <p className="text-sm break-all mt-1">{item.loginId}</p>
-                <p className="text-sm mt-1">{revealedPasswords[item._id] ? item.password : "••••••••"}</p>
+                <p className="text-sm mt-1">
+                  {revealedPasswords[item._id] ? item.password : "••••••••"}
+                </p>
                 {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))} className="border rounded-sm px-3 py-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))
+                  }
+                  className="border rounded-sm px-3 py-2 text-sm"
+                >
                   {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
                 </button>
-                <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => copyValue(item.loginId, "Login")}
+                  className="border rounded-sm px-3 py-2 text-sm"
+                >
                   <FiCopy />
                 </button>
-                <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => copyValue(item.password, "Password")}
+                  className="border rounded-sm px-3 py-2 text-sm"
+                >
                   <FiCopy />
                 </button>
-                <button type="button" onClick={() => deleteCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">
+                <button
+                  type="button"
+                  onClick={() => deleteCredential(item._id)}
+                  className="border rounded-sm px-3 py-2 text-sm text-red-600"
+                >
                   Delete
                 </button>
               </div>

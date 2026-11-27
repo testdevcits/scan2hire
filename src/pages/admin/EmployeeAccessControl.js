@@ -1,14 +1,7 @@
 /* eslint-disable */
 import { useApi } from "../../contexts/ApiContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
- 
-  FiCheck,
-  FiMonitor,
-
-  FiUsers,
-  FiX,
-} from "react-icons/fi";
+import { FiCheck, FiMonitor, FiUsers, FiX } from "react-icons/fi";
 
 import Button from "../../components/common/Button";
 import Avatar from "../../components/common/Avatar";
@@ -48,9 +41,12 @@ const RolePill = ({ tone, text }) => {
   const { hrApi } = useApi();
   const classes = {
     blue: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900",
-    amber: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900",
-    violet: "bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900",
-    green: "bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900",
+    amber:
+      "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900",
+    violet:
+      "bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900",
+    green:
+      "bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900",
     gray: "bg-gray-50 text-gray-500 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
   };
   const dot = {
@@ -75,7 +71,9 @@ const RolePill = ({ tone, text }) => {
 
 // shared card shell
 const Card = ({ className = "", children }) => (
-  <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm ${className}`}>
+  <div
+    className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
@@ -316,7 +314,9 @@ const EmployeeAccessControl = () => {
     const ok = await confirm({
       title: allowed ? "Allow System Manager" : "Remove System Manager",
       message: `${selectedEmployee?.employee?.name || "This employee"} ${
-        allowed ? "will manage system inventory and allotments." : "will no longer manage system allotments."
+        allowed
+          ? "will manage system inventory and allotments."
+          : "will no longer manage system allotments."
       }`,
       confirmText: allowed ? "Allow" : "Remove",
       tone: allowed ? "primary" : "danger",
@@ -348,20 +348,42 @@ const EmployeeAccessControl = () => {
       <Card className="overflow-hidden">
         <div className="p-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Employee &amp; Team Access</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Employee &amp; Team Access
+            </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Select an employee, grant the required role, then assign team members to a Team Lead.
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
             {[
-              ["Staff", stats.total, "text-gray-900 dark:text-gray-100", "bg-gray-200 dark:bg-gray-700"],
+              [
+                "Staff",
+                stats.total,
+                "text-gray-900 dark:text-gray-100",
+                "bg-gray-200 dark:bg-gray-700",
+              ],
               ["Team Leads", stats.teamLeads, "text-blue-700 dark:text-blue-400", "bg-blue-400"],
               ["Testers", stats.testers, "text-amber-700 dark:text-amber-400", "bg-amber-400"],
-              ["Coordinators", stats.projectCoordinators, "text-violet-700 dark:text-violet-400", "bg-violet-400"],
-              ["System Managers", stats.systemManagers, "text-emerald-700 dark:text-emerald-400", "bg-emerald-400"],
+              [
+                "Coordinators",
+                stats.projectCoordinators,
+                "text-violet-700 dark:text-violet-400",
+                "bg-violet-400",
+              ],
+              [
+                "System Managers",
+                stats.systemManagers,
+                "text-emerald-700 dark:text-emerald-400",
+                "bg-emerald-400",
+              ],
               ["Assigned", stats.assigned, "text-green-700 dark:text-green-400", "bg-green-400"],
-              ["Unassigned", stats.unassigned, "text-gray-600 dark:text-gray-400", "bg-gray-300 dark:bg-gray-600"],
+              [
+                "Unassigned",
+                stats.unassigned,
+                "text-gray-600 dark:text-gray-400",
+                "bg-gray-300 dark:bg-gray-600",
+              ],
             ].map(([label, value, textClass, barClass]) => (
               <div
                 key={label}
@@ -380,7 +402,9 @@ const EmployeeAccessControl = () => {
         {/* Give Role / Access */}
         <Card className="overflow-hidden">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Give Role / Access</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Give Role / Access
+            </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Choose one employee and switch on the access they need.
             </p>
@@ -388,12 +412,18 @@ const EmployeeAccessControl = () => {
 
           <div className="p-5 grid grid-cols-1 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-5">
             <div className="flex flex-col gap-3 min-h-0">
-              <SearchInput value={roleSearch} onChange={setRoleSearch} placeholder="Search employee" />
+              <SearchInput
+                value={roleSearch}
+                onChange={setRoleSearch}
+                placeholder="Search employee"
+              />
 
               <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex-1 min-h-0">
                 <div className="max-h-[520px] overflow-y-auto">
                   {filteredRoleRows.length === 0 ? (
-                    <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">No employees found.</p>
+                    <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No employees found.
+                    </p>
                   ) : (
                     filteredRoleRows.map((row) => {
                       const active = row.employee?._id === selectedEmployeeId;
@@ -403,24 +433,34 @@ const EmployeeAccessControl = () => {
                           type="button"
                           onClick={() => setSelectedEmployeeId(row.employee?._id)}
                           className={`flex w-full items-start gap-3 border-b border-gray-100 dark:border-gray-800 px-3 py-3 text-left transition-colors last:border-b-0 ${
-                            active ? "bg-[#fff5f3] dark:bg-[#2a1712]" : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+                            active
+                              ? "bg-[#fff5f3] dark:bg-[#2a1712]"
+                              : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60"
                           }`}
                         >
                           <Avatar name={row.employee?.name} className="mt-0.5" />
                           <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-gray-900 dark:text-gray-100">{employeeLabel(row)}</span>
+                            <span className="block font-semibold text-gray-900 dark:text-gray-100">
+                              {employeeLabel(row)}
+                            </span>
                             <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400 break-all">
                               {row.employee?.email || "-"}
                             </span>
                             <span className="mt-2 flex flex-wrap gap-1.5">
                               {row.isTeamLead && <RolePill tone="blue" text="TL" />}
                               {row.isTester && <RolePill tone="amber" text="Tester" />}
-                              {row.isProjectCoordinator && <RolePill tone="violet" text="Coordinator" />}
-                              {row.modules?.systemAllotment && <RolePill tone="green" text="System" />}
+                              {row.isProjectCoordinator && (
+                                <RolePill tone="violet" text="Coordinator" />
+                              )}
+                              {row.modules?.systemAllotment && (
+                                <RolePill tone="green" text="System" />
+                              )}
                               {!row.isTeamLead &&
                                 !row.isTester &&
                                 !row.isProjectCoordinator &&
-                                !row.modules?.systemAllotment && <RolePill tone="gray" text="Employee" />}
+                                !row.modules?.systemAllotment && (
+                                  <RolePill tone="gray" text="Employee" />
+                                )}
                             </span>
                           </span>
                         </button>
@@ -435,7 +475,11 @@ const EmployeeAccessControl = () => {
               <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
                 {selectedEmployee ? (
                   <div className="flex items-start gap-3">
-                    <Avatar name={selectedEmployee.employee?.name} size="h-11 w-11" className="bg-white dark:bg-gray-900 shadow-sm text-sm" />
+                    <Avatar
+                      name={selectedEmployee.employee?.name}
+                      size="h-11 w-11"
+                      className="bg-white dark:bg-gray-900 shadow-sm text-sm"
+                    />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                         Selected Employee
@@ -454,7 +498,9 @@ const EmployeeAccessControl = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Select an employee from the list to manage access.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Select an employee from the list to manage access.
+                  </p>
                 )}
               </div>
 
@@ -473,17 +519,27 @@ const EmployeeAccessControl = () => {
                       <div className="flex items-start gap-3">
                         <span
                           className={`mt-0.5 rounded-lg p-2 ${
-                            enabled ? "bg-[#fff5f3] dark:bg-[#3a2018] text-[#f84525]" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                            enabled
+                              ? "bg-[#fff5f3] dark:bg-[#3a2018] text-[#f84525]"
+                              : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                           }`}
                         >
                           {role.icon}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{role.title}</h3>
-                            {enabled ? <RolePill tone="green" text="On" /> : <RolePill tone="gray" text="Off" />}
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                              {role.title}
+                            </h3>
+                            {enabled ? (
+                              <RolePill tone="green" text="On" />
+                            ) : (
+                              <RolePill tone="gray" text="Off" />
+                            )}
                           </div>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{role.description}</p>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {role.description}
+                          </p>
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-2">
@@ -515,8 +571,12 @@ const EmployeeAccessControl = () => {
         {/* Assign Team Members */}
         <Card className="overflow-hidden flex flex-col">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Assign Team Members</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Pick a Team Lead, select employees, and save the team list.</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Assign Team Members
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Pick a Team Lead, select employees, and save the team list.
+            </p>
           </div>
 
           <div className="p-5 space-y-4 flex-1 min-h-0 flex flex-col">
@@ -539,8 +599,8 @@ const EmployeeAccessControl = () => {
             <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-800 dark:text-blue-300">
               {selectedTeamLead ? (
                 <>
-                  <b>{selectedTeamLead.employee?.name}</b> will manage {assignedEmployeeIds.length} selected
-                  employee(s).
+                  <b>{selectedTeamLead.employee?.name}</b> will manage {assignedEmployeeIds.length}{" "}
+                  selected employee(s).
                 </>
               ) : (
                 "Make an employee Team Lead first, then select them here."
@@ -549,36 +609,55 @@ const EmployeeAccessControl = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
               <SearchInput value={search} onChange={setSearch} placeholder="Search team members" />
-              <Button text="Select Visible" variant="secondary" onClick={selectVisible} disabled={!selectedTeamLeadId} />
-              <Button text="Clear Visible" variant="secondary" onClick={clearVisible} disabled={!selectedTeamLeadId} />
+              <Button
+                text="Select Visible"
+                variant="secondary"
+                onClick={selectVisible}
+                disabled={!selectedTeamLeadId}
+              />
+              <Button
+                text="Clear Visible"
+                variant="secondary"
+                onClick={clearVisible}
+                disabled={!selectedTeamLeadId}
+              />
             </div>
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex-1 min-h-0">
               <div className="max-h-[420px] overflow-y-auto">
                 {filteredEmployees.length === 0 ? (
-                  <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">No assignable employees found.</p>
+                  <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No assignable employees found.
+                  </p>
                 ) : (
                   filteredEmployees.map((row) => {
                     const employeeId = row.employee?._id;
                     const checked = assignedEmployeeIds.includes(employeeId);
-                    const currentTeamLeads = [row.teamLead, ...(row.teamLeads || [])].filter(Boolean);
+                    const currentTeamLeads = [row.teamLead, ...(row.teamLeads || [])].filter(
+                      Boolean
+                    );
                     const uniqueCurrentTeamLeads = currentTeamLeads.filter(
                       (teamLead, index, list) =>
                         list.findIndex(
                           (item) => String(item?._id || item) === String(teamLead?._id || teamLead)
                         ) === index
                     );
-                    const currentTlIds = uniqueCurrentTeamLeads.map((teamLead) => String(teamLead?._id || teamLead));
+                    const currentTlIds = uniqueCurrentTeamLeads.map((teamLead) =>
+                      String(teamLead?._id || teamLead)
+                    );
                     const currentTlNames = uniqueCurrentTeamLeads
                       .map((teamLead) => teamLead?.name || teamLead?.employeeId || "")
                       .filter(Boolean)
                       .join(", ");
-                    const assignedToSelectedTl = selectedTeamLeadId && currentTlIds.includes(selectedTeamLeadId);
+                    const assignedToSelectedTl =
+                      selectedTeamLeadId && currentTlIds.includes(selectedTeamLeadId);
                     return (
                       <label
                         key={employeeId}
                         className={`grid grid-cols-[32px_minmax(0,1fr)] gap-2 border-b border-gray-100 dark:border-gray-800 px-3 py-3 text-sm last:border-b-0 ${
-                          checked ? "bg-[#fff5f3] dark:bg-[#2a1712]" : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+                          checked
+                            ? "bg-[#fff5f3] dark:bg-[#2a1712]"
+                            : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60"
                         } ${selectedTeamLeadId ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
                       >
                         <input
@@ -589,15 +668,21 @@ const EmployeeAccessControl = () => {
                           className="mt-1 h-4 w-4 accent-[#f84525]"
                         />
                         <span className="min-w-0">
-                          <span className="block font-semibold text-gray-900 dark:text-gray-100">{employeeLabel(row)}</span>
-                          <span className="block text-xs text-gray-500 dark:text-gray-400 break-all">{row.employee?.email || "-"}</span>
+                          <span className="block font-semibold text-gray-900 dark:text-gray-100">
+                            {employeeLabel(row)}
+                          </span>
+                          <span className="block text-xs text-gray-500 dark:text-gray-400 break-all">
+                            {row.employee?.email || "-"}
+                          </span>
                           <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
                             {row.employee?.department || "-"} | {row.employee?.designation || "-"}
                           </span>
                           <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                             Current TLs: {currentTlNames || "-"}
                             {assignedToSelectedTl && (
-                              <span className="ml-2 font-semibold text-green-700 dark:text-green-400">Selected TL</span>
+                              <span className="ml-2 font-semibold text-green-700 dark:text-green-400">
+                                Selected TL
+                              </span>
                             )}
                           </span>
                         </span>

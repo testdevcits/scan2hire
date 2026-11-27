@@ -20,9 +20,5 @@ export const AdminProvider = ({ children }) => {
     setAdmin(null);
   };
 
-  return (
-    <AdminContext.Provider value={{ admin, login, logout }}>
-      {children}
-    </AdminContext.Provider>
-  );
+  return <AdminContext.Provider value={{ admin, login, logout }}>{children}</AdminContext.Provider>;
 };

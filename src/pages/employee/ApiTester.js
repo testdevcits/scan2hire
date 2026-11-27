@@ -55,7 +55,13 @@ const ApiTester = () => {
       const parsedHeaders = parseJsonField(headers, {});
       const finalHeaders = {
         ...parsedHeaders,
-        ...(token.trim() ? { Authorization: token.trim().startsWith("Bearer ") ? token.trim() : `Bearer ${token.trim()}` } : {}),
+        ...(token.trim()
+          ? {
+              Authorization: token.trim().startsWith("Bearer ")
+                ? token.trim()
+                : `Bearer ${token.trim()}`,
+            }
+          : {}),
       };
 
       const response = await axios({
@@ -119,9 +125,15 @@ const ApiTester = () => {
           <div className="grid grid-cols-1 md:grid-cols-[130px_minmax(0,1fr)] gap-3">
             <label className="text-sm font-medium text-gray-700">
               Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="mt-1 w-full border rounded-sm px-3 py-2"
+              >
                 {methodOptions.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
             </label>
@@ -200,11 +212,19 @@ const ApiTester = () => {
             <div className="p-4 space-y-3">
               <div className={`rounded-sm border p-3 text-sm ${resultTone}`}>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <p><b>Type:</b> {result.type}</p>
-                  <p><b>Status:</b> {result.status}</p>
-                  <p><b>Timing:</b> {result.durationMs} ms</p>
+                  <p>
+                    <b>Type:</b> {result.type}
+                  </p>
+                  <p>
+                    <b>Status:</b> {result.status}
+                  </p>
+                  <p>
+                    <b>Timing:</b> {result.durationMs} ms
+                  </p>
                 </div>
-                <p className="mt-2 break-words"><b>Message:</b> {result.statusText || "-"}</p>
+                <p className="mt-2 break-words">
+                  <b>Message:</b> {result.statusText || "-"}
+                </p>
               </div>
 
               <div>

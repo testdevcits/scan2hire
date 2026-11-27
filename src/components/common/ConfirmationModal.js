@@ -42,10 +42,7 @@ const ConfirmationModal = ({
                   >
                     <option value="">Select</option>
                     {(field.options || []).map((option) => (
-                      <option
-                        key={option.value || option}
-                        value={option.value || option}
-                      >
+                      <option key={option.value || option} value={option.value || option}>
                         {option.label || option}
                       </option>
                     ))}

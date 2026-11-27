@@ -16,16 +16,21 @@ export const authApi = {
   updateMyDocuments: (payload) => API.patch("/users/me/documents", payload),
   getMyAccountCredentials: () => API.get("/users/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/users/me/account-credentials", payload),
-  deleteMyAccountCredential: (credentialId) => API.delete(`/users/me/account-credentials/${credentialId}`),
+  deleteMyAccountCredential: (credentialId) =>
+    API.delete(`/users/me/account-credentials/${credentialId}`),
   getHrs: (role) => API.get("/users/hrs", { params: role ? { role } : undefined }),
-  updateHrModuleAccess: (userId, modules) => API.patch(`/users/hrs/${userId}/module-access`, { modules }),
-  updateEmployeeModuleAccess: (userId, modules) => API.patch(`/users/employees/${userId}/module-access`, { modules }),
+  updateHrModuleAccess: (userId, modules) =>
+    API.patch(`/users/hrs/${userId}/module-access`, { modules }),
+  updateEmployeeModuleAccess: (userId, modules) =>
+    API.patch(`/users/employees/${userId}/module-access`, { modules }),
   updateEmployeeRole: (userId, role) => API.patch(`/users/employees/${userId}/role`, { role }),
-  updateDefaultEmployeeModuleAccess: (modules, role = 'employee') => API.patch('/users/employees/default-module-access', { modules, role }),
-  getDefaultEmployeeModuleAccess: (role = 'employee') => API.get('/users/employees/default-module-access', { params: { role } }),
-  getAuditLogs: (params) => API.get('/users/audit-logs', { params }),
-  deleteSelectedAuditLogs: (ids) => API.delete('/users/audit-logs/selected', { data: { ids } }),
-  deleteAllAuditLogs: (payload) => API.delete('/users/audit-logs', { data: payload }),
+  updateDefaultEmployeeModuleAccess: (modules, role = "employee") =>
+    API.patch("/users/employees/default-module-access", { modules, role }),
+  getDefaultEmployeeModuleAccess: (role = "employee") =>
+    API.get("/users/employees/default-module-access", { params: { role } }),
+  getAuditLogs: (params) => API.get("/users/audit-logs", { params }),
+  deleteSelectedAuditLogs: (ids) => API.delete("/users/audit-logs/selected", { data: { ids } }),
+  deleteAllAuditLogs: (payload) => API.delete("/users/audit-logs", { data: payload }),
   createHr: (payload) => API.post("/users/hrs", payload),
   assignEmployeeAsHr: (payload) => API.post("/users/hrs/assign-employee", payload),
   removeHrAccess: (userId) => API.patch(`/users/hrs/${userId}/remove-access`),
@@ -34,15 +39,18 @@ export const authApi = {
   activateUser: (userId) => API.patch(`/users/${userId}/activate`),
   deleteUser: (userId) => API.delete(`/users/${userId}`),
   getNotifications: () => API.get("/users/notifications"),
-  markNotificationRead: (notificationId) => API.patch(`/users/notifications/${notificationId}/read`),
+  markNotificationRead: (notificationId) =>
+    API.patch(`/users/notifications/${notificationId}/read`),
   deleteNotification: (notificationId) => API.delete(`/users/notifications/${notificationId}`),
   getDepartments: (params) => API.get("/users/departments", { params }),
   createDepartment: (payload) => API.post("/users/departments", payload),
-  updateDepartment: (departmentId, payload) => API.put(`/users/departments/${departmentId}`, payload),
+  updateDepartment: (departmentId, payload) =>
+    API.put(`/users/departments/${departmentId}`, payload),
   deleteDepartment: (departmentId) => API.delete(`/users/departments/${departmentId}`),
   getMasterOptions: (type, params) => API.get(`/users/master-options/${type}`, { params }),
   createMasterOption: (type, payload) => API.post(`/users/master-options/${type}`, payload),
-  updateMasterOption: (type, id, payload) => API.put(`/users/master-options/${type}/${id}`, payload),
+  updateMasterOption: (type, id, payload) =>
+    API.put(`/users/master-options/${type}/${id}`, payload),
   deleteMasterOption: (type, id) => API.delete(`/users/master-options/${type}/${id}`),
   getAttendance: () => API.get("/users/attendance"),
   startAttendance: (payload) => API.post("/users/attendance/start", payload),
@@ -61,8 +69,10 @@ export const candidateApi = {
 
 export const hrApi = {
   getAppraisalReminders: () => API.get("/hr/appraisal-reminders"),
-  addSalaryIncrement: (employeeId, payload) => API.post(`/hr/employees/${employeeId}/salary-increments`, payload),
-  updateSalaryIncrement: (employeeId, incrementId, payload) => API.patch(`/hr/employees/${employeeId}/salary-increments/${incrementId}`, payload),
+  addSalaryIncrement: (employeeId, payload) =>
+    API.post(`/hr/employees/${employeeId}/salary-increments`, payload),
+  updateSalaryIncrement: (employeeId, incrementId, payload) =>
+    API.patch(`/hr/employees/${employeeId}/salary-increments/${incrementId}`, payload),
   getDefaultEmployeePasswordStatus: () => API.get("/hr/default-employee-password"),
   getCandidates: (params) => API.get("/hr/candidates", { params }),
   getCandidate: (candidateId) => API.get(`/hr/candidates/${candidateId}`),
@@ -70,10 +80,8 @@ export const hrApi = {
     API.put(`/hr/candidates/${candidateId}/status`, payload),
   convertCandidateToEmployee: (candidateId, payload) =>
     API.post(`/hr/candidates/${candidateId}/convert-to-employee`, payload),
-  deactivateCandidate: (candidateId) =>
-    API.patch(`/hr/candidates/${candidateId}/deactivate`),
-  activateCandidate: (candidateId) =>
-    API.patch(`/hr/candidates/${candidateId}/activate`),
+  deactivateCandidate: (candidateId) => API.patch(`/hr/candidates/${candidateId}/deactivate`),
+  activateCandidate: (candidateId) => API.patch(`/hr/candidates/${candidateId}/activate`),
   deleteCandidate: (candidateId) => API.delete(`/hr/candidates/${candidateId}`),
   getEmployees: (params, config = {}) => API.get("/hr/employees", { ...config, params }),
   getEmployeeEditOptions: () => API.get("/hr/employees/edit-options"),
@@ -81,19 +89,21 @@ export const hrApi = {
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
   updateEmployee: (employeeId, payload) => API.put(`/hr/employees/${employeeId}`, payload),
-  resetEmployeePassword: (employeeId, newPassword) => API.patch(`/hr/employees/${employeeId}/password`, { newPassword }),
+  resetEmployeePassword: (employeeId, newPassword) =>
+    API.patch(`/hr/employees/${employeeId}/password`, { newPassword }),
   getEmployeeLoginPassword: (employeeId) => API.get(`/hr/employees/${employeeId}/login-password`),
-  updateEmployeeDocuments: (employeeId, payload) => API.patch(`/hr/employees/${employeeId}/documents`, payload),
-  getEmployeeDocumentVersions: (employeeId) => API.get(`/hr/employees/${employeeId}/document-versions`),
-  restoreEmployeeDocumentVersion: (employeeId, versionId) => API.post(`/hr/employees/${employeeId}/document-versions/${versionId}/restore`),
+  updateEmployeeDocuments: (employeeId, payload) =>
+    API.patch(`/hr/employees/${employeeId}/documents`, payload),
+  getEmployeeDocumentVersions: (employeeId) =>
+    API.get(`/hr/employees/${employeeId}/document-versions`),
+  restoreEmployeeDocumentVersion: (employeeId, versionId) =>
+    API.post(`/hr/employees/${employeeId}/document-versions/${versionId}/restore`),
   approveDocumentUpdateRequest: (employeeId, payload) =>
     API.patch(`/hr/employees/${employeeId}/document-requests/approve`, payload),
   getEmployeeAccountCredentials: (employeeId, vaultPassword) =>
     API.post(`/hr/employees/${employeeId}/account-credentials/open`, { vaultPassword }),
-  deactivateEmployee: (employeeId) =>
-    API.patch(`/hr/employees/${employeeId}/deactivate`),
-  activateEmployee: (employeeId) =>
-    API.patch(`/hr/employees/${employeeId}/activate`),
+  deactivateEmployee: (employeeId) => API.patch(`/hr/employees/${employeeId}/deactivate`),
+  activateEmployee: (employeeId) => API.patch(`/hr/employees/${employeeId}/activate`),
   deleteEmployee: (employeeId) => API.delete(`/hr/employees/${employeeId}`),
   getAttendance: (params) =>
     API.get("/hr/attendance", {
@@ -102,10 +112,13 @@ export const hrApi = {
   getEmployeeMonthlyReport: (employeeId, month) =>
     API.get(`/hr/attendance/employees/${employeeId}/monthly`, { params: { month } }),
   getLeaves: (params) => API.get("/hr/leaves", { params }),
-  reviewLeave: (leaveId, payload) => API.patch(`/hr/leaves/${leaveId}`, payload, { params: { employeeId: payload.employeeId } }),
-  deleteLeave: (leaveId, employeeId) => API.delete(`/hr/leaves/${leaveId}`, { params: employeeId ? { employeeId } : undefined }),
+  reviewLeave: (leaveId, payload) =>
+    API.patch(`/hr/leaves/${leaveId}`, payload, { params: { employeeId: payload.employeeId } }),
+  deleteLeave: (leaveId, employeeId) =>
+    API.delete(`/hr/leaves/${leaveId}`, { params: employeeId ? { employeeId } : undefined }),
   getEmployeeLeaveBalance: (employeeId) => API.get(`/hr/leave-balances/${employeeId}`),
-  adjustEmployeeLeaveBalance: (employeeId, payload) => API.patch(`/hr/leave-balances/${employeeId}/adjust`, payload, { params: { employeeId } }),
+  adjustEmployeeLeaveBalance: (employeeId, payload) =>
+    API.patch(`/hr/leave-balances/${employeeId}/adjust`, payload, { params: { employeeId } }),
   getCalendar: (month, year) => API.get("/hr/calendar", { params: { month, year } }),
   getCalendarDocument: (year) => API.get("/hr/calendar-document", { params: { year } }),
   uploadCalendarDocument: (payload) => API.post("/hr/calendar-document", payload),
@@ -125,7 +138,8 @@ export const hrApi = {
   createSystemAsset: (type, payload) => API.post(`/hr/system-allotments/assets/${type}`, payload),
   updateSystemAsset: (type, assetId, payload) =>
     API.put(`/hr/system-allotments/assets/${type}/${assetId}`, payload),
-  deleteSystemAsset: (type, assetId) => API.delete(`/hr/system-allotments/assets/${type}/${assetId}`),
+  deleteSystemAsset: (type, assetId) =>
+    API.delete(`/hr/system-allotments/assets/${type}/${assetId}`),
   createSystemAllotment: (payload) => API.post("/hr/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/hr/system-allotments/import", { rows }),
   bulkDeleteSystemAllotments: (rows) => API.post("/hr/system-allotments/bulk-delete", { rows }),
@@ -152,7 +166,8 @@ export const employeeApi = {
   updateProfileImage: (payload) => API.patch("/employees/me/profile-image", payload),
   getMyAccountCredentials: () => API.get("/employees/me/account-credentials"),
   createMyAccountCredential: (payload) => API.post("/employees/me/account-credentials", payload),
-  deleteMyAccountCredential: (credentialId) => API.delete(`/employees/me/account-credentials/${credentialId}`),
+  deleteMyAccountCredential: (credentialId) =>
+    API.delete(`/employees/me/account-credentials/${credentialId}`),
   requestDocumentUpdate: (payload) => API.post("/employees/me/documents/request", payload),
   updateDocuments: (payload) => API.patch("/employees/me/documents", payload),
   getAttendance: () => API.get("/employees/attendance"),
@@ -162,27 +177,36 @@ export const employeeApi = {
   endBreak: () => API.post("/employees/attendance/break/end"),
   getLeaves: () => API.get("/employees/leaves"),
   getLeaveDrafts: () => API.get("/employees/leave-drafts"),
-  saveLeaveDraft: (draftId, payload) => draftId ? API.put(`/employees/leave-drafts/${draftId}`, payload) : API.post("/employees/leave-drafts", payload),
+  saveLeaveDraft: (draftId, payload) =>
+    draftId
+      ? API.put(`/employees/leave-drafts/${draftId}`, payload)
+      : API.post("/employees/leave-drafts", payload),
   deleteLeaveDraft: (draftId) => API.delete(`/employees/leave-drafts/${draftId}`),
   applyLeave: (payload) => API.post("/employees/leaves", payload),
   getCalendar: (month, year) => API.get("/employees/calendar", { params: { month, year } }),
   getCalendarDocument: (year) => API.get("/employees/calendar-document", { params: { year } }),
-  getCalendarDocumentFile: (year) => API.get(`/employees/calendar-document/${year}/file`, { responseType: "blob" }),
+  getCalendarDocumentFile: (year) =>
+    API.get(`/employees/calendar-document/${year}/file`, { responseType: "blob" }),
   getAssignedCandidates: () => API.get("/employees/candidates"),
   getInterviewLogs: () => API.get("/employees/interview-logs"),
   updateRound: (candidateId, payload) =>
     API.put(`/employees/candidates/${candidateId}/round`, payload),
-  getSystemAllotmentOverview: (params) => API.get("/employees/system-allotments/overview", { params }),
+  getSystemAllotmentOverview: (params) =>
+    API.get("/employees/system-allotments/overview", { params }),
   getSystemAllotments: (params) => API.get("/employees/system-allotments", { params }),
   getSystemAllotmentEmployees: () => API.get("/employees/system-allotments/employees"),
-  getSystemAssets: (type, params) => API.get(`/employees/system-allotments/assets/${type}`, { params }),
-  createSystemAsset: (type, payload) => API.post(`/employees/system-allotments/assets/${type}`, payload),
+  getSystemAssets: (type, params) =>
+    API.get(`/employees/system-allotments/assets/${type}`, { params }),
+  createSystemAsset: (type, payload) =>
+    API.post(`/employees/system-allotments/assets/${type}`, payload),
   updateSystemAsset: (type, assetId, payload) =>
     API.put(`/employees/system-allotments/assets/${type}/${assetId}`, payload),
-  deleteSystemAsset: (type, assetId) => API.delete(`/employees/system-allotments/assets/${type}/${assetId}`),
+  deleteSystemAsset: (type, assetId) =>
+    API.delete(`/employees/system-allotments/assets/${type}/${assetId}`),
   createSystemAllotment: (payload) => API.post("/employees/system-allotments", payload),
   importSystemAllotments: (rows) => API.post("/employees/system-allotments/import", { rows }),
-  bulkDeleteSystemAllotments: (rows) => API.post("/employees/system-allotments/bulk-delete", { rows }),
+  bulkDeleteSystemAllotments: (rows) =>
+    API.post("/employees/system-allotments/bulk-delete", { rows }),
   updateSystemAllotment: (allotmentId, payload) =>
     API.put(`/employees/system-allotments/${allotmentId}`, payload),
   deleteSystemAllotment: (allotmentId) => API.delete(`/employees/system-allotments/${allotmentId}`),

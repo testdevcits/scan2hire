@@ -55,9 +55,7 @@ const FormPage = () => {
       const exists = prev[field].includes(value);
       return {
         ...prev,
-        [field]: exists
-          ? prev[field].filter((v) => v !== value)
-          : [...prev[field], value],
+        [field]: exists ? prev[field].filter((v) => v !== value) : [...prev[field], value],
       };
     });
     setErrors((prev) => ({ ...prev, [field]: "" }));
@@ -83,8 +81,7 @@ const FormPage = () => {
         err.altMobile = "Invalid mobile (10 digits starting with 6-9)";
 
       if (!formData.email) err.email = "Required";
-      else if (!/^\S+@\S+\.\S+$/.test(formData.email))
-        err.email = "Invalid email";
+      else if (!/^\S+@\S+\.\S+$/.test(formData.email)) err.email = "Invalid email";
 
       if (!formData.experienceType) err.experienceType = "Required";
       if (formData.experienceType === "experienced") {
@@ -97,18 +94,13 @@ const FormPage = () => {
 
     if (step === 2) {
       if (!formData.jobRole) err.jobRole = "Select job role";
-      if (formData.jobRole === "Other" && !formData.otherJobRole)
-        err.otherJobRole = "Required";
+      if (formData.jobRole === "Other" && !formData.otherJobRole) err.otherJobRole = "Required";
       if (!formData.skills.length) err.skills = "Skills required";
-      if (formData.skills.includes("Other") && !formData.otherSkills)
-        err.otherSkills = "Required";
+      if (formData.skills.includes("Other") && !formData.otherSkills) err.otherSkills = "Required";
       if (!formData.resume) err.resume = "Resume required";
       if (!formData.nightShift) err.nightShift = "Required";
 
-      if (
-        formData.referenceMobile &&
-        !/^[6-9]\d{9}$/.test(formData.referenceMobile)
-      )
+      if (formData.referenceMobile && !/^[6-9]\d{9}$/.test(formData.referenceMobile))
         err.referenceMobile = "Invalid mobile (10 digits starting with 6-9)";
     }
 
@@ -135,18 +127,12 @@ const FormPage = () => {
       const payload = {
         ...formData,
         qualification:
-          formData.qualification === "Other"
-            ? formData.otherQualification
-            : formData.qualification,
-        jobRole:
-          formData.jobRole === "Other"
-            ? formData.otherJobRole
-            : formData.jobRole,
+          formData.qualification === "Other" ? formData.otherQualification : formData.qualification,
+        jobRole: formData.jobRole === "Other" ? formData.otherJobRole : formData.jobRole,
         skills: formData.skills.includes("Other")
-          ? [
-              ...formData.skills.filter((skill) => skill !== "Other"),
-              formData.otherSkills,
-            ].filter(Boolean)
+          ? [...formData.skills.filter((skill) => skill !== "Other"), formData.otherSkills].filter(
+              Boolean
+            )
           : formData.skills,
       };
 
@@ -177,18 +163,13 @@ const FormPage = () => {
       }
 
       // Save candidate info for OTP page
-      localStorage.setItem(
-        "candidateForm",
-        JSON.stringify({ email: formData.email, candidateId })
-      );
+      localStorage.setItem("candidateForm", JSON.stringify({ email: formData.email, candidateId }));
 
       // Redirect to OTP page automatically
       navigate("/otp");
     } catch (err) {
       console.error(err);
-      toast.error(
-        err.response?.data?.message || err.message || "Something went wrong"
-      );
+      toast.error(err.response?.data?.message || err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -204,8 +185,7 @@ const FormPage = () => {
               Candidate Application
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Complete the details below. Fresher and experienced fields adjust
-              automatically.
+              Complete the details below. Fresher and experienced fields adjust automatically.
             </p>
           </div>
 
@@ -222,9 +202,7 @@ const FormPage = () => {
                     >
                       <span
                         className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shrink-0 ${
-                          active
-                            ? "bg-[#f84525] text-white"
-                            : "bg-white text-gray-500 border"
+                          active ? "bg-[#f84525] text-white" : "bg-white text-gray-500 border"
                         }`}
                       >
                         {current}
@@ -276,12 +254,7 @@ const FormPage = () => {
               {step < 3 && (
                 <div className="sticky bottom-0 -mx-3 sm:mx-0 bg-white/95 backdrop-blur border-t sm:border-t-0 px-3 sm:px-0 py-3 sm:py-0 flex flex-col sm:flex-row gap-2 mt-6">
                   {step > 1 && (
-                    <Button
-                      text="Back"
-                      variant="secondary"
-                      onClick={prevStep}
-                      className="flex-1"
-                    />
+                    <Button text="Back" variant="secondary" onClick={prevStep} className="flex-1" />
                   )}
                   <Button text="Next" onClick={nextStep} className="flex-1" />
                 </div>

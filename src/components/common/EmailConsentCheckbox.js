@@ -9,7 +9,14 @@ const EmailConsentCheckbox = ({
   description,
   className = "",
 }) => (
-  <Checkbox checked={checked} onChange={onChange} disabled={disabled || !recipient} label={label} description={recipient ? description : "Candidate email is missing."} className={className} />
+  <Checkbox
+    checked={checked}
+    onChange={onChange}
+    disabled={disabled || !recipient}
+    label={label}
+    description={recipient ? description : "Candidate email is missing."}
+    className={className}
+  />
 );
 
 export default EmailConsentCheckbox;

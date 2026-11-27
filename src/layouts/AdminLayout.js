@@ -1,5 +1,15 @@
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiClock, FiGrid, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
+import {
+  FiBarChart2,
+  FiClock,
+  FiGrid,
+  FiLock,
+  FiMonitor,
+  FiSettings,
+  FiShield,
+  FiUserCheck,
+  FiUsers,
+} from "react-icons/fi";
 
 const AdminLayout = () => {
   const navItems = [

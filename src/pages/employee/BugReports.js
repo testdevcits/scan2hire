@@ -37,7 +37,8 @@ const statusLabels = {
 const fileToDataUri = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
+    reader.onload = () =>
+      resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -117,8 +118,12 @@ const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact =
       >
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border border-gray-200 bg-white px-3 py-4 text-center hover:border-[#f84525] hover:bg-[#fffafa]">
           <FiUploadCloud className="text-2xl text-[#f84525]" />
-          <span className="text-sm font-semibold text-gray-900">Drop, paste, or browse screenshots</span>
-          <span className="text-xs text-gray-500">Multiple images supported. Click any thumbnail to preview.</span>
+          <span className="text-sm font-semibold text-gray-900">
+            Drop, paste, or browse screenshots
+          </span>
+          <span className="text-xs text-gray-500">
+            Multiple images supported. Click any thumbnail to preview.
+          </span>
           <input
             type="file"
             accept="image/*"
@@ -131,7 +136,9 @@ const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact =
         {images.length > 0 ? (
           <div className="mt-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-gray-600">{images.length} screenshot{images.length === 1 ? "" : "s"} selected</span>
+              <span className="text-xs font-semibold text-gray-600">
+                {images.length} screenshot{images.length === 1 ? "" : "s"} selected
+              </span>
               <button
                 type="button"
                 onClick={() => onChange([])}
@@ -142,14 +149,26 @@ const ScreenshotDropzone = ({ label, images = [], onChange, onPreview, compact =
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {images.map((item, index) => (
-                <div key={`${item.name}-${index}`} className="group relative aspect-square overflow-hidden rounded-sm border bg-white">
+                <div
+                  key={`${item.name}-${index}`}
+                  className="group relative aspect-square overflow-hidden rounded-sm border bg-white"
+                >
                   <button
                     type="button"
-                    onClick={() => onPreview?.({ title: item.name || "Screenshot", url: item.dataUri || item.url })}
+                    onClick={() =>
+                      onPreview?.({
+                        title: item.name || "Screenshot",
+                        url: item.dataUri || item.url,
+                      })
+                    }
                     className="h-full w-full"
                   >
                     {item.dataUri || item.url ? (
-                      <img src={item.dataUri || item.url} alt={item.name || "Screenshot"} className="h-full w-full object-cover" />
+                      <img
+                        src={item.dataUri || item.url}
+                        alt={item.name || "Screenshot"}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-gray-400">
                         <FiImage />
@@ -180,7 +199,9 @@ const BugReports = ({ scope = "employee" }) => {
   const api = scope === "managed" ? hrApi : employeeApi;
   const effectiveRole = user?.effectiveRole || user?.role;
   const [access, setAccess] = useState(null);
-  const canCreateBug = ["tester", "teamlead"].includes(effectiveRole) || Boolean(access?.isTester || access?.isTeamLead);
+  const canCreateBug =
+    ["tester", "teamlead"].includes(effectiveRole) ||
+    Boolean(access?.isTester || access?.isTeamLead);
   const [employees, setEmployees] = useState([]);
   const [projects, setProjects] = useState([]);
   const [bugs, setBugs] = useState([]);
@@ -202,7 +223,9 @@ const BugReports = ({ scope = "employee" }) => {
       }
       const [bugRes, accessRes, employeeRes, projectRes] = await Promise.all(requests);
       const accessData = accessRes.data.data || {};
-      const allowedToCreate = ["tester", "teamlead"].includes(effectiveRole) || Boolean(accessData.isTester || accessData.isTeamLead);
+      const allowedToCreate =
+        ["tester", "teamlead"].includes(effectiveRole) ||
+        Boolean(accessData.isTester || accessData.isTeamLead);
       setBugs(bugRes.data.data || []);
       setAccess(accessData);
       if (employeeRes) {
@@ -304,7 +327,10 @@ const BugReports = ({ scope = "employee" }) => {
               ["On Process", stats.running],
               ["Fixed", stats.fixed],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+              <div
+                key={label}
+                className="rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+              >
                 <span className="block text-xs text-gray-500">{label}</span>
                 <span className="font-semibold text-gray-900">{value}</span>
               </div>
@@ -320,170 +346,243 @@ const BugReports = ({ scope = "employee" }) => {
             onClick={() => setShowCreateForm((prev) => !prev)}
             className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-semibold text-gray-900 hover:bg-gray-50"
           >
-            <span className="inline-flex items-center gap-2"><FiPlus /> Add Bug</span>
+            <span className="inline-flex items-center gap-2">
+              <FiPlus /> Add Bug
+            </span>
             <span className="text-xs text-gray-500">{showCreateForm ? "Close" : "Open"}</span>
           </button>
           {showCreateForm && (
-        <form onSubmit={createBug} className="border-t p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Running Project
-              <select
-                value={form.projectId}
-                onChange={(e) => {
-                  const project = projects.find((item) => item._id === e.target.value);
-                  setForm((prev) => ({
-                    ...prev,
-                    projectId: project?._id || "",
-                    project: project?.name || "",
-                    projectUrl: project?.url || "",
-                    siteUrl: project?.url || prev.siteUrl,
-                  }));
-                }}
-                className="mt-1 w-full border rounded-sm px-3 py-2"
-              >
-                <option value="">Select running project</option>
-                {projects.map((project) => (
-                  <option key={project._id} value={project._id}>
-                    {project.name} - {project.environment || "running"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Assign To
-              <select value={form.assignedTo} onChange={(e) => setForm((prev) => ({ ...prev, assignedTo: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required>
-                <option value="">Select employee</option>
-                {employees.map((employee) => (
-                  <option key={employee._id} value={employee._id}>
-                    {employee.employeeId || "-"} - {employee.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Severity
-              <select value={form.severity} onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2">
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Project Base URL
-              <input
-                value={form.projectUrl || form.siteUrl}
-                onChange={(e) => setForm((prev) => ({ ...prev, projectUrl: e.target.value, siteUrl: e.target.value }))}
-                className="mt-1 w-full border rounded-sm px-3 py-2"
-                required
-              />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Specific Page URL
-              <input
-                value={form.pageUrl}
-                onChange={(e) => setForm((prev) => ({ ...prev, pageUrl: e.target.value }))}
-                placeholder="/about, /seller/products, or full URL"
-                className="mt-1 w-full border rounded-sm px-3 py-2"
-              />
-            </label>
-            <div className="md:col-span-4 rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 break-all">
-              Final URL: {buildBugUrl(form) || "-"}
-            </div>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Bug Title
-              <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" required />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Screenshots
-              <ScreenshotDropzone
-                images={form.screenshots}
-                onChange={(screenshots) => setForm((prev) => ({ ...prev, screenshots }))}
-                onPreview={setPreview}
-              />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Description
-              <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[92px]" required />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Steps To Reproduce
-              <textarea value={form.stepsToReproduce} onChange={(e) => setForm((prev) => ({ ...prev, stepsToReproduce: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[92px]" />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Expected Result
-              <input value={form.expectedResult} onChange={(e) => setForm((prev) => ({ ...prev, expectedResult: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
-            </label>
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Actual Result
-              <input value={form.actualResult} onChange={(e) => setForm((prev) => ({ ...prev, actualResult: e.target.value }))} className="mt-1 w-full border rounded-sm px-3 py-2" />
-            </label>
-          </div>
-          <Button text="Add Bug" type="submit" loading={saving} />
-        </form>
+            <form onSubmit={createBug} className="border-t p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Running Project
+                  <select
+                    value={form.projectId}
+                    onChange={(e) => {
+                      const project = projects.find((item) => item._id === e.target.value);
+                      setForm((prev) => ({
+                        ...prev,
+                        projectId: project?._id || "",
+                        project: project?.name || "",
+                        projectUrl: project?.url || "",
+                        siteUrl: project?.url || prev.siteUrl,
+                      }));
+                    }}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  >
+                    <option value="">Select running project</option>
+                    {projects.map((project) => (
+                      <option key={project._id} value={project._id}>
+                        {project.name} - {project.environment || "running"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Assign To
+                  <select
+                    value={form.assignedTo}
+                    onChange={(e) => setForm((prev) => ({ ...prev, assignedTo: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                    required
+                  >
+                    <option value="">Select employee</option>
+                    {employees.map((employee) => (
+                      <option key={employee._id} value={employee._id}>
+                        {employee.employeeId || "-"} - {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Severity
+                  <select
+                    value={form.severity}
+                    onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Project Base URL
+                  <input
+                    value={form.projectUrl || form.siteUrl}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        projectUrl: e.target.value,
+                        siteUrl: e.target.value,
+                      }))
+                    }
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                    required
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Specific Page URL
+                  <input
+                    value={form.pageUrl}
+                    onChange={(e) => setForm((prev) => ({ ...prev, pageUrl: e.target.value }))}
+                    placeholder="/about, /seller/products, or full URL"
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
+                <div className="md:col-span-4 rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 break-all">
+                  Final URL: {buildBugUrl(form) || "-"}
+                </div>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Bug Title
+                  <input
+                    value={form.title}
+                    onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                    required
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Screenshots
+                  <ScreenshotDropzone
+                    images={form.screenshots}
+                    onChange={(screenshots) => setForm((prev) => ({ ...prev, screenshots }))}
+                    onPreview={setPreview}
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Description
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[92px]"
+                    required
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Steps To Reproduce
+                  <textarea
+                    value={form.stepsToReproduce}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, stepsToReproduce: e.target.value }))
+                    }
+                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[92px]"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Expected Result
+                  <input
+                    value={form.expectedResult}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, expectedResult: e.target.value }))
+                    }
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                  Actual Result
+                  <input
+                    value={form.actualResult}
+                    onChange={(e) => setForm((prev) => ({ ...prev, actualResult: e.target.value }))}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  />
+                </label>
+              </div>
+              <Button text="Add Bug" type="submit" loading={saving} />
+            </form>
           )}
         </section>
       )}
 
       <section className="bg-white rounded-sm shadow overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="border rounded-sm px-3 py-2">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="border rounded-sm px-3 py-2"
+          >
             <option value="">All status</option>
             {Object.entries(statusLabels).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
-          <span className="text-sm text-gray-500">{bugs.length} bug{bugs.length === 1 ? "" : "s"}</span>
+          <span className="text-sm text-gray-500">
+            {bugs.length} bug{bugs.length === 1 ? "" : "s"}
+          </span>
         </div>
 
         {bugs.length === 0 ? (
           <p className="p-6 text-center text-sm text-gray-500">No bugs found.</p>
         ) : (
           <>
-          <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-sm">
-              <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-                <tr>
-                  {["Bug", "URL", "Assigned", "Status", "Severity", "Images", "Actions"].map((item) => (
-                    <th key={item} className="px-3 py-3 text-left">{item}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pagedBugs.map((bug) => {
-                  const imageCount = [...(bug.screenshots || []), ...(bug.assigneeAttachments || [])].length;
-                  return (
-                    <tr key={bug._id} className="border-t align-top hover:bg-gray-50">
-                      <td className="px-3 py-3 min-w-[260px]">
-                        <p className="font-semibold text-gray-900">{bug.title}</p>
-                        <p className="mt-1 text-xs text-gray-500">{truncateText(bug.description, 95)}</p>
-                      </td>
-                      <td className="px-3 py-3 max-w-[220px]">
-                        <a href={getExternalUrl(bug.siteUrl)} target="_blank" rel="noreferrer" className="text-[#f84525] underline break-all">
-                          {truncateText(bug.siteUrl, 48)}
-                        </a>
-                      </td>
-                      <td className="px-3 py-3">{bug.assignedTo?.name || "-"}</td>
-                      <td className="px-3 py-3">{statusLabels[bug.status] || bug.status}</td>
-                      <td className="px-3 py-3">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-sm capitalize ${bug.severity === "critical" ? "bg-red-600 text-white" : "bg-amber-50 text-amber-700"}`}>
-                          {bug.severity}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">{imageCount}</td>
-                      <td className="px-3 py-3">
-                        <Button text="View" className="text-xs px-3 py-1.5" onClick={() => setSelectedBugId(bug._id)}>
-                          <span className="inline-flex items-center gap-1"><FiEye /> View</span>
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <Pagination {...bugPagination} />
+            <div className="overflow-x-auto">
+              <table className="min-w-[980px] w-full text-sm">
+                <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                  <tr>
+                    {["Bug", "URL", "Assigned", "Status", "Severity", "Images", "Actions"].map(
+                      (item) => (
+                        <th key={item} className="px-3 py-3 text-left">
+                          {item}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedBugs.map((bug) => {
+                    const imageCount = [
+                      ...(bug.screenshots || []),
+                      ...(bug.assigneeAttachments || []),
+                    ].length;
+                    return (
+                      <tr key={bug._id} className="border-t align-top hover:bg-gray-50">
+                        <td className="px-3 py-3 min-w-[260px]">
+                          <p className="font-semibold text-gray-900">{bug.title}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {truncateText(bug.description, 95)}
+                          </p>
+                        </td>
+                        <td className="px-3 py-3 max-w-[220px]">
+                          <a
+                            href={getExternalUrl(bug.siteUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#f84525] underline break-all"
+                          >
+                            {truncateText(bug.siteUrl, 48)}
+                          </a>
+                        </td>
+                        <td className="px-3 py-3">{bug.assignedTo?.name || "-"}</td>
+                        <td className="px-3 py-3">{statusLabels[bug.status] || bug.status}</td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-sm capitalize ${bug.severity === "critical" ? "bg-red-600 text-white" : "bg-amber-50 text-amber-700"}`}
+                          >
+                            {bug.severity}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">{imageCount}</td>
+                        <td className="px-3 py-3">
+                          <Button
+                            text="View"
+                            className="text-xs px-3 py-1.5"
+                            onClick={() => setSelectedBugId(bug._id)}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <FiEye /> View
+                            </span>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination {...bugPagination} />
           </>
         )}
       </section>
@@ -493,40 +592,84 @@ const BugReports = ({ scope = "employee" }) => {
             <div className="border-b px-4 py-3 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="font-semibold text-gray-900 break-words">{selectedBug.title}</h2>
-                <a href={getExternalUrl(selectedBug.siteUrl)} target="_blank" rel="noreferrer" className="text-xs text-[#f84525] underline break-all">
+                <a
+                  href={getExternalUrl(selectedBug.siteUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-[#f84525] underline break-all"
+                >
                   {selectedBug.siteUrl}
                 </a>
               </div>
-              <button type="button" onClick={() => setSelectedBugId("")} className="text-gray-500 hover:text-[#f84525] text-xl">
+              <button
+                type="button"
+                onClick={() => setSelectedBugId("")}
+                className="text-gray-500 hover:text-[#f84525] text-xl"
+              >
                 <FiX />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <p><b>Assigned:</b> {selectedBug.assignedTo?.name || "-"}</p>
-                <p><b>Reported:</b> {selectedBug.reportedBy?.name || "-"}</p>
-                <p><b>Severity:</b> <span className="capitalize">{selectedBug.severity}</span></p>
+                <p>
+                  <b>Assigned:</b> {selectedBug.assignedTo?.name || "-"}
+                </p>
+                <p>
+                  <b>Reported:</b> {selectedBug.reportedBy?.name || "-"}
+                </p>
+                <p>
+                  <b>Severity:</b> <span className="capitalize">{selectedBug.severity}</span>
+                </p>
               </div>
-              <div className="rounded-sm border bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">{selectedBug.description}</div>
-              {selectedBug.stepsToReproduce && <div className="rounded-sm border p-3 text-sm whitespace-pre-wrap break-words"><b>Steps:</b> {selectedBug.stepsToReproduce}</div>}
-              {(selectedBug.expectedResult || selectedBug.actualResult) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-sm border p-3"><b>Expected:</b><p className="mt-1 whitespace-pre-wrap break-words">{selectedBug.expectedResult || "-"}</p></div>
-                  <div className="rounded-sm border p-3"><b>Actual:</b><p className="mt-1 whitespace-pre-wrap break-words">{selectedBug.actualResult || "-"}</p></div>
+              <div className="rounded-sm border bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">
+                {selectedBug.description}
+              </div>
+              {selectedBug.stepsToReproduce && (
+                <div className="rounded-sm border p-3 text-sm whitespace-pre-wrap break-words">
+                  <b>Steps:</b> {selectedBug.stepsToReproduce}
                 </div>
               )}
-              {[...(selectedBug.screenshots || []), ...(selectedBug.assigneeAttachments || [])].length > 0 && (
+              {(selectedBug.expectedResult || selectedBug.actualResult) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-sm border p-3">
+                    <b>Expected:</b>
+                    <p className="mt-1 whitespace-pre-wrap break-words">
+                      {selectedBug.expectedResult || "-"}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border p-3">
+                    <b>Actual:</b>
+                    <p className="mt-1 whitespace-pre-wrap break-words">
+                      {selectedBug.actualResult || "-"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {[...(selectedBug.screenshots || []), ...(selectedBug.assigneeAttachments || [])]
+                .length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">Screenshots</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    {[...(selectedBug.screenshots || []), ...(selectedBug.assigneeAttachments || [])].map((item, index) => (
+                    {[
+                      ...(selectedBug.screenshots || []),
+                      ...(selectedBug.assigneeAttachments || []),
+                    ].map((item, index) => (
                       <button
                         key={`${item.url}-${index}`}
                         type="button"
-                        onClick={() => setPreview({ title: item.name || selectedBug.title || "Bug screenshot", url: item.url })}
+                        onClick={() =>
+                          setPreview({
+                            title: item.name || selectedBug.title || "Bug screenshot",
+                            url: item.url,
+                          })
+                        }
                         className="aspect-square overflow-hidden rounded-sm border bg-white"
                       >
-                        <img src={item.url} alt={item.name || "Bug attachment"} className="h-full w-full object-cover" />
+                        <img
+                          src={item.url}
+                          alt={item.name || "Bug attachment"}
+                          className="h-full w-full object-cover"
+                        />
                       </button>
                     ))}
                   </div>
@@ -535,32 +678,52 @@ const BugReports = ({ scope = "employee" }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="text-sm font-medium text-gray-700">
                   Status
-                  <select value={selectedBug.status} onChange={(e) => updateBugInline(selectedBug._id, "status", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2">
+                  <select
+                    value={selectedBug.status}
+                    onChange={(e) => updateBugInline(selectedBug._id, "status", e.target.value)}
+                    className="mt-1 w-full border rounded-sm px-3 py-2"
+                  >
                     {Object.entries(statusLabels).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <ScreenshotDropzone
                   label="Add Images"
                   images={selectedBug.newAttachments || []}
-                  onChange={(newAttachments) => updateBugInline(selectedBug._id, "newAttachments", newAttachments)}
+                  onChange={(newAttachments) =>
+                    updateBugInline(selectedBug._id, "newAttachments", newAttachments)
+                  }
                   onPreview={setPreview}
                   compact
                 />
                 <label className="text-sm font-medium text-gray-700">
                   Reply
-                  <textarea value={selectedBug.reply || ""} onChange={(e) => updateBugInline(selectedBug._id, "reply", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]" />
+                  <textarea
+                    value={selectedBug.reply || ""}
+                    onChange={(e) => updateBugInline(selectedBug._id, "reply", e.target.value)}
+                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]"
+                  />
                 </label>
                 <label className="text-sm font-medium text-gray-700">
                   Fix Note
-                  <textarea value={selectedBug.fixNote || ""} onChange={(e) => updateBugInline(selectedBug._id, "fixNote", e.target.value)} className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]" />
+                  <textarea
+                    value={selectedBug.fixNote || ""}
+                    onChange={(e) => updateBugInline(selectedBug._id, "fixNote", e.target.value)}
+                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[100px]"
+                  />
                 </label>
               </div>
             </div>
             <div className="border-t p-4 flex justify-end gap-2">
               <Button text="Close" variant="secondary" onClick={() => setSelectedBugId("")} />
-              <Button text="Update Bug" loading={savingId === selectedBug._id} onClick={() => updateBug(selectedBug)} />
+              <Button
+                text="Update Bug"
+                loading={savingId === selectedBug._id}
+                onClick={() => updateBug(selectedBug)}
+              />
             </div>
           </div>
         </div>

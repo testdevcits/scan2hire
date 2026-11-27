@@ -27,14 +27,21 @@ const TrendBarChart = ({
   const dark = mode === "dark";
   const axisColor = dark ? "#9ca3af" : "#94a3b8";
   const gridColor = dark ? "#374151" : "#e9edf2";
-  const maxValue = Math.max(0, ...data.flatMap((row) => series.map((item) => Number(row[item.key]) || 0)));
+  const maxValue = Math.max(
+    0,
+    ...data.flatMap((row) => series.map((item) => Number(row[item.key]) || 0))
+  );
   const compactScale = maxValue <= 8;
   const yMax = Math.max(1, maxValue);
   const yTicks = compactScale ? Array.from({ length: yMax + 1 }, (_, index) => index) : undefined;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 6, right: 8, left: yLabel ? 8 : 0, bottom: 0 }} barCategoryGap="32%">
+      <BarChart
+        data={data}
+        margin={{ top: 6, right: 8, left: yLabel ? 8 : 0, bottom: 0 }}
+        barCategoryGap="32%"
+      >
         <CartesianGrid stroke={gridColor} strokeDasharray="0" vertical={false} />
         <XAxis
           dataKey={xKey}
@@ -52,7 +59,11 @@ const TrendBarChart = ({
           axisLine={false}
           tick={{ fill: axisColor, fontSize: 11 }}
           width={32}
-          label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft", fill: axisColor, fontSize: 11 } : undefined}
+          label={
+            yLabel
+              ? { value: yLabel, angle: -90, position: "insideLeft", fill: axisColor, fontSize: 11 }
+              : undefined
+          }
         />
         <Tooltip
           formatter={tooltipFormatter || ((value, name) => [value, name])}

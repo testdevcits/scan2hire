@@ -16,8 +16,7 @@ const Home = () => {
         </h1>
 
         <p className="text-paragraph md:text-xl text-gray-700 dark:text-gray-300 animate-slide-fade-in">
-          Scan the QR code at reception or click the button to fill your
-          interview form.
+          Scan the QR code at reception or click the button to fill your interview form.
         </p>
 
         <div className="bg-white p-6 rounded-xl shadow-md animate-slide-fade-in">

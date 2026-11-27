@@ -6,7 +6,14 @@ import { FiCalendar, FiClock, FiUserCheck, FiUsers } from "react-icons/fi";
 
 import Button from "../../components/common/Button";
 import DateRangePicker from "../../components/common/DateRangePicker";
-import { ActionCard, ChartMetric, CompactInfoRow, MetricCard, PageHeader, SectionCard } from "../../components/common/ReusableCards";
+import {
+  ActionCard,
+  ChartMetric,
+  CompactInfoRow,
+  MetricCard,
+  PageHeader,
+  SectionCard,
+} from "../../components/common/ReusableCards";
 import TrendAreaChart from "../../components/common/TrendAreaChart";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -14,7 +21,8 @@ import { useToast } from "../../contexts/ToastContext";
 const AMBER = "#ffa826";
 const getLocalDateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const getMonthKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const getMonthKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 const getRangeBucketIndex = (value, startDate, endDate) => {
   if (!value) return null;
   const date = new Date(value);
@@ -23,12 +31,17 @@ const getRangeBucketIndex = (value, startDate, endDate) => {
   if (dateKey < startDate || dateKey > endDate) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
   const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
-  const elapsedDays = Math.floor((new Date(year, month - 1, day) - new Date(startYear, startMonth - 1, startDay)) / 86400000);
+  const elapsedDays = Math.floor(
+    (new Date(year, month - 1, day) - new Date(startYear, startMonth - 1, startDay)) / 86400000
+  );
   return Math.floor(elapsedDays / 7);
 };
 const getRangeBucketLabel = (startDate, weekIndex) => {
   const [year, month, day] = startDate.split("-").map(Number);
-  return new Date(year, month - 1, day + weekIndex * 7).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(year, month - 1, day + weekIndex * 7).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 const HRDashboard = () => {
@@ -37,7 +50,10 @@ const HRDashboard = () => {
   const toast = useToast();
   const { user } = useContext(AuthContext);
   const currentMonth = useMemo(() => getMonthKey(), []);
-  const [dateRange, setDateRange] = useState(() => ({ start: `${getMonthKey()}-01`, end: getLocalDateKey() }));
+  const [dateRange, setDateRange] = useState(() => ({
+    start: `${getMonthKey()}-01`,
+    end: getLocalDateKey(),
+  }));
   const roleClaims = [user?.role, user?.workRole, user?.effectiveRole].filter(Boolean);
   const isTeamLead = roleClaims.includes("teamlead");
   const isProjectCoordinator = roleClaims.includes("project_coordinator");
@@ -50,15 +66,21 @@ const HRDashboard = () => {
 
   useEffect(() => {
     if (isProjectCoordinator) return undefined;
-    Promise.allSettled([hrApi.getAttendance(currentMonth), hrApi.getLeaves(), hrApi.getCandidates(), hrApi.getEmployees(), hrApi.getBirthdays(new Date().getMonth() + 1), hrApi.getAppraisalReminders()])
-      .then(([attendance, leaves, candidates, employees, birthdays, appraisal]) => {
-        if (attendance.status === "fulfilled") setAttendance(attendance.value.data.data || []);
-        if (leaves.status === "fulfilled") setLeaves(leaves.value.data.data || []);
-        if (candidates.status === "fulfilled") setCandidates(candidates.value.data.data || []);
-        if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
-        if (birthdays.status === "fulfilled") setBirthdayReminders(birthdays.value.data.data || []);
-        if (appraisal.status === "fulfilled") setAppraisalReminders(appraisal.value.data.data || []);
-      });
+    Promise.allSettled([
+      hrApi.getAttendance(currentMonth),
+      hrApi.getLeaves(),
+      hrApi.getCandidates(),
+      hrApi.getEmployees(),
+      hrApi.getBirthdays(new Date().getMonth() + 1),
+      hrApi.getAppraisalReminders(),
+    ]).then(([attendance, leaves, candidates, employees, birthdays, appraisal]) => {
+      if (attendance.status === "fulfilled") setAttendance(attendance.value.data.data || []);
+      if (leaves.status === "fulfilled") setLeaves(leaves.value.data.data || []);
+      if (candidates.status === "fulfilled") setCandidates(candidates.value.data.data || []);
+      if (employees.status === "fulfilled") setEmployees(employees.value.data.data || []);
+      if (birthdays.status === "fulfilled") setBirthdayReminders(birthdays.value.data.data || []);
+      if (appraisal.status === "fulfilled") setAppraisalReminders(appraisal.value.data.data || []);
+    });
   }, [hrApi, currentMonth, isProjectCoordinator, toast]);
 
   const today = getLocalDateKey();
@@ -76,15 +98,25 @@ const HRDashboard = () => {
       },
       {
         label: "On Leave",
-        value: leaves.filter((leave) => leave.status === "approved" && leave.fromDate?.slice(0, 10) <= today && leave.toDate?.slice(0, 10) >= today).length,
+        value: leaves.filter(
+          (leave) =>
+            leave.status === "approved" &&
+            leave.fromDate?.slice(0, 10) <= today &&
+            leave.toDate?.slice(0, 10) >= today
+        ).length,
         note: "Approved leaves active today",
         icon: <FiCalendar />,
-        iconClassName: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300",
+        iconClassName:
+          "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300",
       },
       {
         label: "Running Interviews",
-        value: candidates.filter((item) => item.assignedTo && !["selected", "rejected"].includes(item.interviewStatus)).length,
-        note: isTeamLead ? `${candidates.length} team candidates` : `${candidates.length} total candidates`,
+        value: candidates.filter(
+          (item) => item.assignedTo && !["selected", "rejected"].includes(item.interviewStatus)
+        ).length,
+        note: isTeamLead
+          ? `${candidates.length} team candidates`
+          : `${candidates.length} total candidates`,
         icon: <FiUserCheck />,
         iconClassName: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300",
       },
@@ -99,15 +131,28 @@ const HRDashboard = () => {
     [attendance, candidates, employees.length, isTeamLead, leaves, today]
   );
 
-  const rangeIsValid = Boolean(dateRange.start && dateRange.end && dateRange.start <= dateRange.end);
+  const rangeIsValid = Boolean(
+    dateRange.start && dateRange.end && dateRange.start <= dateRange.end
+  );
   const rangeBucketCount = rangeIsValid
-    ? Math.ceil((new Date(`${dateRange.end}T00:00:00`) - new Date(`${dateRange.start}T00:00:00`) + 86400000) / (7 * 86400000))
+    ? Math.ceil(
+        (new Date(`${dateRange.end}T00:00:00`) -
+          new Date(`${dateRange.start}T00:00:00`) +
+          86400000) /
+          (7 * 86400000)
+      )
     : 0;
 
-  const leaveActivityTrend = useMemo(() => Array.from({ length: rangeBucketCount }, (_, index) => ({
-    label: getRangeBucketLabel(dateRange.start, index),
-    value: leaves.filter((leave) => getRangeBucketIndex(leave.createdAt, dateRange.start, dateRange.end) === index).length,
-  })), [dateRange.end, dateRange.start, leaves, rangeBucketCount]);
+  const leaveActivityTrend = useMemo(
+    () =>
+      Array.from({ length: rangeBucketCount }, (_, index) => ({
+        label: getRangeBucketLabel(dateRange.start, index),
+        value: leaves.filter(
+          (leave) => getRangeBucketIndex(leave.createdAt, dateRange.start, dateRange.end) === index
+        ).length,
+      })),
+    [dateRange.end, dateRange.start, leaves, rangeBucketCount]
+  );
 
   const leaveTotal = leaveActivityTrend.reduce((total, point) => total + point.value, 0);
   const chartRangeLabel = rangeIsValid
@@ -117,19 +162,25 @@ const HRDashboard = () => {
   const quickActions = [
     {
       title: isTeamLead ? "Your Team" : "Manage Employees",
-      description: isTeamLead ? "View employees assigned under your team." : "Update profiles, joining details, and document review.",
+      description: isTeamLead
+        ? "View employees assigned under your team."
+        : "Update profiles, joining details, and document review.",
       path: "/hr/employees",
       icon: <FiUsers className="h-4 w-4" />,
     },
     {
       title: "Reports & Calendar",
-      description: isTeamLead ? "Review team attendance and calendar reports." : "Leave calendar, attendance reports, and approvals.",
+      description: isTeamLead
+        ? "Review team attendance and calendar reports."
+        : "Leave calendar, attendance reports, and approvals.",
       path: "/hr/reports",
       icon: <FiClock className="h-4 w-4" />,
     },
     {
       title: "Candidate Reviews",
-      description: isTeamLead ? "Review and move your assigned candidate interviews." : "Assign rounds and move interviews forward.",
+      description: isTeamLead
+        ? "Review and move your assigned candidate interviews."
+        : "Assign rounds and move interviews forward.",
       path: "/hr/candidates/list",
       icon: <FiUserCheck className="h-4 w-4" />,
     },
@@ -143,13 +194,24 @@ const HRDashboard = () => {
     <div className="min-h-full space-y-4  p-3 dark:bg-gray-950 sm:p-4">
       <PageHeader
         title={isTeamLead ? "Team Lead Dashboard" : "HR Dashboard"}
-        description={isTeamLead
-          ? "Team attendance, leaves, candidates, and daily activity in one place."
-          : "Interviews, leave handling, employee status, and daily HR operations in one place."}
+        description={
+          isTeamLead
+            ? "Team attendance, leaves, candidates, and daily activity in one place."
+            : "Interviews, leave handling, employee status, and daily HR operations in one place."
+        }
         actions={[
           <DateRangePicker key="date-range" value={dateRange} onApply={setDateRange} />,
-          <Button key="candidates" text="Candidates" onClick={() => navigate("/hr/candidates/list")} />,
-          <Button key="reports" text="Reports" variant="secondary" onClick={() => navigate("/hr/reports")} />,
+          <Button
+            key="candidates"
+            text="Candidates"
+            onClick={() => navigate("/hr/candidates/list")}
+          />,
+          <Button
+            key="reports"
+            text="Reports"
+            variant="secondary"
+            onClick={() => navigate("/hr/reports")}
+          />,
         ]}
       />
 
@@ -159,19 +221,85 @@ const HRDashboard = () => {
         ))}
       </section>
 
-      {!isTeamLead && <SectionCard title="Upcoming Appraisal Reviews" subtitle="Scheduled reviews in the next two days" contentClassName="pt-3">
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">{appraisalReminders.length ? appraisalReminders.map(item => <button key={`${item.employeeId}-${item.reviewId}`} type="button" onClick={() => navigate(`/hr/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"><span className="min-w-40 flex-1"><span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{item.employeeName}</span><span className="block text-xs text-gray-500">{item.employeeCode || "No employee ID"} · {item.department || item.designation || "Employee"}</span></span><span className="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}</span><span className="text-xs text-gray-600 dark:text-gray-300">Planned salary: <strong>₹{item.plannedSalary}</strong></span></button>) : <p className="py-3 text-sm text-gray-500">No appraisal reviews scheduled in the next two days, or you do not have Appraisal Review view access.</p>}</div>
-      </SectionCard>}
+      {!isTeamLead && (
+        <SectionCard
+          title="Upcoming Appraisal Reviews"
+          subtitle="Scheduled reviews in the next two days"
+          contentClassName="pt-3"
+        >
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {appraisalReminders.length ? (
+              appraisalReminders.map((item) => (
+                <button
+                  key={`${item.employeeId}-${item.reviewId}`}
+                  type="button"
+                  onClick={() =>
+                    navigate(`/hr/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)
+                  }
+                  className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"
+                >
+                  <span className="min-w-40 flex-1">
+                    <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {item.employeeName}
+                    </span>
+                    <span className="block text-xs text-gray-500">
+                      {item.employeeCode || "No employee ID"} ·{" "}
+                      {item.department || item.designation || "Employee"}
+                    </span>
+                  </span>
+                  <span className="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                    {new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}
+                  </span>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                    Planned salary: <strong>₹{item.plannedSalary}</strong>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="py-3 text-sm text-gray-500">
+                No appraisal reviews scheduled in the next two days, or you do not have Appraisal
+                Review view access.
+              </p>
+            )}
+          </div>
+        </SectionCard>
+      )}
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <SectionCard title="This Month's Birthdays" subtitle={`Employee birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} contentClassName="pt-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{birthdayReminders.length ? birthdayReminders.map((employee) => <CompactInfoRow key={employee._id} title={employee.name} subtitle={`${new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString(undefined, { day: "2-digit", month: "short" })} · ${employee.employeeId || "-"}`} className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20" />) : <p className="text-sm text-gray-500">No employee birthdays this month.</p>}</div>
+        <SectionCard
+          title="This Month's Birthdays"
+          subtitle={`Employee birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`}
+          contentClassName="pt-3"
+        >
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {birthdayReminders.length ? (
+              birthdayReminders.map((employee) => (
+                <CompactInfoRow
+                  key={employee._id}
+                  title={employee.name}
+                  subtitle={`${new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString(undefined, { day: "2-digit", month: "short" })} · ${employee.employeeId || "-"}`}
+                  className="border-red-100 bg-[#fff8f6] dark:border-red-950 dark:bg-red-950/20"
+                />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">No employee birthdays this month.</p>
+            )}
+          </div>
         </SectionCard>
 
-        <SectionCard title="Leave Requests" subtitle="Requests submitted in selected range" contentClassName="pt-3">
-          <ChartMetric icon={<FiCalendar className="h-4 w-4" />} label="Leave requests in range" value={leaveTotal} iconClassName="bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" />
+        <SectionCard
+          title="Leave Requests"
+          subtitle="Requests submitted in selected range"
+          contentClassName="pt-3"
+        >
+          <ChartMetric
+            icon={<FiCalendar className="h-4 w-4" />}
+            label="Leave requests in range"
+            value={leaveTotal}
+            iconClassName="bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300"
+          />
           {rangeIsValid && leaveTotal > 0 ? (
-              <div className="h-36 sm:h-40">
+            <div className="h-36 sm:h-40">
               <TrendAreaChart
                 data={leaveActivityTrend}
                 xKey="label"
@@ -192,15 +320,15 @@ const HRDashboard = () => {
       </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {quickActions.map((action) => (
-            <ActionCard
-              key={action.title}
-              to={action.path}
-              title={action.title}
-              description={action.description}
-              icon={action.icon}
-            />
-          ))}
+        {quickActions.map((action) => (
+          <ActionCard
+            key={action.title}
+            to={action.path}
+            title={action.title}
+            description={action.description}
+            icon={action.icon}
+          />
+        ))}
       </section>
     </div>
   );

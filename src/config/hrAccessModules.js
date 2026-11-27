@@ -1,3 +1,56 @@
 import { employeeRecordPermissions } from "./employeeRecordPermissions";
 
-export const hrAccessModules = [["employees", "Employees", ["view", "add", "edit", "delete"]], ["employeeIdentity", "Employee ID / HR File No.", ["edit"], { edit: "Edit Employee ID / HR File No." }], ["employeeDocuments", "Employee Documents", ["view", "download", "add", "update", "review", "delete"], { view: "View", download: "Download", add: "Add", update: "Update", review: "Approve / Reject Uploads", delete: "Delete" }], ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }], ["candidates", "Candidates", ["view", "add", "edit", "delete"]], ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]], ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]], ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }], ["leaveActions", "Leave Actions", ["edit", "adjust", "delete"], { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" }], ["documents", "Documents & Signatures", ["view", "add", "update", "placement", "review", "cancel", "download", "delete"], { view: "View", add: "Add", update: "Update", placement: "Set Placement", review: "Approve / Correction", cancel: "Cancel Request", download: "Download", delete: "Delete" }], ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]], ["credentials", "Credentials", ["view", "add", "edit", "delete"]], ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]], ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]], ["notifications", "Notifications", ["view"], { view: "View Notifications" }], ...employeeRecordPermissions];
+export const hrAccessModules = [
+  ["employees", "Employees", ["view", "add", "edit", "delete"]],
+  [
+    "employeeIdentity",
+    "Employee ID / HR File No.",
+    ["edit"],
+    { edit: "Edit Employee ID / HR File No." },
+  ],
+  [
+    "employeeDocuments",
+    "Employee Documents",
+    ["view", "download", "add", "update", "review", "delete"],
+    {
+      view: "View",
+      download: "Download",
+      add: "Add",
+      update: "Update",
+      review: "Approve / Reject Uploads",
+      delete: "Delete",
+    },
+  ],
+  ["employeeSecurity", "Security", ["view", "update"], { view: "View", update: "Change Password" }],
+  ["candidates", "Candidates", ["view", "add", "edit", "delete"]],
+  ["checkins", "Today Check-ins", ["view", "add", "edit", "delete"]],
+  ["attendanceReports", "Attendance Reports", ["view", "add", "edit", "delete"]],
+  ["leaveReports", "Leave Reports", ["view"], { view: "View Reports" }],
+  [
+    "leaveActions",
+    "Leave Actions",
+    ["edit", "adjust", "delete"],
+    { edit: "Approve / Reject", adjust: "Adjust Leave", delete: "Delete Request" },
+  ],
+  [
+    "documents",
+    "Documents & Signatures",
+    ["view", "add", "update", "placement", "review", "cancel", "download", "delete"],
+    {
+      view: "View",
+      add: "Add",
+      update: "Update",
+      placement: "Set Placement",
+      review: "Approve / Correction",
+      cancel: "Cancel Request",
+      download: "Download",
+      delete: "Delete",
+    },
+  ],
+  ["ownDocuments", "My Documents & Signatures", ["view", "add", "edit", "delete"]],
+  ["credentials", "Credentials", ["view", "add", "edit", "delete"]],
+  ["rolesAccess", "Roles & Access", ["view", "add", "edit", "delete"]],
+  ["systemAllotments", "System Allotments", ["view", "add", "edit", "delete"]],
+  ["notifications", "Notifications", ["view"], { view: "View Notifications" }],
+  ...employeeRecordPermissions,
+];

@@ -1,12 +1,15 @@
 export const bondEndDateFromDuration = (joiningDate, duration) => {
-  const match = String(duration || "").trim().match(/^(\d+)\s*(day|days|month|months|year|years)$/i);
+  const match = String(duration || "")
+    .trim()
+    .match(/^(\d+)\s*(day|days|month|months|year|years)$/i);
   if (!joiningDate || !match) return "";
   const [year, month, day] = String(joiningDate).slice(0, 10).split("-").map(Number);
   if (!year || !month || !day) return "";
   const date = new Date(Date.UTC(year, month - 1, day));
   const amount = Number(match[1]);
   const unit = match[2].toLowerCase();
-  if (!Number.isInteger(amount) || amount < 1 || amount > (unit.startsWith("day") ? 36500 : 1200)) return "";
+  if (!Number.isInteger(amount) || amount < 1 || amount > (unit.startsWith("day") ? 36500 : 1200))
+    return "";
   if (unit.startsWith("day")) date.setUTCDate(date.getUTCDate() + amount);
   else {
     const offset = amount * (unit.startsWith("year") ? 12 : 1);

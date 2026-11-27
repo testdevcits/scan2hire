@@ -29,9 +29,9 @@ const SelectField = ({
           const optionValue = typeof option === "string" ? option : option.value;
           const optionLabel = typeof option === "string" ? option : option.label;
           return (
-          <option key={optionValue} value={optionValue}>
-            {optionLabel}
-          </option>
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
           );
         })}
       </select>

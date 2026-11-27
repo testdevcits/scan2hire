@@ -17,7 +17,8 @@ const getExternalUrl = (value) => {
 const fileToDataUri = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
+    reader.onload = () =>
+      resolve({ name: file.name, dataUri: reader.result, resourceType: "image" });
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -117,30 +118,61 @@ const EmployeeTasks = () => {
             <p className="text-sm text-gray-500 mt-1">View and update tasks assigned to you.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-            <select value={viewMode} onChange={(e) => setViewMode(e.target.value)} className="border rounded-sm px-3 py-2">
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+              className="border rounded-sm px-3 py-2"
+            >
               <option value="date">Date</option>
               <option value="month">Month</option>
               <option value="all">All</option>
             </select>
             {viewMode === "date" && (
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border rounded-sm px-3 py-2" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="border rounded-sm px-3 py-2"
+              />
             )}
             {viewMode === "month" && (
-              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border rounded-sm px-3 py-2" />
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="border rounded-sm px-3 py-2"
+              />
             )}
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="border rounded-sm px-3 py-2">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="border rounded-sm px-3 py-2"
+            >
               <option value="">All status</option>
               {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
-            <select value={project} onChange={(e) => setProject(e.target.value)} className="border rounded-sm px-3 py-2">
+            <select
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+              className="border rounded-sm px-3 py-2"
+            >
               <option value="">All projects</option>
               {projects.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
             </select>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task, tech, reply" className="border rounded-sm px-3 py-2" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search task, tech, reply"
+              className="border rounded-sm px-3 py-2"
+            />
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -150,7 +182,10 @@ const EmployeeTasks = () => {
             ["On Process", stats.running],
             ["Complete", stats.completed],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+            <div
+              key={label}
+              className="rounded-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+            >
               <span className="block text-xs text-gray-500">{label}</span>
               <span className="font-semibold text-gray-900">{value}</span>
             </div>
@@ -167,133 +202,182 @@ const EmployeeTasks = () => {
           {tasks.map((task) => {
             const important = ["important", "urgent"].includes(task.priority);
             return (
-            <article key={task._id} className={`bg-white rounded-sm shadow p-4 space-y-3 border ${important ? "border-red-300 bg-red-50/60" : "border-transparent"}`}>
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                <div>
-                  <p className="text-xs text-gray-500">{formatDate(task.taskDate)} | {task.project || "No Project"} | {task.phase || "No Phase"}</p>
-                  <h2 className="font-semibold text-gray-900 mt-1">{task.title}</h2>
-                </div>
-                <span className={`text-xs font-semibold capitalize px-2 py-1 rounded-sm ${important ? "bg-red-600 text-white" : "bg-[#fff5f3] text-[#f84525]"}`}>
-                  {task.priority}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
-                <p><b>Tech:</b> {task.tech || "-"}</p>
-                <p><b>Time:</b> {task.timing || "-"}</p>
-                <p><b>Collaborator:</b> {task.collaborator || "-"}</p>
-                <p><b>Source:</b> {task.taskSource || "-"}</p>
-              </div>
-
-              {task.url && (
-                <a href={getExternalUrl(task.url)} target="_blank" rel="noreferrer" className="text-sm text-[#f84525] underline break-all">
-                  {task.url}
-                </a>
-              )}
-
-              {[...(task.attachments || []), ...(task.responseAttachments || [])].length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {[...(task.attachments || []), ...(task.responseAttachments || [])].map((item, index) => (
-                    <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block h-20 w-20 overflow-hidden rounded-sm border">
-                      <img src={item.url} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              <p className="text-sm text-gray-700 break-words">{task.description || "-"}</p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="text-sm font-medium text-gray-700">
-                  Status
-                  <select
-                    value={task.status}
-                    onChange={(e) => handleInline(task._id, "status", e.target.value)}
-                    className="mt-1 w-full border rounded-sm px-3 py-2"
+              <article
+                key={task._id}
+                className={`bg-white rounded-sm shadow p-4 space-y-3 border ${important ? "border-red-300 bg-red-50/60" : "border-transparent"}`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500">
+                      {formatDate(task.taskDate)} | {task.project || "No Project"} |{" "}
+                      {task.phase || "No Phase"}
+                    </p>
+                    <h2 className="font-semibold text-gray-900 mt-1">{task.title}</h2>
+                  </div>
+                  <span
+                    className={`text-xs font-semibold capitalize px-2 py-1 rounded-sm ${important ? "bg-red-600 text-white" : "bg-[#fff5f3] text-[#f84525]"}`}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">On Process</option>
-                    <option value="completed">Complete</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </label>
-                <label className="text-sm font-medium text-gray-700">
-                  Time
-                  <input
-                    type="text"
-                    placeholder="2h 30m / 02:30 / 45m"
-                    value={task.timing || ""}
-                    onChange={(e) => handleInline(task._id, "timing", e.target.value)}
-                    className="mt-1 w-full border rounded-sm px-3 py-2"
-                  />
-                </label>
-                <label className="text-sm font-medium text-gray-700">
-                  Reply
-                  <textarea
-                    value={task.reply || ""}
-                    onChange={(e) => handleInline(task._id, "reply", e.target.value)}
-                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]"
-                  />
-                </label>
-                <label className="text-sm font-medium text-gray-700">
-                  Remark
-                  <textarea
-                    value={task.remark || ""}
-                    onChange={(e) => handleInline(task._id, "remark", e.target.value)}
-                    className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]"
-                  />
-                </label>
-                <label className="text-sm font-medium text-gray-700 sm:col-span-2">
-                  Add Images
-                  <div
-                    tabIndex={0}
-                    onPaste={async (e) => {
-                      const files = await getPastedImages(e);
-                      if (!files.length) return;
-                      e.preventDefault();
-                      handleInline(task._id, "responseAttachments", [...(task.responseAttachments || []), ...files]);
-                    }}
-                    className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                    {task.priority}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                  <p>
+                    <b>Tech:</b> {task.tech || "-"}
+                  </p>
+                  <p>
+                    <b>Time:</b> {task.timing || "-"}
+                  </p>
+                  <p>
+                    <b>Collaborator:</b> {task.collaborator || "-"}
+                  </p>
+                  <p>
+                    <b>Source:</b> {task.taskSource || "-"}
+                  </p>
+                </div>
+
+                {task.url && (
+                  <a
+                    href={getExternalUrl(task.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-[#f84525] underline break-all"
                   >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={async (e) => {
-                        const files = await Promise.all(Array.from(e.target.files || []).map(fileToDataUri));
-                        handleInline(task._id, "responseAttachments", files);
-                      }}
-                      className="w-full border rounded-sm px-3 py-2 bg-white"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">Paste copied screenshots here or choose files.</p>
-                    {(task.responseAttachments || []).some((item) => item.dataUri) && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(task.responseAttachments || []).filter((item) => item.dataUri).map((item, index) => (
-                          <div key={`${item.name}-${index}`} className="h-12 w-12 overflow-hidden rounded-sm border bg-white">
-                            <img src={item.dataUri} alt={item.name || "Task attachment"} className="h-full w-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
+                    {task.url}
+                  </a>
+                )}
+
+                {[...(task.attachments || []), ...(task.responseAttachments || [])].length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {[...(task.attachments || []), ...(task.responseAttachments || [])].map(
+                      (item, index) => (
+                        <a
+                          key={`${item.url}-${index}`}
+                          href={item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block h-20 w-20 overflow-hidden rounded-sm border"
+                        >
+                          <img
+                            src={item.url}
+                            alt={item.name || "Task attachment"}
+                            className="h-full w-full object-cover"
+                          />
+                        </a>
+                      )
                     )}
                   </div>
-                </label>
-              </div>
+                )}
 
-              <Button
-                text="Update Task"
-                loading={savingId === task._id}
-                onClick={() =>
-                  updateTask(task._id, {
-                    status: task.status,
-                    timing: task.timing,
-                    reply: task.reply,
-                    remark: task.remark,
-                    responseAttachments: task.responseAttachments || [],
-                  })
-                }
-              />
-            </article>
+                <p className="text-sm text-gray-700 break-words">{task.description || "-"}</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-sm font-medium text-gray-700">
+                    Status
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleInline(task._id, "status", e.target.value)}
+                      className="mt-1 w-full border rounded-sm px-3 py-2"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">On Process</option>
+                      <option value="completed">Complete</option>
+                      <option value="blocked">Blocked</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Time
+                    <input
+                      type="text"
+                      placeholder="2h 30m / 02:30 / 45m"
+                      value={task.timing || ""}
+                      onChange={(e) => handleInline(task._id, "timing", e.target.value)}
+                      className="mt-1 w-full border rounded-sm px-3 py-2"
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Reply
+                    <textarea
+                      value={task.reply || ""}
+                      onChange={(e) => handleInline(task._id, "reply", e.target.value)}
+                      className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]"
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Remark
+                    <textarea
+                      value={task.remark || ""}
+                      onChange={(e) => handleInline(task._id, "remark", e.target.value)}
+                      className="mt-1 w-full border rounded-sm px-3 py-2 min-h-[78px]"
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-gray-700 sm:col-span-2">
+                    Add Images
+                    <div
+                      tabIndex={0}
+                      onPaste={async (e) => {
+                        const files = await getPastedImages(e);
+                        if (!files.length) return;
+                        e.preventDefault();
+                        handleInline(task._id, "responseAttachments", [
+                          ...(task.responseAttachments || []),
+                          ...files,
+                        ]);
+                      }}
+                      className="mt-1 rounded-sm border border-dashed border-gray-300 bg-gray-50 p-2 focus:outline-none focus:ring-2 focus:ring-[#f84525]"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={async (e) => {
+                          const files = await Promise.all(
+                            Array.from(e.target.files || []).map(fileToDataUri)
+                          );
+                          handleInline(task._id, "responseAttachments", files);
+                        }}
+                        className="w-full border rounded-sm px-3 py-2 bg-white"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Paste copied screenshots here or choose files.
+                      </p>
+                      {(task.responseAttachments || []).some((item) => item.dataUri) && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(task.responseAttachments || [])
+                            .filter((item) => item.dataUri)
+                            .map((item, index) => (
+                              <div
+                                key={`${item.name}-${index}`}
+                                className="h-12 w-12 overflow-hidden rounded-sm border bg-white"
+                              >
+                                <img
+                                  src={item.dataUri}
+                                  alt={item.name || "Task attachment"}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+
+                <Button
+                  text="Update Task"
+                  loading={savingId === task._id}
+                  onClick={() =>
+                    updateTask(task._id, {
+                      status: task.status,
+                      timing: task.timing,
+                      reply: task.reply,
+                      remark: task.remark,
+                      responseAttachments: task.responseAttachments || [],
+                    })
+                  }
+                />
+              </article>
             );
           })}
         </section>

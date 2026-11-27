@@ -1,9 +1,6 @@
 /* eslint-disable */
 import React, { createContext, useCallback, useEffect, useRef, useState } from "react";
-import {
-  AUTH_SESSION_EXPIRED_EVENT,
-  AUTH_TOKEN_REFRESHED_EVENT,
-} from "../api";
+import { AUTH_SESSION_EXPIRED_EVENT, AUTH_TOKEN_REFRESHED_EVENT } from "../api";
 import { useApi } from "./ApiContext";
 
 const IDLE_TIMEOUT_MS = Number(process.env.REACT_APP_IDLE_TIMEOUT_MS) || 60 * 60 * 1000;
@@ -112,7 +109,11 @@ export const AuthProvider = ({ children }) => {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     setLoading(true);
-    try { await authApi.logout(); } catch { /* Clear this browser even if the network is unavailable. */ }
+    try {
+      await authApi.logout();
+    } catch {
+      /* Clear this browser even if the network is unavailable. */
+    }
     setUser(null);
     setToken(null);
     sessionStorage.removeItem("user");
@@ -179,9 +180,7 @@ export const AuthProvider = ({ children }) => {
   }, [user, token, logout]);
 
   return (
-    <AuthContext.Provider
-      value={{ user, token, loading, login, signup, logout }}
-    >
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,7 +10,13 @@ import { useToast } from "../contexts/ToastContext";
 import { useModal } from "../contexts/ModalContext";
 import logo from "../assets/logo.png";
 
-const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false, canOpenProfile = true }) => {
+const SidebarLayout = ({
+  title,
+  navItems,
+  variant = "default",
+  navLoading = false,
+  canOpenProfile = true,
+}) => {
   const { authApi } = useApi();
   const { user, logout } = useContext(AuthContext);
   const { mode, toggleMode } = useContext(ThemeContext);
@@ -110,18 +116,22 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
   }, []);
 
   const initials = useMemo(() => {
-    const parts = String(user?.name || "U").trim().split(/\s+/);
-    return parts.slice(0, 2).map((item) => item[0]?.toUpperCase() || "").join("");
+    const parts = String(user?.name || "U")
+      .trim()
+      .split(/\s+/);
+    return parts
+      .slice(0, 2)
+      .map((item) => item[0]?.toUpperCase() || "")
+      .join("");
   }, [user?.name]);
 
   const employeeProfile = profileSummary?.employeeProfile || profileSummary;
   const designationLabel =
-    employeeProfile?.designation ||
-    user?.designation ||
-    user?.effectiveRole ||
-    user?.role;
+    employeeProfile?.designation || user?.designation || user?.effectiveRole || user?.role;
   const departmentLabel = employeeProfile?.department || user?.department || "";
-  const employeeRole = ["employee", "teamlead", "tester", "project_coordinator"].includes(user?.role);
+  const employeeRole = ["employee", "teamlead", "tester", "project_coordinator"].includes(
+    user?.role
+  );
   const profilePermissionAllowed = employeeRole
     ? profileSummary?.moduleAccess?.profile?.view !== false
     : canOpenProfile;
@@ -155,90 +165,112 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
   const asideClass = isAdmin
     ? "bg-[#0b1220] text-white border border-[#f84525]/50"
     : mode === "dark"
-    ? "bg-gray-900 text-white border border-gray-700"
-    : "bg-white border border-gray-200";
+      ? "bg-gray-900 text-white border border-gray-700"
+      : "bg-white border border-gray-200";
   const activeClass = isAdmin
     ? "bg-[#f84525] text-white border border-[#ff896f] shadow-sm"
     : "bg-header text-white border border-header";
   const inactiveClass = isAdmin
     ? "text-gray-200 border border-white/10 hover:bg-[#162036] hover:text-white hover:border-white/20"
     : mode === "dark"
-    ? "text-gray-300 border border-gray-800 hover:bg-gray-800 hover:text-white hover:border-gray-700"
-    : "text-gray-700 border border-transparent hover:bg-red-50 hover:text-[#f84525] hover:border-red-100";
+      ? "text-gray-300 border border-gray-800 hover:bg-gray-800 hover:text-white hover:border-gray-700"
+      : "text-gray-700 border border-transparent hover:bg-red-50 hover:text-[#f84525] hover:border-red-100";
 
   return (
-    <div className={`flex h-screen gap-3 overflow-hidden p-3 font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}>
+    <div
+      className={`flex h-screen gap-3 overflow-hidden p-3 font-montserrat text-[15px] ${mode === "dark" ? "bg-gray-950" : "bg-[#f5f6f8]"}`}
+    >
       <aside
         className={`fixed left-3 top-3 h-[calc(100vh-1.5rem)] w-64 ${asideClass} rounded-[18px] shadow-[0_18px_45px_rgba(15,23,42,0.12)] p-4 flex flex-col transform transition-transform duration-300 z-40 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-[110%]"
         } md:relative md:left-auto md:top-auto md:translate-x-0`}
       >
         <div className="shrink-0">
-          <div className={`flex items-center gap-2 mb-5 pb-4 border-b ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+          <div
+            className={`flex items-center gap-2 mb-5 pb-4 border-b ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}
+          >
             <img src={logo} alt="Scan2Hire" className="w-7 h-7" />
             <div>
-              <h1 className={`text-lg font-bold ${isAdmin ? "text-white" : "text-header"}`}>{title}</h1>
-              <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>{designationLabel}</p>
-              {employeeProfile?.employeeId && <p className={`text-[11px] ${isAdmin ? "text-gray-500" : "text-gray-400"}`}>ID: {employeeProfile.employeeId}</p>}
+              <h1 className={`text-lg font-bold ${isAdmin ? "text-white" : "text-header"}`}>
+                {title}
+              </h1>
+              <p className={`text-xs ${isAdmin ? "text-gray-400" : "text-gray-500"}`}>
+                {designationLabel}
+              </p>
+              {employeeProfile?.employeeId && (
+                <p className={`text-[11px] ${isAdmin ? "text-gray-500" : "text-gray-400"}`}>
+                  ID: {employeeProfile.employeeId}
+                </p>
+              )}
             </div>
           </div>
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5 sidebar-scroll">
-          {navLoading ? Array.from({ length: 8 }, (_, index) => <div key={index} className="h-10 shrink-0 animate-pulse rounded-[12px] bg-gray-200/70 dark:bg-gray-800/70" />) : navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.end}
-              onClick={closeMobileSidebar}
-              className={({ isActive }) =>
-                `px-3 py-2.5 rounded-[12px] text-[15px] font-semibold transition-colors shrink-0 ${
-                  isActive ? activeClass : inactiveClass
-                }`
-              }
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="shrink-0">{item.icon}</span>
-                <span className="truncate">{item.label}</span>
-                {Number(item.badge || 0) > 0 ? (
-                  <span className="ml-auto min-w-5 rounded-full bg-[#f84525] px-1.5 py-0.5 text-center text-[11px] font-bold text-white">
-                    {item.badge > 99 ? "99+" : item.badge}
+          {navLoading
+            ? Array.from({ length: 8 }, (_, index) => (
+                <div
+                  key={index}
+                  className="h-10 shrink-0 animate-pulse rounded-[12px] bg-gray-200/70 dark:bg-gray-800/70"
+                />
+              ))
+            : navItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.end}
+                  onClick={closeMobileSidebar}
+                  className={({ isActive }) =>
+                    `px-3 py-2.5 rounded-[12px] text-[15px] font-semibold transition-colors shrink-0 ${
+                      isActive ? activeClass : inactiveClass
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="shrink-0">{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                    {Number(item.badge || 0) > 0 ? (
+                      <span className="ml-auto min-w-5 rounded-full bg-[#f84525] px-1.5 py-0.5 text-center text-[11px] font-bold text-white">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
-            </NavLink>
-          ))}
+                </NavLink>
+              ))}
         </nav>
 
-        <div className={`shrink-0 space-y-2 pt-3 mt-3 border-t ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                <button
+        <div
+          className={`shrink-0 space-y-2 pt-3 mt-3 border-t ${isAdmin ? "border-white/15" : mode === "dark" ? "border-gray-800" : "border-gray-200"}`}
+        >
+          <button
             onClick={toggleMode}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
               isAdmin ? "bg-zinc-900 hover:bg-zinc-800 text-white" : "bg-gray-100 hover:bg-gray-200"
             }`}
           >
             {mode === "light" ? <FiMoon /> : <FiSun />} Theme
-                </button>
-                <button
+          </button>
+          <button
             onClick={handleLogout}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-[12px] text-sm ${
-              isAdmin ? "bg-white text-black hover:bg-gray-200" : "text-red-600 bg-red-50 hover:bg-red-100"
+              isAdmin
+                ? "bg-white text-black hover:bg-gray-200"
+                : "text-red-600 bg-red-50 hover:bg-red-100"
             }`}
           >
             <FiLogOut /> Logout
-                </button>
+          </button>
         </div>
       </aside>
 
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 md:hidden"
-          onClick={closeMobileSidebar}
-        />
+        <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={closeMobileSidebar} />
       )}
 
       <div className="flex min-w-0 min-h-0 h-full flex-1 flex-col overflow-hidden">
-        <header className={`${mode === "dark" ? "bg-gray-900 text-white border-gray-700" : "bg-white border-gray-200"} rounded-[18px] border shadow-[0_12px_30px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}>
+        <header
+          className={`${mode === "dark" ? "bg-gray-900 text-white border-gray-700" : "bg-white border-gray-200"} rounded-[18px] border shadow-[0_12px_30px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-3 sticky top-0 z-20`}
+        >
           <button
             className="md:hidden text-xl text-[#f84525]"
             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -246,12 +278,16 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
             {sidebarOpen ? <FiX /> : <FiMenu />}
           </button>
           <div className="min-w-0 flex-1">
-            <p className={`font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}>
+            <p
+              className={`font-semibold truncate ${mode === "dark" ? "text-white" : "text-gray-800"}`}
+            >
               Welcome, {user?.name}
             </p>
-            <p className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                  {[designationLabel, departmentLabel].filter(Boolean).join(" / ")}
-                </p>
+            <p
+              className={`text-xs truncate ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}
+            >
+              {[designationLabel, departmentLabel].filter(Boolean).join(" / ")}
+            </p>
           </div>
           <div className="ml-auto flex items-center gap-3 shrink-0">
             <div className="relative sm:hidden shrink-0">
@@ -265,7 +301,11 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                 aria-label="Open profile menu"
               >
                 {profileImage ? (
-                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
+                  <img
+                    src={profileImage}
+                    alt={user?.name || "Profile"}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   initials || "U"
                 )}
@@ -276,13 +316,15 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
-                  {profilePermissionAllowed && <button
-                    type="button"
-                    onClick={openProfile}
-                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
-                  >
-                    <FiUser /> Profile
-                  </button>}
+                  {profilePermissionAllowed && (
+                    <button
+                      type="button"
+                      onClick={openProfile}
+                      className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
+                    >
+                      <FiUser /> Profile
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -309,21 +351,21 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
               )}
             </button>
             <div className="relative hidden sm:flex items-center gap-3 min-w-0">
-             
-             
               {profileMenuOpen && (
                 <div className="absolute right-0 top-12 w-56 rounded-[16px] border bg-white shadow-xl z-50 overflow-hidden text-left">
                   <div className="px-4 py-3 border-b">
                     <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
-                  {profilePermissionAllowed && <button
-                    type="button"
-                    onClick={openProfile}
-                    className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
-                  >
-                    <FiUser /> Profile
-                  </button>}
+                  {profilePermissionAllowed && (
+                    <button
+                      type="button"
+                      onClick={openProfile}
+                      className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-[#fff5f3] hover:text-[#f84525] flex items-center gap-2"
+                    >
+                      <FiUser /> Profile
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -334,7 +376,7 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                 </div>
               )}
 
-               <button
+              <button
                 type="button"
                 onClick={() => {
                   setProfileMenuOpen((prev) => !prev);
@@ -344,67 +386,81 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
                 aria-label="Open profile menu"
               >
                 {profileImage ? (
-                  <img src={profileImage} alt={user?.name || "Profile"} className="w-full h-full object-cover" />
+                  <img
+                    src={profileImage}
+                    alt={user?.name || "Profile"}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   initials || "U"
                 )}
               </button>
             </div>
-            
+
             <div className="relative shrink-0">
-            
-            {notificationOpen && (
-              <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-[16px] z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b flex items-center justify-between">
-                  <h3 className="font-semibold">Notifications</h3>
-                  <button onClick={() => setNotificationOpen(false)} className="text-gray-500 hover:text-gray-900">
-                    <FiX />
-                  </button>
-                </div>
-                <div className="max-h-96 overflow-auto">
-                  {notificationsLoading ? (
-                    <p className="p-4 text-sm text-gray-500">Loading...</p>
-                  ) : notifications.length === 0 ? (
-                    <p className="p-4 text-sm text-gray-500">No notifications</p>
-                  ) : (
-                    notifications.map((item) => (
-                      <div
-                        key={item._id}
-                        onClick={() => markNotificationRead(item._id)}
-                        className={`p-4 border-b text-sm cursor-pointer ${
-                          item.isRead ? "bg-white" : "bg-[#fff5f3]"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-semibold ${item.isRead ? "text-gray-800" : "text-gray-950"}`}>{item.title}</p>
-                            <p className="text-gray-600 mt-1">{item.message}</p>
-                            <p className="text-xs text-gray-400 mt-2">{new Date(item.createdAt).toLocaleString()}</p>
+              {notificationOpen && (
+                <div className="absolute right-0 mt-2 w-[min(92vw,380px)] bg-white border shadow-xl rounded-[16px] z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <h3 className="font-semibold">Notifications</h3>
+                    <button
+                      onClick={() => setNotificationOpen(false)}
+                      className="text-gray-500 hover:text-gray-900"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-auto">
+                    {notificationsLoading ? (
+                      <p className="p-4 text-sm text-gray-500">Loading...</p>
+                    ) : notifications.length === 0 ? (
+                      <p className="p-4 text-sm text-gray-500">No notifications</p>
+                    ) : (
+                      notifications.map((item) => (
+                        <div
+                          key={item._id}
+                          onClick={() => markNotificationRead(item._id)}
+                          className={`p-4 border-b text-sm cursor-pointer ${
+                            item.isRead ? "bg-white" : "bg-[#fff5f3]"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className={`font-semibold ${item.isRead ? "text-gray-800" : "text-gray-950"}`}
+                              >
+                                {item.title}
+                              </p>
+                              <p className="text-gray-600 mt-1">{item.message}</p>
+                              <p className="text-xs text-gray-400 mt-2">
+                                {new Date(item.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                            {["hr", "superadmin", "teamlead"].includes(user?.role) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(item._id);
+                                }}
+                                className="text-gray-400 hover:text-red-600"
+                                aria-label="Delete notification"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            )}
                           </div>
-                          {["hr", "superadmin", "teamlead"].includes(user?.role) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteNotification(item._id);
-                              }}
-                              className="text-gray-400 hover:text-red-600"
-                              aria-label="Delete notification"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             </div>
           </div>
         </header>
 
-        <main className={`min-h-0 min-w-0 h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden pt-3 ${mode === "dark" ? "bg-gray-950" : ""}`}>
+        <main
+          className={`min-h-0 min-w-0 h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden pt-3 ${mode === "dark" ? "bg-gray-950" : ""}`}
+        >
           <Outlet />
         </main>
       </div>

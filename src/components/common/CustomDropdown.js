@@ -5,7 +5,10 @@ import { FiChevronDown, FiSearch, FiX } from "react-icons/fi";
 const normalizeOption = (option) =>
   typeof option === "string"
     ? { label: option, value: option }
-    : { label: option.label || option.name || option.value || "", value: option.value || option.name || option.label || "" };
+    : {
+        label: option.label || option.name || option.value || "",
+        value: option.value || option.name || option.label || "",
+      };
 
 const CustomDropdown = ({
   label,
@@ -41,7 +44,9 @@ const CustomDropdown = ({
     const term = search.trim().toLowerCase();
     if (!term) return normalizedOptions;
     return normalizedOptions.filter((option) =>
-      String(option.label || option.value).toLowerCase().includes(term)
+      String(option.label || option.value)
+        .toLowerCase()
+        .includes(term)
     );
   }, [normalizedOptions, search]);
 
@@ -65,14 +70,21 @@ const CustomDropdown = ({
       const viewportPadding = 8;
       const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - viewportPadding);
       const spaceAbove = Math.max(0, rect.top - viewportPadding);
-      const desiredHeight = Math.min(480, (filteredOptions.length + (showPlaceholder ? 1 : 0)) * 36 + (searchable ? 54 : 8));
-      const openAbove = placement === "top"
-        ? spaceAbove >= Math.min(desiredHeight, 160) || spaceAbove > spaceBelow
-        : spaceBelow < Math.min(desiredHeight, 300) && spaceAbove > spaceBelow;
+      const desiredHeight = Math.min(
+        480,
+        (filteredOptions.length + (showPlaceholder ? 1 : 0)) * 36 + (searchable ? 54 : 8)
+      );
+      const openAbove =
+        placement === "top"
+          ? spaceAbove >= Math.min(desiredHeight, 160) || spaceAbove > spaceBelow
+          : spaceBelow < Math.min(desiredHeight, 300) && spaceAbove > spaceBelow;
       const availableHeight = openAbove ? spaceAbove : spaceBelow;
       const maxHeight = Math.max(80, Math.min(480, availableHeight));
       const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
-      const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding));
+      const left = Math.max(
+        viewportPadding,
+        Math.min(rect.left, window.innerWidth - width - viewportPadding)
+      );
       setPortalStyle({
         position: "fixed",
         left,
@@ -103,9 +115,14 @@ const CustomDropdown = ({
   };
 
   return (
-    <label ref={wrapperRef} className={`relative text-sm font-medium ${compact ? "inline-flex items-center gap-2" : "block"} ${className}`}>
+    <label
+      ref={wrapperRef}
+      className={`relative text-sm font-medium ${compact ? "inline-flex items-center gap-2" : "block"} ${className}`}
+    >
       {label ? (
-        <span className={`mb-1 block text-left text-sm font-medium text-gray-700 dark:text-gray-200 sm:text-base ${labelClassName}`}>
+        <span
+          className={`mb-1 block text-left text-sm font-medium text-gray-700 dark:text-gray-200 sm:text-base ${labelClassName}`}
+        >
           {label} {required && <span className="text-red-500">*</span>}
         </span>
       ) : null}
@@ -126,80 +143,139 @@ const CustomDropdown = ({
         <FiChevronDown className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && !disabled && (portalMenu ? createPortal(
-        <div ref={menuRef} style={portalStyle || { visibility: "hidden" }} className="z-[160] overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
-          {searchable && (
-            <div className="relative border-b border-gray-100 p-2">
-              <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                ref={searchRef}
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="w-full rounded-sm border border-gray-200 py-2 pl-9 pr-8 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
-                placeholder="Search"
-              />
-              {search && (
+      {open &&
+        !disabled &&
+        (portalMenu ? (
+          createPortal(
+            <div
+              ref={menuRef}
+              style={portalStyle || { visibility: "hidden" }}
+              className="z-[160] overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+            >
+              {searchable && (
+                <div className="relative border-b border-gray-100 p-2">
+                  <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    ref={searchRef}
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    className="w-full rounded-sm border border-gray-200 py-2 pl-9 pr-8 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+                    placeholder="Search"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm p-1 text-gray-400 hover:text-gray-700"
+                      aria-label="Clear search"
+                    >
+                      <FiX />
+                    </button>
+                  )}
+                </div>
+              )}
+              <div
+                className="overflow-y-auto py-1"
+                style={{
+                  maxHeight: portalStyle
+                    ? Math.max(64, portalStyle.maxHeight - (searchable ? 54 : 0))
+                    : 360,
+                }}
+                role="listbox"
+              >
+                {showPlaceholder && (
+                  <button
+                    type="button"
+                    onClick={() => selectOption("")}
+                    className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
+                      !value
+                        ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    {placeholder}
+                  </button>
+                )}
+                {filteredOptions.length === 0 ? (
+                  <p className="px-3 py-3 text-sm text-gray-500">No options found</p>
+                ) : (
+                  filteredOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => selectOption(option.value)}
+                      className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
+                        String(value) === String(option.value)
+                          ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300"
+                          : "text-gray-700 dark:text-gray-200"
+                      }`}
+                      role="option"
+                      aria-selected={String(value) === String(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>,
+            document.body
+          )
+        ) : (
+          <div
+            ref={menuRef}
+            className={`absolute z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 ${compact ? "right-0 min-w-full" : "left-0 right-0"} ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}
+          >
+            {searchable && (
+              <div className="relative border-b border-gray-100 p-2">
+                <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={searchRef}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="w-full rounded-sm border border-gray-200 py-2 pl-9 pr-8 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10"
+                  placeholder="Search"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm p-1 text-gray-400 hover:text-gray-700"
+                    aria-label="Clear search"
+                  >
+                    <FiX />
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="max-h-[30rem] overflow-y-auto py-1" role="listbox">
+              {showPlaceholder && (
                 <button
                   type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm p-1 text-gray-400 hover:text-gray-700"
-                  aria-label="Clear search"
+                  onClick={() => selectOption("")}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${!value ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-500 dark:text-gray-400"}`}
                 >
-                  <FiX />
+                  {placeholder}
                 </button>
               )}
+              {filteredOptions.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-gray-500">No options found</p>
+              ) : (
+                filteredOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => selectOption(option.value)}
+                    className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"}`}
+                    role="option"
+                    aria-selected={String(value) === String(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))
+              )}
             </div>
-          )}
-          <div
-            className="overflow-y-auto py-1"
-            style={{ maxHeight: portalStyle ? Math.max(64, portalStyle.maxHeight - (searchable ? 54 : 0)) : 360 }}
-            role="listbox"
-          >
-            {showPlaceholder && <button
-              type="button"
-              onClick={() => selectOption("")}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
-                !value ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-500 dark:text-gray-400"
-              }`}
-            >
-              {placeholder}
-            </button>}
-            {filteredOptions.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-gray-500">No options found</p>
-            ) : (
-              filteredOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => selectOption(option.value)}
-                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${
-                    String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"
-                  }`}
-                  role="option"
-                  aria-selected={String(value) === String(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))
-            )}
           </div>
-        </div>,
-        document.body
-      ) : (
-        <div ref={menuRef} className={`absolute z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 ${compact ? "right-0 min-w-full" : "left-0 right-0"} ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}>
-          {searchable && (
-            <div className="relative border-b border-gray-100 p-2">
-              <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-sm border border-gray-200 py-2 pl-9 pr-8 text-sm focus:border-[#f84525] focus:outline-none focus:ring-2 focus:ring-[#f84525]/10" placeholder="Search" />
-              {search && <button type="button" onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm p-1 text-gray-400 hover:text-gray-700" aria-label="Clear search"><FiX /></button>}
-            </div>
-          )}
-          <div className="max-h-[30rem] overflow-y-auto py-1" role="listbox">
-            {showPlaceholder && <button type="button" onClick={() => selectOption("")} className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${!value ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-500 dark:text-gray-400"}`}>{placeholder}</button>}
-            {filteredOptions.length === 0 ? <p className="px-3 py-3 text-sm text-gray-500">No options found</p> : filteredOptions.map((option) => <button key={option.value} type="button" onClick={() => selectOption(option.value)} className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#fff5f3] hover:text-[#f84525] dark:hover:bg-orange-950/40 ${String(value) === String(option.value) ? "bg-[#fff5f3] font-semibold text-[#f84525] dark:bg-orange-950/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"}`} role="option" aria-selected={String(value) === String(option.value)}>{option.label}</button>)}
-          </div>
-        </div>
-      ))}
+        ))}
       {error ? <span className="mt-1 block text-xs text-red-500">{error}</span> : null}
     </label>
   );

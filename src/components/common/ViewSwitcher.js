@@ -1,5 +1,8 @@
 const ViewSwitcher = ({ options, value, onChange, className = "" }) => (
-  <div className={`inline-flex rounded-sm border border-[#ffd8cf] bg-white p-1 dark:border-gray-700 dark:bg-gray-900 ${className}`} role="group">
+  <div
+    className={`inline-flex rounded-sm border border-[#ffd8cf] bg-white p-1 dark:border-gray-700 dark:bg-gray-900 ${className}`}
+    role="group"
+  >
     {options.map(({ value: optionValue, label, icon: Icon }) => {
       const active = optionValue === value;
       return (

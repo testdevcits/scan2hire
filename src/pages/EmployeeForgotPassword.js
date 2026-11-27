@@ -53,13 +53,8 @@ const EmployeeForgotPassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-montserrat">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">
-          Employee Password Reset
-        </h2>
-        <form
-          onSubmit={step === 1 ? requestOtp : resetPassword}
-          className="space-y-4"
-        >
+        <h2 className="text-2xl font-bold text-center mb-6">Employee Password Reset</h2>
+        <form onSubmit={step === 1 ? requestOtp : resetPassword} className="space-y-4">
           <label className="block text-sm font-medium">
             Employee Email
             <input
@@ -113,11 +108,7 @@ const EmployeeForgotPassword = () => {
             disabled={loading}
             className="bg-primary hover:bg-primary/80 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 w-full"
           >
-            {loading
-              ? "Please wait..."
-              : step === 1
-              ? "Send OTP to HR"
-              : "Change Password"}
+            {loading ? "Please wait..." : step === 1 ? "Send OTP to HR" : "Change Password"}
           </button>
         </form>
       </div>

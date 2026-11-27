@@ -9,12 +9,20 @@ const companies = [
 ];
 
 test("fresher has no previous-company fields", () => {
-  render(<EmploymentHistory form={{ experienceType: "Fresher", previousEmployments: companies }} />);
+  render(
+    <EmploymentHistory form={{ experienceType: "Fresher", previousEmployments: companies }} />
+  );
   expect(screen.queryByText("Previous Companies")).toBeNull();
 });
 
 test("last company gets extra upload fields and older company only two", () => {
-  render(<EmploymentHistory documents form={{ experienceType: "Experienced", previousEmployments: companies }} onFiles={jest.fn()} />);
+  render(
+    <EmploymentHistory
+      documents
+      form={{ experienceType: "Experienced", previousEmployments: companies }}
+      onFiles={jest.fn()}
+    />
+  );
   expect(screen.getAllByText("Offer Letter *")).toHaveLength(2);
   expect(screen.getAllByText("Experience Letter *")).toHaveLength(2);
   expect(screen.getAllByText("Bank Statement (Last 3 Months)")).toHaveLength(1);
@@ -22,10 +30,21 @@ test("last company gets extra upload fields and older company only two", () => {
 });
 
 test("selecting last company preserves company-linked files", () => {
-  const initial = { experienceType: "Experienced", previousEmployments: [{ ...companies[0], documents: { offerLetter: { name: "a.pdf" } } }, companies[1]] };
+  const initial = {
+    experienceType: "Experienced",
+    previousEmployments: [
+      { ...companies[0], documents: { offerLetter: { name: "a.pdf" } } },
+      companies[1],
+    ],
+  };
   function Harness() {
     const [form, setForm] = useState(initial);
-    return <><EmploymentHistory form={form} setForm={setForm} /><output>{JSON.stringify(form.previousEmployments)}</output></>;
+    return (
+      <>
+        <EmploymentHistory form={form} setForm={setForm} />
+        <output>{JSON.stringify(form.previousEmployments)}</output>
+      </>
+    );
   }
   render(<Harness />);
   fireEvent.click(screen.getAllByRole("radio")[0]);
@@ -37,12 +56,21 @@ test("selecting last company preserves company-linked files", () => {
 
 test("experience validation ignores stale files for fresher and requires company data for experienced", () => {
   expect(experienceError({ experienceType: "Fresher" })).toBe("");
-  expect(experienceError({ experienceType: "Experienced", totalExperienceYears: 2, previousEmployments: [] })).toMatch(/previous company/);
+  expect(
+    experienceError({
+      experienceType: "Experienced",
+      totalExperienceYears: 2,
+      previousEmployments: [],
+    })
+  ).toMatch(/previous company/);
 });
 
 test("bank and salary single PDF fields move to the selected last company", () => {
   function Harness() {
-    const [form, setForm] = useState({ experienceType: "Experienced", previousEmployments: companies });
+    const [form, setForm] = useState({
+      experienceType: "Experienced",
+      previousEmployments: companies,
+    });
     return <EmploymentHistory documents form={form} setForm={setForm} onFiles={jest.fn()} />;
   }
   render(<Harness />);

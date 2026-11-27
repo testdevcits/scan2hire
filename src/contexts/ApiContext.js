@@ -9,18 +9,21 @@ import adminApi from "../api/modules/adminApi";
 const ApiContext = createContext(null);
 
 export const ApiProvider = ({ children }) => {
-  const api = useMemo(() => ({
-    authApi,
-    API,
-    adminApi,
-    hrApi,
-    employeeApi,
-    public: {
-      auth: publicAuthApi,
-      candidate: publicCandidateApi,
-      password: publicPasswordApi,
-    },
-  }), []);
+  const api = useMemo(
+    () => ({
+      authApi,
+      API,
+      adminApi,
+      hrApi,
+      employeeApi,
+      public: {
+        auth: publicAuthApi,
+        candidate: publicCandidateApi,
+        password: publicPasswordApi,
+      },
+    }),
+    []
+  );
   return <ApiContext.Provider value={api}>{children}</ApiContext.Provider>;
 };
 

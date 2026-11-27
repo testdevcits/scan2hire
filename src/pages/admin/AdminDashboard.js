@@ -29,16 +29,23 @@ const AdminDashboard = () => {
   const fetchDashboard = useCallback(async () => {
     setPageLoading(true);
     try {
-      const [hrRes, employeeRes, candidateRes, attendanceRes, leavesRes, birthdayRes, appraisalRes] =
-        await Promise.all([
-          authApi.getHrs(),
-          hrApi.getEmployees(),
-          hrApi.getCandidates(),
-          hrApi.getAttendance(new Date().toISOString().slice(0, 7)),
-          hrApi.getLeaves(),
-          hrApi.getBirthdays(new Date().getMonth() + 1),
-          hrApi.getAppraisalReminders(),
-        ]);
+      const [
+        hrRes,
+        employeeRes,
+        candidateRes,
+        attendanceRes,
+        leavesRes,
+        birthdayRes,
+        appraisalRes,
+      ] = await Promise.all([
+        authApi.getHrs(),
+        hrApi.getEmployees(),
+        hrApi.getCandidates(),
+        hrApi.getAttendance(new Date().toISOString().slice(0, 7)),
+        hrApi.getLeaves(),
+        hrApi.getBirthdays(new Date().getMonth() + 1),
+        hrApi.getAppraisalReminders(),
+      ]);
 
       setHrs(hrRes.data.data || []);
       setEmployees(employeeRes.data.data || []);
@@ -60,12 +67,37 @@ const AdminDashboard = () => {
 
   const candidateMix = useMemo(
     () => [
-      { name: "HR", value: candidates.filter((item) => item.interviewStatus === "hr_round").length, color: ORANGE },
-      { name: "Technical", value: candidates.filter((item) => item.interviewStatus === "first_round").length, color: ORANGE_SOFT },
-      { name: "Machine Test", value: candidates.filter((item) => item.interviewStatus === "second_round").length, color: "#fb923c" },
-      { name: "Final Round", value: candidates.filter((item) => ["final", "third_round"].includes(item.interviewStatus)).length, color: "#f97316" },
-      { name: "Selected", value: candidates.filter((item) => item.interviewStatus === "selected").length, color: "#f97316" },
-      { name: "Rejected", value: candidates.filter((item) => item.interviewStatus === "rejected").length, color: RED },
+      {
+        name: "HR",
+        value: candidates.filter((item) => item.interviewStatus === "hr_round").length,
+        color: ORANGE,
+      },
+      {
+        name: "Technical",
+        value: candidates.filter((item) => item.interviewStatus === "first_round").length,
+        color: ORANGE_SOFT,
+      },
+      {
+        name: "Machine Test",
+        value: candidates.filter((item) => item.interviewStatus === "second_round").length,
+        color: "#fb923c",
+      },
+      {
+        name: "Final Round",
+        value: candidates.filter((item) => ["final", "third_round"].includes(item.interviewStatus))
+          .length,
+        color: "#f97316",
+      },
+      {
+        name: "Selected",
+        value: candidates.filter((item) => item.interviewStatus === "selected").length,
+        color: "#f97316",
+      },
+      {
+        name: "Rejected",
+        value: candidates.filter((item) => item.interviewStatus === "rejected").length,
+        color: RED,
+      },
     ],
     [candidates]
   );
@@ -81,10 +113,26 @@ const AdminDashboard = () => {
 
   const monthlyFlow = useMemo(
     () => [
-      { name: "Week 1", logins: Math.round(attendance.length * 0.18), candidates: Math.round(candidates.length * 0.16) },
-      { name: "Week 2", logins: Math.round(attendance.length * 0.24), candidates: Math.round(candidates.length * 0.22) },
-      { name: "Week 3", logins: Math.round(attendance.length * 0.27), candidates: Math.round(candidates.length * 0.3) },
-      { name: "Week 4", logins: Math.max(0, attendance.length - Math.round(attendance.length * 0.69)), candidates: Math.max(0, candidates.length - Math.round(candidates.length * 0.68)) },
+      {
+        name: "Week 1",
+        logins: Math.round(attendance.length * 0.18),
+        candidates: Math.round(candidates.length * 0.16),
+      },
+      {
+        name: "Week 2",
+        logins: Math.round(attendance.length * 0.24),
+        candidates: Math.round(candidates.length * 0.22),
+      },
+      {
+        name: "Week 3",
+        logins: Math.round(attendance.length * 0.27),
+        candidates: Math.round(candidates.length * 0.3),
+      },
+      {
+        name: "Week 4",
+        logins: Math.max(0, attendance.length - Math.round(attendance.length * 0.69)),
+        candidates: Math.max(0, candidates.length - Math.round(candidates.length * 0.68)),
+      },
     ],
     [attendance.length, candidates.length]
   );
@@ -100,7 +148,11 @@ const AdminDashboard = () => {
       },
       {
         label: "Interviews Running",
-        value: candidates.filter((item) => ["hr_round", "first_round", "second_round", "final", "third_round"].includes(item.interviewStatus)).length,
+        value: candidates.filter((item) =>
+          ["hr_round", "first_round", "second_round", "final", "third_round"].includes(
+            item.interviewStatus
+          )
+        ).length,
         note: "Candidates currently active in interview rounds",
         icon: <FiUsers className="w-5 h-5 text-[#f84525]" />,
       },
@@ -121,7 +173,11 @@ const AdminDashboard = () => {
   const formatBirthday = (employee) => {
     if (employee.day === todayDay) return "Today";
     if (employee.day === todayDay + 1) return "Tomorrow";
-    return new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+    return new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      employee.day
+    ).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
   };
 
   if (pageLoading) return <CommonLoader text="Loading dashboard..." />;
@@ -133,9 +189,15 @@ const AdminDashboard = () => {
           <div className="relative overflow-hidden p-4 sm:p-5">
             <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-[#f84525]/10" />
             <div className="relative">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#f84525]">Super Admin</p>
-              <h1 className="mt-1 text-2xl font-bold text-gray-950 dark:text-white sm:text-[28px]">Operations Dashboard</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">One clear view of people, hiring, attendance and approvals.</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#f84525]">
+                Super Admin
+              </p>
+              <h1 className="mt-1 text-2xl font-bold text-gray-950 dark:text-white sm:text-[28px]">
+                Operations Dashboard
+              </h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                One clear view of people, hiring, attendance and approvals.
+              </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
@@ -145,14 +207,21 @@ const AdminDashboard = () => {
                   <span className="text-[#f84525]">{candidates.length}</span> candidates
                 </span>
                 <span className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                  <span className="text-[#f84525]">{leaves.filter((item) => item.status === "pending").length}</span> pending approvals
+                  <span className="text-[#f84525]">
+                    {leaves.filter((item) => item.status === "pending").length}
+                  </span>{" "}
+                  pending approvals
                 </span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 border-t border-[#f1ddd7] p-3 lg:border-l lg:border-t-0 dark:border-gray-800">
             <Button text="Manage Candidates" onClick={() => navigate("/admin/candidates")} />
-            <Button text="Open Reports" variant="secondary" onClick={() => navigate("/admin/reports")} />
+            <Button
+              text="Open Reports"
+              variant="secondary"
+              onClick={() => navigate("/admin/reports")}
+            />
           </div>
         </div>
       </section>
@@ -160,12 +229,21 @@ const AdminDashboard = () => {
       <section className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {actionItems.map((item) => (
-            <div key={item.label} className="min-h-[118px] rounded-xl border border-[#f1e7e4] bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div
+              key={item.label}
+              className="min-h-[118px] rounded-xl border border-[#f1e7e4] bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+            >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#fff1ed] dark:bg-orange-950/40">{item.icon}</div>
-                <span className="text-2xl font-bold text-gray-950 dark:text-white">{item.value}</span>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#fff1ed] dark:bg-orange-950/40">
+                  {item.icon}
+                </div>
+                <span className="text-2xl font-bold text-gray-950 dark:text-white">
+                  {item.value}
+                </span>
               </div>
-              <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{item.label}</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {item.label}
+              </p>
               <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.note}</p>
             </div>
           ))}
@@ -179,14 +257,20 @@ const AdminDashboard = () => {
             <FiBriefcase className="text-[#f84525]" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {[ 
+            {[
               ["Employees", "/admin/employees", <FiUsers />],
               ["Credentials", "/admin/credentials", <FiShield />],
               ["Manage HR", "/admin/hrs", <FiUsers />],
               ["Settings", "/admin/settings", <FiSettings />],
             ].map(([label, path, icon]) => (
-              <button key={label} type="button" onClick={() => navigate(path)} className="flex min-h-[54px] items-center gap-2 rounded-lg border border-gray-100 px-2.5 text-left text-xs font-semibold text-gray-700 transition hover:border-[#f84525]/40 hover:bg-[#fff8f6] dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-800">
-                <span className="text-[#f84525]">{icon}</span>{label}
+              <button
+                key={label}
+                type="button"
+                onClick={() => navigate(path)}
+                className="flex min-h-[54px] items-center gap-2 rounded-lg border border-gray-100 px-2.5 text-left text-xs font-semibold text-gray-700 transition hover:border-[#f84525]/40 hover:bg-[#fff8f6] dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                <span className="text-[#f84525]">{icon}</span>
+                {label}
               </button>
             ))}
           </div>
@@ -196,12 +280,53 @@ const AdminDashboard = () => {
       <section className="overflow-hidden rounded-xl border border-[#f1e7e4] bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div>
-            <h2 className="font-semibold text-gray-950 dark:text-white">Upcoming Appraisal Reviews</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Scheduled reviews in the next two days</p>
+            <h2 className="font-semibold text-gray-950 dark:text-white">
+              Upcoming Appraisal Reviews
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              Scheduled reviews in the next two days
+            </p>
           </div>
-          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#f84525] dark:bg-orange-950/40">{appraisalReminders.length}</span>
+          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#f84525] dark:bg-orange-950/40">
+            {appraisalReminders.length}
+          </span>
         </div>
-        {appraisalReminders.length ? <div className="divide-y divide-gray-100 dark:divide-gray-800">{appraisalReminders.map(item => <button key={`${item.employeeId}-${item.reviewId}`} type="button" onClick={() => navigate(`/admin/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"><span className="min-w-40 flex-1"><span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{item.employeeName}</span><span className="block text-xs text-gray-500">{item.employeeCode || "No employee ID"} · {item.department || item.designation || "Employee"}</span></span><span className="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}</span><span className="text-xs text-gray-600 dark:text-gray-300">Planned salary: <strong>₹{item.plannedSalary}</strong></span></button>)}</div> : <p className="p-4 text-sm text-gray-500">No appraisal reviews scheduled in the next two days.</p>}
+        {appraisalReminders.length ? (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {appraisalReminders.map((item) => (
+              <button
+                key={`${item.employeeId}-${item.reviewId}`}
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/admin/employees/${item.employeeId}?tab=reviewsSalary&record=nextReview`
+                  )
+                }
+                className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left transition hover:bg-[#fff8f6] dark:hover:bg-gray-800"
+              >
+                <span className="min-w-40 flex-1">
+                  <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {item.employeeName}
+                  </span>
+                  <span className="block text-xs text-gray-500">
+                    {item.employeeCode || "No employee ID"} ·{" "}
+                    {item.department || item.designation || "Employee"}
+                  </span>
+                </span>
+                <span className="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                  {new Date(`${item.effectiveDate}T12:00:00`).toLocaleDateString()}
+                </span>
+                <span className="text-xs text-gray-600 dark:text-gray-300">
+                  Planned salary: <strong>₹{item.plannedSalary}</strong>
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="p-4 text-sm text-gray-500">
+            No appraisal reviews scheduled in the next two days.
+          </p>
+        )}
       </section>
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-[1.45fr_0.55fr]">
@@ -209,11 +334,19 @@ const AdminDashboard = () => {
           <div className="mb-2 flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-gray-950 dark:text-white">Activity Trend</h2>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Hiring and attendance movement</p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                Hiring and attendance movement
+              </p>
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-[#f84525]" />Logins</span>
-              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-[#ffa826]" />Candidates</span>
+              <span className="flex items-center gap-1">
+                <i className="h-2 w-2 rounded-full bg-[#f84525]" />
+                Logins
+              </span>
+              <span className="flex items-center gap-1">
+                <i className="h-2 w-2 rounded-full bg-[#ffa826]" />
+                Candidates
+              </span>
             </div>
           </div>
           <div className="h-52">
@@ -230,14 +363,23 @@ const AdminDashboard = () => {
         <div className="rounded-xl border border-[#f1e7e4] bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-2">
             <h2 className="font-semibold text-gray-950 dark:text-white">Candidate Pipeline</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Current stage distribution</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              Current stage distribution
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {candidateMix.map((item) => (
-              <button key={item.name} type="button" onClick={() => navigate("/admin/candidates")} className="rounded-lg border border-gray-100 px-2.5 py-2 text-left transition hover:border-[#f84525]/30 dark:border-gray-800">
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => navigate("/admin/candidates")}
+                className="rounded-lg border border-gray-100 px-2.5 py-2 text-left transition hover:border-[#f84525]/30 dark:border-gray-800"
+              >
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="truncate text-[11px] text-gray-500 dark:text-gray-400">{item.name}</span>
+                  <span className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                    {item.name}
+                  </span>
                 </div>
                 <p className="mt-1 text-lg font-bold text-gray-950 dark:text-white">{item.value}</p>
               </button>
@@ -269,7 +411,9 @@ const AdminDashboard = () => {
               <h2 className="font-semibold text-base">Upcoming Birthdays</h2>
               <p className="text-xs text-gray-500 mt-0.5">Next 30 days</p>
             </div>
-            <span className={`shrink-0 rounded-sm px-2 py-1 text-xs font-semibold ${todayBirthdayCount ? "bg-[#fff5f3] text-[#f84525]" : "bg-gray-100 text-gray-600"}`}>
+            <span
+              className={`shrink-0 rounded-sm px-2 py-1 text-xs font-semibold ${todayBirthdayCount ? "bg-[#fff5f3] text-[#f84525]" : "bg-gray-100 text-gray-600"}`}
+            >
               {todayBirthdayCount} today
             </span>
           </div>
@@ -280,7 +424,11 @@ const AdminDashboard = () => {
               {birthdayList.map((employee) => (
                 <div key={employee._id} className="flex items-center gap-2.5 px-3 py-2.5">
                   {employee.photoUrl ? (
-                    <img src={employee.photoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                    <img
+                      src={employee.photoUrl}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-xs font-bold text-[#f84525]">
                       {employee.name?.charAt(0)?.toUpperCase() || "E"}
@@ -288,9 +436,13 @@ const AdminDashboard = () => {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{employee.name}</p>
-                    <p className="truncate text-xs text-gray-500">{employee.department || employee.designation || "Employee"}</p>
+                    <p className="truncate text-xs text-gray-500">
+                      {employee.department || employee.designation || "Employee"}
+                    </p>
                   </div>
-                  <span className={`shrink-0 rounded-sm px-2 py-1 text-xs font-semibold ${employee.day === todayDay ? "bg-[#f84525] text-white" : "bg-gray-100 text-gray-600"}`}>
+                  <span
+                    className={`shrink-0 rounded-sm px-2 py-1 text-xs font-semibold ${employee.day === todayDay ? "bg-[#f84525] text-white" : "bg-gray-100 text-gray-600"}`}
+                  >
                     {formatBirthday(employee)}
                   </span>
                 </div>
@@ -302,7 +454,9 @@ const AdminDashboard = () => {
         <div className="overflow-hidden rounded-xl border border-[#f1e7e4] bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800">
             <div>
-              <h2 className="font-semibold text-base text-gray-950 dark:text-white">Recent HR Accounts</h2>
+              <h2 className="font-semibold text-base text-gray-950 dark:text-white">
+                Recent HR Accounts
+              </h2>
               <p className="text-xs text-gray-500 mt-0.5">Operations team</p>
             </div>
             <span className="text-xs font-semibold bg-[#fff5f3] text-[#f84525] px-2 py-1 rounded-sm">
@@ -314,7 +468,12 @@ const AdminDashboard = () => {
           ) : (
             <div className="divide-y divide-gray-100">
               {recentHr.map((hr) => (
-                <button key={hr._id} type="button" onClick={() => navigate("/admin/hrs")} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-[#fff8f6]">
+                <button
+                  key={hr._id}
+                  type="button"
+                  onClick={() => navigate("/admin/hrs")}
+                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-[#fff8f6]"
+                >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fff1ed] text-xs font-bold text-[#f84525]">
                     {hr.name?.charAt(0)?.toUpperCase() || "H"}
                   </div>
@@ -322,7 +481,9 @@ const AdminDashboard = () => {
                     <p className="truncate text-sm font-semibold text-gray-900">{hr.name}</p>
                     <p className="truncate text-xs text-gray-500">{hr.email}</p>
                   </div>
-                  <span className={`text-xs font-medium ${hr.isActive ? "text-emerald-600" : "text-gray-500"}`}>
+                  <span
+                    className={`text-xs font-medium ${hr.isActive ? "text-emerald-600" : "text-gray-500"}`}
+                  >
                     {hr.isActive ? "Active" : "Inactive"}
                   </span>
                 </button>

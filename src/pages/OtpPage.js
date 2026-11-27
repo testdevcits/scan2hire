@@ -143,17 +143,12 @@ const OtpPage = () => {
                 className="absolute opacity-0 pointer-events-none"
               />
 
-              <div
-                onClick={handleBoxClick}
-                className="flex justify-center gap-2 cursor-text"
-              >
+              <div onClick={handleBoxClick} className="flex justify-center gap-2 cursor-text">
                 {Array.from({ length: OTP_LENGTH }).map((_, index) => (
                   <div
                     key={index}
                     className={`w-12 h-12 flex items-center justify-center text-xl border rounded-md dark:bg-gray-700 dark:text-white ${
-                      otp.length === index
-                        ? "ring-2 ring-primary"
-                        : "border-gray-300"
+                      otp.length === index ? "ring-2 ring-primary" : "border-gray-300"
                     }`}
                   >
                     {otp[index] || ""}
@@ -167,9 +162,7 @@ const OtpPage = () => {
               onClick={handleSubmit}
               disabled={loading}
               className={`w-full py-3 rounded-xl font-medium text-white ${
-                loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-primary hover:bg-primary/80"
+                loading ? "bg-gray-400 cursor-not-allowed" : "bg-primary hover:bg-primary/80"
               }`}
             >
               {loading ? "Verifying..." : "Verify OTP"}

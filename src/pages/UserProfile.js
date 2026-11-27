@@ -135,13 +135,25 @@ const UserProfile = ({ title = "My Profile" }) => {
 
   return (
     <div className="space-y-5">
-      <section className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5`}>
-        <h1 className={`text-2xl font-bold ${mode === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h1>
+      <section
+        className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5`}
+      >
+        <h1 className={`text-2xl font-bold ${mode === "dark" ? "text-white" : "text-gray-900"}`}>
+          {title}
+        </h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-sm">
-          <p><b>Name:</b> {profile?.name}</p>
-          <p><b>Email:</b> {profile?.email}</p>
-          <p><b>Mobile:</b> {profile?.mobile}</p>
-          <p><b>Role:</b> {profile?.role}</p>
+          <p>
+            <b>Name:</b> {profile?.name}
+          </p>
+          <p>
+            <b>Email:</b> {profile?.email}
+          </p>
+          <p>
+            <b>Mobile:</b> {profile?.mobile}
+          </p>
+          <p>
+            <b>Role:</b> {profile?.role}
+          </p>
           <p className="md:col-span-4">
             <b>Address:</b>{" "}
             {[
@@ -150,12 +162,17 @@ const UserProfile = ({ title = "My Profile" }) => {
               profile?.employeeProfile?.address?.state,
               profile?.employeeProfile?.address?.country,
               profile?.employeeProfile?.address?.pincode,
-            ].filter(Boolean).join(", ") || "N/A"}
+            ]
+              .filter(Boolean)
+              .join(", ") || "N/A"}
           </p>
         </div>
       </section>
 
-      <form onSubmit={saveProfile} className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-3 gap-4`}>
+      <form
+        onSubmit={saveProfile}
+        className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-3 gap-4`}
+      >
         <h2 className="font-semibold md:col-span-3">Update Profile</h2>
         <label className="text-sm font-medium">
           Full Name
@@ -216,10 +233,18 @@ const UserProfile = ({ title = "My Profile" }) => {
             className="mt-1 w-full border border-gray-300 rounded-sm px-3 py-2 text-gray-900"
           />
         </label>
-        <Button text="Save Profile" type="submit" loading={savingProfile} className="md:col-span-3" />
+        <Button
+          text="Save Profile"
+          type="submit"
+          loading={savingProfile}
+          className="md:col-span-3"
+        />
       </form>
 
-      <form onSubmit={saveDocuments} className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4`}>
+      <form
+        onSubmit={saveDocuments}
+        className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow p-5 grid grid-cols-1 md:grid-cols-2 gap-4`}
+      >
         <h2 className="font-semibold md:col-span-2">Documents</h2>
         {docFields.map(([name, label]) => (
           <FileUploadField
@@ -228,27 +253,43 @@ const UserProfile = ({ title = "My Profile" }) => {
             accept=".pdf,.jpg,.jpeg,.png"
             onChange={(e) => handleFile(name, e.target.files?.[0])}
             fileName={docs[name]?.name}
-            selectedPreviewUrl={docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined}
+            selectedPreviewUrl={
+              docs[name]?.type?.startsWith("image/") ? docs[name]?.dataUri : undefined
+            }
             previewText={profile?.documents?.[name]?.url ? "View uploaded" : ""}
-            onPreview={profile?.documents?.[name]?.url ? () => setPreview({ title: label, url: profile.documents[name].url }) : undefined}
+            onPreview={
+              profile?.documents?.[name]?.url
+                ? () => setPreview({ title: label, url: profile.documents[name].url })
+                : undefined
+            }
           />
         ))}
         <Button text="Save Documents" type="submit" loading={saving} className="md:col-span-2" />
       </form>
 
-      <section className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow overflow-hidden`}>
+      <section
+        className={`${mode === "dark" ? "bg-gray-900 text-white" : "bg-white"} rounded-sm shadow overflow-hidden`}
+      >
         <div className={`p-4 border-b ${mode === "dark" ? "border-gray-800" : ""}`}>
           <h2 className="font-semibold">Document History</h2>
         </div>
         {profile?.documentHistory?.length ? (
-          profile.documentHistory.slice().reverse().map((item, index) => (
-            <div key={`${item.updatedAt}-${index}`} className={`grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm ${mode === "dark" ? "border-gray-800 text-gray-200" : ""}`}>
-              <span>{new Date(item.updatedAt).toLocaleString()}</span>
-              <span>{item.documents?.join(", ")}</span>
-            </div>
-          ))
+          profile.documentHistory
+            .slice()
+            .reverse()
+            .map((item, index) => (
+              <div
+                key={`${item.updatedAt}-${index}`}
+                className={`grid grid-cols-1 md:grid-cols-2 gap-2 border-t px-4 py-3 text-sm ${mode === "dark" ? "border-gray-800 text-gray-200" : ""}`}
+              >
+                <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                <span>{item.documents?.join(", ")}</span>
+              </div>
+            ))
         ) : (
-          <p className={`p-4 text-sm ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>No document update history.</p>
+          <p className={`p-4 text-sm ${mode === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+            No document update history.
+          </p>
         )}
       </section>
 

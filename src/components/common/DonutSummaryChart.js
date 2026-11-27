@@ -26,7 +26,9 @@ const DonutSummaryChart = ({
   }));
 
   return (
-    <div className={`grid min-w-0 grid-cols-[minmax(130px,0.9fr)_minmax(130px,1.1fr)] items-center gap-2 sm:gap-4 ${className}`}>
+    <div
+      className={`grid min-w-0 grid-cols-[minmax(130px,0.9fr)_minmax(130px,1.1fr)] items-center gap-2 sm:gap-4 ${className}`}
+    >
       <div className="relative min-w-0" style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -61,7 +63,9 @@ const DonutSummaryChart = ({
                 );
               }}
             >
-              {chartData.map((item, index) => <Cell key={`${item[nameKey]}-${index}`} fill={item.fill} />)}
+              {chartData.map((item, index) => (
+                <Cell key={`${item[nameKey]}-${index}`} fill={item.fill} />
+              ))}
             </Pie>
             <Tooltip
               formatter={(value, name) => [value, name]}
@@ -76,7 +80,9 @@ const DonutSummaryChart = ({
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-[11px] text-gray-500 dark:text-gray-400">{totalLabel}</span>
-          <strong className="text-xl leading-tight text-gray-900 dark:text-gray-100">{total}</strong>
+          <strong className="text-xl leading-tight text-gray-900 dark:text-gray-100">
+            {total}
+          </strong>
         </div>
       </div>
 
@@ -86,11 +92,22 @@ const DonutSummaryChart = ({
             const value = Number(item[valueKey]) || 0;
             const percent = total ? Math.round((value / total) * 100) : 0;
             return (
-              <li key={`${item[nameKey]}-${index}`} className="flex min-w-0 items-center gap-2 text-xs">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: item.fill }} />
-                <span className="min-w-0 flex-1 truncate text-gray-600 dark:text-gray-300">{item[nameKey]}</span>
+              <li
+                key={`${item[nameKey]}-${index}`}
+                className="flex min-w-0 items-center gap-2 text-xs"
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ backgroundColor: item.fill }}
+                />
+                <span className="min-w-0 flex-1 truncate text-gray-600 dark:text-gray-300">
+                  {item[nameKey]}
+                </span>
                 <span className="shrink-0 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                  {value}<span className="ml-1 font-normal text-gray-500 dark:text-gray-400">({percent}%)</span>
+                  {value}
+                  <span className="ml-1 font-normal text-gray-500 dark:text-gray-400">
+                    ({percent}%)
+                  </span>
                 </span>
               </li>
             );

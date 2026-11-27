@@ -37,12 +37,22 @@ const TrendAreaChart = ({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: showLatestDot ? 8 : 10, left: yLabel ? 6 : -8, bottom: 0 }}>
+      <AreaChart
+        data={data}
+        margin={{ top: 8, right: showLatestDot ? 8 : 10, left: yLabel ? 6 : -8, bottom: 0 }}
+      >
         <defs>
           {safeSeries.map((item, index) => {
             const color = item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
             return (
-              <linearGradient key={item.key} id={`${chartId}-trendGradient-${item.key}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient
+                key={item.key}
+                id={`${chartId}-trendGradient-${item.key}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
                 <stop offset="0%" stopColor={color} stopOpacity={gradientOpacity} />
                 <stop offset="100%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
@@ -54,7 +64,10 @@ const TrendAreaChart = ({
           hide={!showXAxis}
           dataKey={xKey}
           tickLine={false}
-          axisLine={{ stroke: sparkline ? (dark ? "#4b5563" : "#eef0f4") : (dark ? "#9ca3af" : "#ffa826"), strokeWidth: sparkline ? 1 : 2 }}
+          axisLine={{
+            stroke: sparkline ? (dark ? "#4b5563" : "#eef0f4") : dark ? "#9ca3af" : "#ffa826",
+            strokeWidth: sparkline ? 1 : 2,
+          }}
           tick={{ fill: axisColor, fontSize: sparkline ? 10 : 12 }}
           interval={0}
           tickMargin={8}
@@ -98,9 +111,22 @@ const TrendAreaChart = ({
               stroke={color}
               fill={`url(#${chartId}-trendGradient-${item.key})`}
               strokeWidth={strokeWidth}
-              dot={showLatestDot ? (point) => point.index === data.length - 1 ? (
-                <circle key={`${item.key}-latest-dot`} cx={point.cx} cy={point.cy} r={4} fill={dark ? "#111827" : "#ffffff"} stroke={color} strokeWidth={2.5} />
-              ) : null : false}
+              dot={
+                showLatestDot
+                  ? (point) =>
+                      point.index === data.length - 1 ? (
+                        <circle
+                          key={`${item.key}-latest-dot`}
+                          cx={point.cx}
+                          cy={point.cy}
+                          r={4}
+                          fill={dark ? "#111827" : "#ffffff"}
+                          stroke={color}
+                          strokeWidth={2.5}
+                        />
+                      ) : null
+                  : false
+              }
               activeDot={{ r: 4, strokeWidth: 0, fill: color }}
             />
           );

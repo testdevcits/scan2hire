@@ -31,13 +31,9 @@ function Employees() {
       accessor: "isActive",
       render: (val) =>
         val ? (
-          <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">
-            Active
-          </span>
+          <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">Active</span>
         ) : (
-          <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-500">
-            Inactive
-          </span>
+          <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-500">Inactive</span>
         ),
     },
   ];
@@ -80,8 +76,7 @@ function Employees() {
             </button>
 
             <h2 className="text-lg font-semibold mb-4">
-              {formatValue(selectedEmployee.name)} -{" "}
-              {formatValue(selectedEmployee.employeeId)}
+              {formatValue(selectedEmployee.name)} - {formatValue(selectedEmployee.employeeId)}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -92,34 +87,26 @@ function Employees() {
                 <strong>Mobile:</strong> {formatValue(selectedEmployee.mobile)}
               </p>
               <p>
-                <strong>Department:</strong>{" "}
-                {formatValue(selectedEmployee.department)}
+                <strong>Department:</strong> {formatValue(selectedEmployee.department)}
               </p>
               <p>
-                <strong>Designation:</strong>{" "}
-                {formatValue(selectedEmployee.designation)}
+                <strong>Designation:</strong> {formatValue(selectedEmployee.designation)}
               </p>
               <p>
                 <strong>DOB:</strong>{" "}
-                {selectedEmployee.dob
-                  ? new Date(selectedEmployee.dob).toLocaleDateString()
-                  : "N/A"}
+                {selectedEmployee.dob ? new Date(selectedEmployee.dob).toLocaleDateString() : "N/A"}
               </p>
               <p>
                 <strong>Joining Date:</strong>{" "}
                 {selectedEmployee.dateOfJoining
-                  ? new Date(
-                      selectedEmployee.dateOfJoining
-                    ).toLocaleDateString()
+                  ? new Date(selectedEmployee.dateOfJoining).toLocaleDateString()
                   : "N/A"}
               </p>
               <p>
-                <strong>Employee Type:</strong>{" "}
-                {formatValue(selectedEmployee.employeeType)}
+                <strong>Employee Type:</strong> {formatValue(selectedEmployee.employeeType)}
               </p>
               <p>
-                <strong>Reporting Manager:</strong>{" "}
-                {formatValue(selectedEmployee.reportingManager)}
+                <strong>Reporting Manager:</strong> {formatValue(selectedEmployee.reportingManager)}
               </p>
             </div>
 
@@ -186,24 +173,22 @@ function Employees() {
                   <div>
                     <strong>Salary Slips:</strong>
                     <ul className="list-disc pl-5">
-                      {selectedEmployee.documents.salarySlips.map(
-                        (slip, idx) => (
-                          <li key={idx}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreview({
-                                  title: `Salary Slip ${idx + 1}`,
-                                  url: slip.url,
-                                })
-                              }
-                              className="text-blue-500 underline"
-                            >
-                              Slip {idx + 1}
-                            </button>
-                          </li>
-                        )
-                      )}
+                      {selectedEmployee.documents.salarySlips.map((slip, idx) => (
+                        <li key={idx}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreview({
+                                title: `Salary Slip ${idx + 1}`,
+                                url: slip.url,
+                              })
+                            }
+                            className="text-blue-500 underline"
+                          >
+                            Slip {idx + 1}
+                          </button>
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 )}

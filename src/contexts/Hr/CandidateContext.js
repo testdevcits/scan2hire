@@ -9,7 +9,12 @@ export const CandidateProvider = ({ children }) => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalItems: 0,
+    totalPages: 1,
+  });
   const latestRequestId = useRef(0);
 
   const fetchCandidates = useCallback(async (params = {}) => {
@@ -24,12 +29,14 @@ export const CandidateProvider = ({ children }) => {
 
       const rows = Array.isArray(res.data.data) ? res.data.data : [];
       setCandidates(rows);
-      setPagination(res.data.pagination || {
-        page: 1,
-        limit: Math.max(rows.length, 1),
-        totalItems: rows.length,
-        totalPages: 1,
-      });
+      setPagination(
+        res.data.pagination || {
+          page: 1,
+          limit: Math.max(rows.length, 1),
+          totalItems: rows.length,
+          totalPages: 1,
+        }
+      );
     } catch (err) {
       if (requestId !== latestRequestId.current) return;
       console.error("Fetch Candidates Error:", err);
@@ -44,8 +51,8 @@ export const CandidateProvider = ({ children }) => {
     } finally {
       if (requestId === latestRequestId.current) setLoading(false);
     }
-  // hrApi is a stable value supplied by ApiProvider.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // hrApi is a stable value supplied by ApiProvider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -60,7 +60,14 @@ API.interceptors.response.use(
         refreshPromise = null;
       }
     }
-    if (status === 401 && (request._retriedAfterRefresh || isRefreshRequest || message.includes("inactive") || message.includes("not authorized") || message.includes("token"))) {
+    if (
+      status === 401 &&
+      (request._retriedAfterRefresh ||
+        isRefreshRequest ||
+        message.includes("inactive") ||
+        message.includes("not authorized") ||
+        message.includes("token"))
+    ) {
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
       window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));

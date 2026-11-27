@@ -43,11 +43,13 @@ const Step3 = ({ formData, onBack, onSubmit, loading }) => {
           <b>Experience Type:</b> {display(formData.experienceType)}
         </p>
         <p>
-          <b>Experience:</b> {formData.experienceType === "fresher" ? "Fresher" : display(formData.experience)}
+          <b>Experience:</b>{" "}
+          {formData.experienceType === "fresher" ? "Fresher" : display(formData.experience)}
         </p>
         {has(formData.currentSalary) && (
           <p>
-            <b>Current Salary:</b> {display(salary(formData.currentSalary, formData.currentSalaryPeriod))}
+            <b>Current Salary:</b>{" "}
+            {display(salary(formData.currentSalary, formData.currentSalaryPeriod))}
           </p>
         )}
         {has(formData.currentCompany) && (
@@ -56,7 +58,8 @@ const Step3 = ({ formData, onBack, onSubmit, loading }) => {
           </p>
         )}
         <p>
-          <b>Expected Salary:</b> {display(salary(formData.expectedSalary, formData.expectedSalaryPeriod))}
+          <b>Expected Salary:</b>{" "}
+          {display(salary(formData.expectedSalary, formData.expectedSalaryPeriod))}
         </p>
       </div>
 
@@ -72,8 +75,7 @@ const Step3 = ({ formData, onBack, onSubmit, loading }) => {
         )}
         {has(formData.referenceName) && (
           <p>
-            <b>Reference:</b>{" "}
-            {`${formData.referenceName} (${display(formData.referenceMobile)})`}
+            <b>Reference:</b> {`${formData.referenceName} (${display(formData.referenceMobile)})`}
           </p>
         )}
         <p>
@@ -94,24 +96,24 @@ const Step3 = ({ formData, onBack, onSubmit, loading }) => {
       </div>
 
       {(has(formData.cms) || has(formData.framework) || has(formData.nightShift)) && (
-      <div className="bg-gray-50 p-3 sm:p-4 rounded-sm space-y-1 break-words">
-        <h3 className="font-semibold text-base sm:text-lg mb-2">Technical Skills</h3>
-        {has(formData.cms) && (
-          <p>
-            <b>CMS:</b> {formData.cms.join(", ")}
-          </p>
-        )}
-        {has(formData.framework) && (
-          <p>
-            <b>Framework:</b> {formData.framework.join(", ")}
-          </p>
-        )}
-        {has(formData.nightShift) && (
-          <p>
-            <b>Night Shift:</b> {display(formData.nightShift)}
-          </p>
-        )}
-      </div>
+        <div className="bg-gray-50 p-3 sm:p-4 rounded-sm space-y-1 break-words">
+          <h3 className="font-semibold text-base sm:text-lg mb-2">Technical Skills</h3>
+          {has(formData.cms) && (
+            <p>
+              <b>CMS:</b> {formData.cms.join(", ")}
+            </p>
+          )}
+          {has(formData.framework) && (
+            <p>
+              <b>Framework:</b> {formData.framework.join(", ")}
+            </p>
+          )}
+          {has(formData.nightShift) && (
+            <p>
+              <b>Night Shift:</b> {display(formData.nightShift)}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t md:border-t-0 py-3 flex flex-col md:flex-row gap-2 md:col-span-2 mt-2 sm:mt-4">

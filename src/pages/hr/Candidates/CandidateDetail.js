@@ -1,11 +1,7 @@
 /* eslint-disable */
 import { useApi } from "../../../contexts/ApiContext";
 import { useContext, useEffect, useRef, useState } from "react";
-import {
-  FiBarChart2,
-  FiFileText,
-  FiUser,
-} from "react-icons/fi";
+import { FiBarChart2, FiFileText, FiUser } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 
 import Avatar from "../../../components/common/Avatar";
@@ -22,7 +18,13 @@ import { useToast } from "../../../contexts/ToastContext";
 import CandidateAssignmentPanel from "./CandidateAssignmentPanel";
 import CandidateInfoPanels from "./CandidateInfoPanels";
 import CandidateInterviewProgress from "./CandidateInterviewProgress";
-import { getAllowedStatuses, getCompletedRounds, getDefaultRoundType, roundLabels, roundOrder } from "../../../utils/candidateInterview";
+import {
+  getAllowedStatuses,
+  getCompletedRounds,
+  getDefaultRoundType,
+  roundLabels,
+  roundOrder,
+} from "../../../utils/candidateInterview";
 
 const CandidateDetail = () => {
   const { authApi, hrApi } = useApi();
@@ -69,13 +71,16 @@ const CandidateDetail = () => {
       if (canReviewCandidate) fetchEmployees();
       const candidateRes = candidateResult.value;
       const data = candidateRes.data.data;
-      const normalizedStatus = data.interviewStatus === "third_round" ? "final" : data.interviewStatus || "hr_round";
+      const normalizedStatus =
+        data.interviewStatus === "third_round" ? "final" : data.interviewStatus || "hr_round";
       setCandidate(data);
       if (departmentsResult.status === "fulfilled") {
         setDepartments(departmentsResult.value?.data?.data || []);
       } else if (canManage) {
         setDepartments([]);
-        toast.error(departmentsResult.reason?.response?.data?.message || "Unable to load departments");
+        toast.error(
+          departmentsResult.reason?.response?.data?.message || "Unable to load departments"
+        );
       }
       setStatusForm({
         interviewStatus: normalizedStatus,
@@ -119,7 +124,10 @@ const CandidateDetail = () => {
       return;
     }
 
-    if (["first_round", "second_round", "final"].includes(statusForm.interviewStatus) && !statusForm.assignedTo) {
+    if (
+      ["first_round", "second_round", "final"].includes(statusForm.interviewStatus) &&
+      !statusForm.assignedTo
+    ) {
       toast.error(`${roundLabels[statusForm.interviewStatus]} must be assigned to an employee.`);
       return;
     }
@@ -281,9 +289,33 @@ const CandidateDetail = () => {
   const allowedStatuses = getAllowedStatuses(candidate);
   const completedRounds = getCompletedRounds(candidate);
   const detailTabs = [
-    { value: "details", label: <span className="inline-flex items-center gap-2"><FiUser />Candidate Details</span> },
-    { value: "documents", label: <span className="inline-flex items-center gap-2"><FiFileText />Documents</span> },
-    { value: "reports", label: <span className="inline-flex items-center gap-2"><FiBarChart2 />Interview Reports</span> },
+    {
+      value: "details",
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <FiUser />
+          Candidate Details
+        </span>
+      ),
+    },
+    {
+      value: "documents",
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <FiFileText />
+          Documents
+        </span>
+      ),
+    },
+    {
+      value: "reports",
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <FiBarChart2 />
+          Interview Reports
+        </span>
+      ),
+    },
   ];
 
   return (
@@ -291,33 +323,69 @@ const CandidateDetail = () => {
       <header className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar name={candidate.name} size="h-14 w-14" className="text-lg" alt={`${candidate.name} avatar`} />
+            <Avatar
+              name={candidate.name}
+              size="h-14 w-14"
+              className="text-lg"
+              alt={`${candidate.name} avatar`}
+            />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{candidate.name}</h1>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${candidate.isActive ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300" : "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"}`}>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {candidate.name}
+                </h1>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${candidate.isActive ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300" : "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"}`}
+                >
                   {candidate.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {candidate.candidateId || "Candidate"} · {candidate.jobRole || "No role"} · {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}
+                {candidate.candidateId || "Candidate"} · {candidate.jobRole || "No role"} ·{" "}
+                {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button text="Back" variant="secondary" onClick={() => navigate(-1)} />
-            {canManage && (candidate.isActive ? (
-              <Button text="Deactivate" variant="danger" onClick={deactivateCandidate} loading={savingAction === "deactivate"} disabled={Boolean(savingAction)} />
-            ) : (
-              <Button text="Activate" variant="success" onClick={activateCandidate} loading={savingAction === "activate"} disabled={Boolean(savingAction)} />
-            ))}
-            {canManage && <Button text="Delete" variant="danger" onClick={deleteCandidate} loading={savingAction === "delete"} disabled={Boolean(savingAction)} />}
+            {canManage &&
+              (candidate.isActive ? (
+                <Button
+                  text="Deactivate"
+                  variant="danger"
+                  onClick={deactivateCandidate}
+                  loading={savingAction === "deactivate"}
+                  disabled={Boolean(savingAction)}
+                />
+              ) : (
+                <Button
+                  text="Activate"
+                  variant="success"
+                  onClick={activateCandidate}
+                  loading={savingAction === "activate"}
+                  disabled={Boolean(savingAction)}
+                />
+              ))}
+            {canManage && (
+              <Button
+                text="Delete"
+                variant="danger"
+                onClick={deleteCandidate}
+                loading={savingAction === "delete"}
+                disabled={Boolean(savingAction)}
+              />
+            )}
           </div>
         </div>
         <div className="border-t border-gray-100 px-4 py-5 dark:border-gray-800 md:px-5">
           <CandidateInterviewProgress candidate={candidate} />
         </div>
-        <Tabs tabs={detailTabs} value={activeTab} onChange={setActiveTab} label="Candidate information" />
+        <Tabs
+          tabs={detailTabs}
+          value={activeTab}
+          onChange={setActiveTab}
+          label="Candidate information"
+        />
       </header>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -340,9 +408,15 @@ const CandidateDetail = () => {
         ) : (
           <aside className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <SectionHeader title="Status" />
-            <p className="text-sm"><b>Current:</b> {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}</p>
-            <p className="text-sm"><b>Assigned To:</b> {candidate.assignedTo?.name || "Unassigned"}</p>
-            <p className="text-sm"><b>HR Status:</b> {candidate.hrReview?.hrStatus || "pending"}</p>
+            <p className="text-sm">
+              <b>Current:</b> {roundLabels[candidate.interviewStatus] || candidate.interviewStatus}
+            </p>
+            <p className="text-sm">
+              <b>Assigned To:</b> {candidate.assignedTo?.name || "Unassigned"}
+            </p>
+            <p className="text-sm">
+              <b>HR Status:</b> {candidate.hrReview?.hrStatus || "pending"}
+            </p>
             <p className="text-xs text-gray-500">Read-only access. HR manages candidate updates.</p>
           </aside>
         )}

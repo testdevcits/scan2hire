@@ -28,9 +28,14 @@ export const getAllowedStatuses = (candidate) => {
   const completed = getCompletedRounds(candidate);
   const nextIncompleteRound = roundOrder.find((status) => !completed.has(status));
   const allowed = nextIncompleteRound ? [nextIncompleteRound] : ["selected", "rejected"];
-  const currentStatus = candidate?.interviewStatus === "third_round" ? "final" : candidate?.interviewStatus;
+  const currentStatus =
+    candidate?.interviewStatus === "third_round" ? "final" : candidate?.interviewStatus;
 
-  if (roundOrder.includes(currentStatus) && completed.has(currentStatus) && !allowed.includes(currentStatus)) {
+  if (
+    roundOrder.includes(currentStatus) &&
+    completed.has(currentStatus) &&
+    !allowed.includes(currentStatus)
+  ) {
     allowed.unshift(currentStatus);
   }
   if (["selected", "rejected"].includes(currentStatus) && !allowed.includes(currentStatus)) {

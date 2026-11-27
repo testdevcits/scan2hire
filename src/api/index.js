@@ -1,9 +1,5 @@
 export * from "./api";
-export {
-  default as API,
-  AUTH_SESSION_EXPIRED_EVENT,
-  AUTH_TOKEN_REFRESHED_EVENT,
-} from "./axios";
+export { default as API, AUTH_SESSION_EXPIRED_EVENT, AUTH_TOKEN_REFRESHED_EVENT } from "./axios";
 
 export const saveCandidate = async (payload) => {
   const { candidateApi } = await import("./api");

@@ -1,11 +1,6 @@
 import DocumentSigningList from "./components/documents/DocumentSigningList";
 import "./App.css";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./pages/Home";
 import FormPage from "./pages/FormPage";
@@ -79,7 +74,14 @@ function App() {
           <Route path="hrs" element={<ManageHR />} />
           <Route path="departments" element={<Departments />} />
           <Route path="employees" element={<ManageEmployees />} />
-          <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
+          <Route
+            path="employee-documents"
+            element={
+              <ProtectedRoute allowedRoles={["hr", "superadmin"]}>
+                <DocumentSigningList managed />
+              </ProtectedRoute>
+            }
+          />
           <Route path="employees/new" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId/edit" element={<EmployeeCreate />} />
           <Route path="employees/:employeeId" element={<EmployeeDetail />} />
@@ -94,7 +96,10 @@ function App() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
-          <Route path="leave-settings" element={<Navigate to="/admin/settings?tab=leave" replace />} />
+          <Route
+            path="leave-settings"
+            element={<Navigate to="/admin/settings?tab=leave" replace />}
+          />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 
@@ -110,7 +115,14 @@ function App() {
           <Route index element={<Navigate to="dashboard" />} />
           <Route path="dashboard" element={<HRDashboard />} />
           <Route path="employees" element={<ManageEmployees />} />
-          <Route path="employee-documents" element={<ProtectedRoute allowedRoles={["hr", "superadmin"]}><DocumentSigningList managed /></ProtectedRoute>} />
+          <Route
+            path="employee-documents"
+            element={
+              <ProtectedRoute allowedRoles={["hr", "superadmin"]}>
+                <DocumentSigningList managed />
+              </ProtectedRoute>
+            }
+          />
           <Route path="my-documents" element={<DocumentSigningList />} />
           <Route path="employees/list" element={<ManageEmployees />} />
           <Route path="employees/new" element={<EmployeeCreate />} />

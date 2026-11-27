@@ -17,9 +17,7 @@ const ThankYouPage = () => {
       <Header />
       <main className="flex flex-col flex-1 items-center justify-center px-4 py-16">
         <div className="bg-white dark:bg-gray-800 max-w-md w-full p-6 rounded-xl shadow-md text-center space-y-4">
-          <h2 className="text-4xl font-bold mb-2 text-green-600">
-            Thank You, {state.name}!
-          </h2>
+          <h2 className="text-4xl font-bold mb-2 text-green-600">Thank You, {state.name}!</h2>
           <p className="text-gray-700 dark:text-gray-300 text-lg">
             Your email has been verified successfully.
           </p>

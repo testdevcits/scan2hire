@@ -91,7 +91,9 @@ const EmployeeCredentials = () => {
       const loadedEmployees = employeesRes.data.data || [];
       setCredentials(loadedCredentials);
       setEmployees(loadedEmployees);
-      setSelectedEmployeeId(loadedCredentials[0]?.employee?.toString?.() || loadedEmployees[0]?._id || "");
+      setSelectedEmployeeId(
+        loadedCredentials[0]?.employee?.toString?.() || loadedEmployees[0]?._id || ""
+      );
       setUnlocked(true);
       toast.success("Credentials loaded");
     } catch (err) {
@@ -105,8 +107,7 @@ const EmployeeCredentials = () => {
     () =>
       credentials.find(
         (item) =>
-          item.employee?.toString?.() === selectedEmployeeId ||
-          item.employee === selectedEmployeeId
+          item.employee?.toString?.() === selectedEmployeeId || item.employee === selectedEmployeeId
       ) || null,
     [credentials, selectedEmployeeId]
   );
@@ -167,7 +168,9 @@ const EmployeeCredentials = () => {
   };
 
   const confirmCredentialExport = () =>
-    window.confirm("This CSV contains passwords in plain text. Store and share it carefully. Continue?");
+    window.confirm(
+      "This CSV contains passwords in plain text. Store and share it carefully. Continue?"
+    );
 
   const copyValue = async (value, label) => {
     try {
@@ -190,14 +193,25 @@ const EmployeeCredentials = () => {
       toast.error("Title, login/email and password are required");
       return;
     }
-    if (payload.title.length > 120 || payload.loginId.length > 254 || payload.password.length > 1024 || payload.notes.length > 2000) {
+    if (
+      payload.title.length > 120 ||
+      payload.loginId.length > 254 ||
+      payload.password.length > 1024 ||
+      payload.notes.length > 2000
+    ) {
       toast.error("One or more fields exceed the allowed length");
       return;
     }
     setMyCredentialSaving(true);
     try {
       await authApi.createMyAccountCredential(payload);
-      setMyCredentialForm({ accountType: "Email", title: "", loginId: "", password: "", notes: "" });
+      setMyCredentialForm({
+        accountType: "Email",
+        title: "",
+        loginId: "",
+        password: "",
+        notes: "",
+      });
       setShowMyCredentialForm(false);
       await loadMyCredentials();
       toast.success("Credential saved");
@@ -323,24 +337,40 @@ const EmployeeCredentials = () => {
     return (
       <div className="min-h-[calc(100vh-160px)] flex items-center justify-center">
         <div className="w-full max-w-xl space-y-5">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Employee Credentials</h1>
-          <p className="text-sm text-gray-500">Enter your login password to open saved credentials.</p>
-        </div>
-        <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
-          <label className="block text-sm font-medium">
-            Login Password
-            <div className="relative mt-1"><input
-              type={showLoginPassword ? "text" : "password"}
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="w-full border rounded-sm px-3 py-2 pr-10"
-              required
-              autoFocus
-            /><button type="button" aria-label={showLoginPassword ? "Hide password" : "Show password"} onClick={() => setShowLoginPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showLoginPassword ? <FiEyeOff /> : <FiEye />}</button></div>
-          </label>
-          <Button text={unlockingPage ? "Verifying..." : "Open Page"} loading={unlockingPage} type="submit" />
-        </form>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">Employee Credentials</h1>
+            <p className="text-sm text-gray-500">
+              Enter your login password to open saved credentials.
+            </p>
+          </div>
+          <form onSubmit={unlockPage} className="bg-white rounded-sm shadow p-5 space-y-3">
+            <label className="block text-sm font-medium">
+              Login Password
+              <div className="relative mt-1">
+                <input
+                  type={showLoginPassword ? "text" : "password"}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full border rounded-sm px-3 py-2 pr-10"
+                  required
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowLoginPassword((value) => !value)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                >
+                  {showLoginPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+            </label>
+            <Button
+              text={unlockingPage ? "Verifying..." : "Open Page"}
+              loading={unlockingPage}
+              type="submit"
+            />
+          </form>
         </div>
       </div>
     );
@@ -362,50 +392,141 @@ const EmployeeCredentials = () => {
             <p className="text-sm text-gray-500 mt-1">Save your own account logins securely.</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={exportMyCredentialsCsv} disabled={!myCredentials.length} className="w-10 h-10 rounded-sm border border-gray-200 text-gray-700 flex items-center justify-center disabled:opacity-50" aria-label="Export my credentials CSV" title="Export CSV">
+            <button
+              type="button"
+              onClick={exportMyCredentialsCsv}
+              disabled={!myCredentials.length}
+              className="w-10 h-10 rounded-sm border border-gray-200 text-gray-700 flex items-center justify-center disabled:opacity-50"
+              aria-label="Export my credentials CSV"
+              title="Export CSV"
+            >
               <FiDownload />
             </button>
-            <button type="button" onClick={() => setShowMyCredentialForm((prev) => !prev)} className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center" aria-label="Add my credential">
+            <button
+              type="button"
+              onClick={() => setShowMyCredentialForm((prev) => !prev)}
+              className="w-10 h-10 rounded-sm bg-[#fff5f3] text-[#f84525] flex items-center justify-center"
+              aria-label="Add my credential"
+            >
               <FiPlus />
             </button>
           </div>
         </div>
         {showMyCredentialForm && (
-          <form onSubmit={saveMyCredential} className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3">
+          <form
+            onSubmit={saveMyCredential}
+            className="p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3"
+          >
             <CustomDropdown
               label="Account Type"
               value={myCredentialForm.accountType}
               options={["Email", "Hosting", "Social", "Client Panel", "Other"]}
               onChange={(accountType) => setMyCredentialForm((prev) => ({ ...prev, accountType }))}
             />
-            <InputField label="Title" value={myCredentialForm.title} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, title: e.target.value }))} required maxLength={120} autoComplete="off" />
-            <InputField label="Login / Email" value={myCredentialForm.loginId} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))} required maxLength={254} autoComplete="off" />
-            <InputField label="Password" type="password" value={myCredentialForm.password} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, password: e.target.value }))} required maxLength={1024} autoComplete="new-password" />
-            <label className="flex min-w-0 flex-col text-sm font-medium text-gray-700 dark:text-gray-200 md:col-span-2">Notes<textarea value={myCredentialForm.notes} onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, notes: e.target.value }))} maxLength={2000} className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" rows={3} /></label>
-            <Button text="Save Credential" type="submit" loading={myCredentialSaving} className="md:col-span-2 justify-self-start" />
+            <InputField
+              label="Title"
+              value={myCredentialForm.title}
+              onChange={(e) => setMyCredentialForm((prev) => ({ ...prev, title: e.target.value }))}
+              required
+              maxLength={120}
+              autoComplete="off"
+            />
+            <InputField
+              label="Login / Email"
+              value={myCredentialForm.loginId}
+              onChange={(e) =>
+                setMyCredentialForm((prev) => ({ ...prev, loginId: e.target.value }))
+              }
+              required
+              maxLength={254}
+              autoComplete="off"
+            />
+            <InputField
+              label="Password"
+              type="password"
+              value={myCredentialForm.password}
+              onChange={(e) =>
+                setMyCredentialForm((prev) => ({ ...prev, password: e.target.value }))
+              }
+              required
+              maxLength={1024}
+              autoComplete="new-password"
+            />
+            <label className="flex min-w-0 flex-col text-sm font-medium text-gray-700 dark:text-gray-200 md:col-span-2">
+              Notes
+              <textarea
+                value={myCredentialForm.notes}
+                onChange={(e) =>
+                  setMyCredentialForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
+                maxLength={2000}
+                className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f84525] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                rows={3}
+              />
+            </label>
+            <Button
+              text="Save Credential"
+              type="submit"
+              loading={myCredentialSaving}
+              className="md:col-span-2 justify-self-start"
+            />
           </form>
         )}
         {myCredentials.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">No saved credentials yet.</p>
         ) : (
           <>
-          {myCredentialsPagination.pageItems.map((item) => (
-            <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold">{item.title}</p>
-                <p className="text-xs text-gray-500">{item.accountType}</p>
-                <p className="text-sm break-all mt-1">{item.loginId}</p>
-                <p className="text-sm mt-1">{revealedPasswords[`my-${item._id}`] ? item.password : "••••••••"}</p>
+            {myCredentialsPagination.pageItems.map((item) => (
+              <div
+                key={item._id}
+                className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.accountType}</p>
+                  <p className="text-sm break-all mt-1">{item.loginId}</p>
+                  <p className="text-sm mt-1">
+                    {revealedPasswords[`my-${item._id}`] ? item.password : "••••••••"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRevealedPasswords((prev) => ({
+                        ...prev,
+                        [`my-${item._id}`]: !prev[`my-${item._id}`],
+                      }))
+                    }
+                    className="border rounded-sm px-3 py-2 text-sm"
+                  >
+                    {revealedPasswords[`my-${item._id}`] ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyValue(item.loginId, "Login")}
+                    className="border rounded-sm px-3 py-2 text-sm"
+                  >
+                    <FiCopy />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyValue(item.password, "Password")}
+                    className="border rounded-sm px-3 py-2 text-sm"
+                  >
+                    <FiCopy />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteMyCredential(item._id)}
+                    className="border rounded-sm px-3 py-2 text-sm text-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [`my-${item._id}`]: !prev[`my-${item._id}`] }))} className="border rounded-sm px-3 py-2 text-sm">{revealedPasswords[`my-${item._id}`] ? <FiEyeOff /> : <FiEye />}</button>
-                <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
-                <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm"><FiCopy /></button>
-                <button type="button" onClick={() => deleteMyCredential(item._id)} className="border rounded-sm px-3 py-2 text-sm text-red-600">Delete</button>
-              </div>
-            </div>
-          ))}
-          <Pagination {...myCredentialsPagination} />
+            ))}
+            <Pagination {...myCredentialsPagination} />
           </>
         )}
       </section>
@@ -414,15 +535,29 @@ const EmployeeCredentials = () => {
         <form onSubmit={unlockVault} className="bg-white rounded-sm shadow p-4 max-w-xl space-y-3">
           <label className="block text-sm font-medium">
             Vault Password
-            <div className="relative mt-1"><input
-              type={showVaultPassword ? "text" : "password"}
-              value={vaultPassword}
-              onChange={(e) => setVaultPassword(e.target.value)}
-              className="w-full border rounded-sm px-3 py-2 pr-10"
-              required
-            /><button type="button" aria-label={showVaultPassword ? "Hide vault password" : "Show vault password"} onClick={() => setShowVaultPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showVaultPassword ? <FiEyeOff /> : <FiEye />}</button></div>
+            <div className="relative mt-1">
+              <input
+                type={showVaultPassword ? "text" : "password"}
+                value={vaultPassword}
+                onChange={(e) => setVaultPassword(e.target.value)}
+                className="w-full border rounded-sm px-3 py-2 pr-10"
+                required
+              />
+              <button
+                type="button"
+                aria-label={showVaultPassword ? "Hide vault password" : "Show vault password"}
+                onClick={() => setShowVaultPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showVaultPassword ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
           </label>
-          <Button text={loading ? "Opening..." : "Open Credentials"} loading={loading} type="submit" />
+          <Button
+            text={loading ? "Opening..." : "Open Credentials"}
+            loading={loading}
+            type="submit"
+          />
         </form>
       ) : canOpenEmployeeVault ? (
         <div className="space-y-4">
@@ -448,8 +583,18 @@ const EmployeeCredentials = () => {
                 ))}
               </select>
             </label>
-            <Button text="Load Saved Credentials" onClick={() => loadAccountCredentials(selectedEmployeeId)} disabled={!selectedEmployeeId || accountLoading} loading={accountLoading} />
-            <Button text="Export All Login CSV" variant="secondary" onClick={exportEmployeeLoginCsv} disabled={!credentials.length} />
+            <Button
+              text="Load Saved Credentials"
+              onClick={() => loadAccountCredentials(selectedEmployeeId)}
+              disabled={!selectedEmployeeId || accountLoading}
+              loading={accountLoading}
+            />
+            <Button
+              text="Export All Login CSV"
+              variant="secondary"
+              onClick={exportEmployeeLoginCsv}
+              disabled={!credentials.length}
+            />
             <Button text="Lock Vault" variant="secondary" onClick={lockVault} />
           </section>
 
@@ -457,10 +602,39 @@ const EmployeeCredentials = () => {
             <section className="bg-white rounded-sm shadow p-4">
               <h2 className="font-semibold">Employee Login Account</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 text-sm">
-                <p><b>Employee ID:</b> {selectedEmployee.employeeId}</p>
-                <p><b>Name:</b> {selectedEmployee.name}</p>
-                <p><b>Email:</b> {selectedLoginCredential?.email || selectedEmployee.email}</p>
-                <div className="flex items-center gap-2"><b>Password:</b><span className="font-mono">{selectedLoginCredential?.password ? (showEmployeeLoginPassword ? selectedLoginCredential.password : "••••••••") : "N/A"}</span>{selectedLoginCredential?.password && <button type="button" onClick={() => setShowEmployeeLoginPassword((visible) => !visible)} className="rounded-sm border p-1.5 text-gray-600 hover:text-[#f84525]" aria-label={showEmployeeLoginPassword ? "Hide employee login password" : "Show employee login password"}>{showEmployeeLoginPassword ? <FiEyeOff /> : <FiEye />}</button>}</div>
+                <p>
+                  <b>Employee ID:</b> {selectedEmployee.employeeId}
+                </p>
+                <p>
+                  <b>Name:</b> {selectedEmployee.name}
+                </p>
+                <p>
+                  <b>Email:</b> {selectedLoginCredential?.email || selectedEmployee.email}
+                </p>
+                <div className="flex items-center gap-2">
+                  <b>Password:</b>
+                  <span className="font-mono">
+                    {selectedLoginCredential?.password
+                      ? showEmployeeLoginPassword
+                        ? selectedLoginCredential.password
+                        : "••••••••"
+                      : "N/A"}
+                  </span>
+                  {selectedLoginCredential?.password && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEmployeeLoginPassword((visible) => !visible)}
+                      className="rounded-sm border p-1.5 text-gray-600 hover:text-[#f84525]"
+                      aria-label={
+                        showEmployeeLoginPassword
+                          ? "Hide employee login password"
+                          : "Show employee login password"
+                      }
+                    >
+                      {showEmployeeLoginPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  )}
+                </div>
               </div>
             </section>
           )}
@@ -468,7 +642,12 @@ const EmployeeCredentials = () => {
           <section className="bg-white rounded-sm shadow overflow-hidden">
             <div className="p-4 border-b flex items-center justify-between gap-3">
               <h2 className="font-semibold">Saved Account Credentials</h2>
-              <Button text="Export CSV" variant="secondary" onClick={exportSelectedAccountsCsv} disabled={!selectedAccounts.length} />
+              <Button
+                text="Export CSV"
+                variant="secondary"
+                onClick={exportSelectedAccountsCsv}
+                disabled={!selectedAccounts.length}
+              />
             </div>
             {!selectedEmployeeId ? (
               <p className="p-4 text-sm text-gray-500">Select an employee first.</p>
@@ -478,29 +657,50 @@ const EmployeeCredentials = () => {
               <p className="p-4 text-sm text-gray-500">No saved account credentials found.</p>
             ) : (
               <>
-              {selectedAccountsPagination.pageItems.map((item) => (
-                <div key={item._id} className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold">{item.title}</p>
-                    <p className="text-xs text-gray-500">{item.accountType}</p>
-                    <p className="text-sm break-all mt-1">{item.loginId}</p>
-                    <p className="text-sm mt-1">{revealedPasswords[item._id] ? item.password : "••••••••"}</p>
-                    {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                {selectedAccountsPagination.pageItems.map((item) => (
+                  <div
+                    key={item._id}
+                    className="border-t px-4 py-4 flex flex-col md:flex-row md:items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold">{item.title}</p>
+                      <p className="text-xs text-gray-500">{item.accountType}</p>
+                      <p className="text-sm break-all mt-1">{item.loginId}</p>
+                      <p className="text-sm mt-1">
+                        {revealedPasswords[item._id] ? item.password : "••••••••"}
+                      </p>
+                      {item.notes ? (
+                        <p className="text-xs text-gray-500 mt-1">{item.notes}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))
+                        }
+                        className="border rounded-sm px-3 py-2 text-sm"
+                      >
+                        {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyValue(item.loginId, "Login")}
+                        className="border rounded-sm px-3 py-2 text-sm"
+                      >
+                        <FiCopy />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyValue(item.password, "Password")}
+                        className="border rounded-sm px-3 py-2 text-sm"
+                      >
+                        <FiCopy />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setRevealedPasswords((prev) => ({ ...prev, [item._id]: !prev[item._id] }))} className="border rounded-sm px-3 py-2 text-sm">
-                      {revealedPasswords[item._id] ? <FiEyeOff /> : <FiEye />}
-                    </button>
-                    <button type="button" onClick={() => copyValue(item.loginId, "Login")} className="border rounded-sm px-3 py-2 text-sm">
-                      <FiCopy />
-                    </button>
-                    <button type="button" onClick={() => copyValue(item.password, "Password")} className="border rounded-sm px-3 py-2 text-sm">
-                      <FiCopy />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <Pagination {...selectedAccountsPagination} />
+                ))}
+                <Pagination {...selectedAccountsPagination} />
               </>
             )}
           </section>

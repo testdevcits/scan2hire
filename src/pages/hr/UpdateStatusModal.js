@@ -92,9 +92,7 @@ function UpdateStatusModal({ candidate, onClose, refresh }) {
         </div>
 
         <div className="mb-3">
-          <label className="block text-sm mb-1">
-            Assign Interviewer
-          </label>
+          <label className="block text-sm mb-1">Assign Interviewer</label>
           <select
             className="w-full border p-2 rounded"
             value={assignedTo}
