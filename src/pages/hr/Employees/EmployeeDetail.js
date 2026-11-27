@@ -150,15 +150,15 @@ const documentLabelMap = {
   bankStatement: "Bank Statement",
   salarySlips: "Salary Slips",
 };
-const resolveEmployeeTab = (requestedTab, canManage, isSuperAdmin, editRequested) => {
+const resolveEmployeeTab = (requestedTab, canManage, canEditEmployee, isSuperAdmin, editRequested) => {
   const availableTabs = ["details", "attendance", "leaves", "documents", "documentSignatures"];
-  if (canManage) availableTabs.push("edit");
+  if (canEditEmployee) availableTabs.push("edit");
   if (isSuperAdmin) availableTabs.push("credentials", "access", "versionHistory");
   if (canManage) availableTabs.push("security");
   if (canManage) availableTabs.push("actions");
   if (canManage) availableTabs.push("reviewsSalary");
   if (availableTabs.includes(requestedTab)) return requestedTab;
-  if (editRequested && canManage) return "edit";
+  if (editRequested && canEditEmployee) return "edit";
   return "details";
 };
 
@@ -174,6 +174,11 @@ const EmployeeDetail = () => {
   const { user } = useContext(AuthContext);
   // Backend profile edits and employee lifecycle actions are HR-only.
   const canManage = user?.role === "hr" || user?.role === "superadmin";
+  const [hrModuleAccess, setHrModuleAccess] = useState(null);
+  const canEditEmployee = user?.role === "superadmin"
+    || (user?.role === "hr" && (hrModuleAccess?.employees?.edit === true || user?.moduleAccess?.employees?.edit === true));
+  const canEditEmployeeIdentity = user?.role === "superadmin"
+    || (user?.role === "hr" && (hrModuleAccess?.employeeIdentity?.edit === true || user?.moduleAccess?.employeeIdentity?.edit === true || hrModuleAccess?.employees?.editIdentity === true || user?.moduleAccess?.employees?.editIdentity === true));
   const [employee, setEmployee] = useState(null);
   const [documentsPanelOpen, setDocumentsPanelOpen] = useState(false);
   const [attendance, setAttendance] = useState([]);
@@ -270,7 +275,6 @@ const EmployeeDetail = () => {
   const [roleDraft, setRoleDraft] = useState("employee");
   const [savingAccess, setSavingAccess] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
-  const [hrModuleAccess, setHrModuleAccess] = useState(null);
   const [recordEditor, setRecordEditor] = useState(null);
   const [activeRecord, setActiveRecord] = useState(() => {
     const params = new URLSearchParams(location.search);
@@ -280,7 +284,7 @@ const EmployeeDetail = () => {
   const [savingRecord, setSavingRecord] = useState(false);
   const [activeTab, setActiveTabState] = useState(() => {
     const params = new URLSearchParams(location.search);
-    return resolveEmployeeTab(params.get("tab"), canManage, user?.role === "superadmin", params.get("edit") === "1");
+    return resolveEmployeeTab(params.get("tab"), canManage, canEditEmployee, user?.role === "superadmin", params.get("edit") === "1");
   });
 
   useEffect(() => {
@@ -596,10 +600,11 @@ const EmployeeDetail = () => {
     setActiveTabState(resolveEmployeeTab(
       params.get("tab"),
       canManage,
+      canEditEmployee,
       user?.role === "superadmin",
       params.get("edit") === "1"
     ));
-  }, [canManage, loading, location.search, user?.role]);
+  }, [canEditEmployee, canManage, loading, location.search, user?.role]);
 
   const deactivateEmployee = async () => {
     const ok = await confirm({
@@ -707,7 +712,13 @@ const EmployeeDetail = () => {
         ...editForm,
         reportingManagerUser: validHrManagerId || null,
         teamLead: selectedManager.startsWith("hr:") ? "" : selectedManager,
-        employeeId: editForm.employeeId.trim(),
+        ...(canEditEmployeeIdentity ? {
+          employeeId: editForm.employeeId.trim(),
+          hrFileNo: editForm.hrFileNo.trim(),
+        } : {
+          employeeId: employee.employeeId,
+          hrFileNo: employee.hrFileNo,
+        }),
         name: `${editForm.firstName.trim()} ${editForm.middleName.trim()} ${editForm.lastName.trim()}`.replace(/\s+/g, " ").trim(),
         bankHolderName: editForm.bankHolderName,
         mobile: editForm.mobile.trim(),
@@ -1191,7 +1202,7 @@ const EmployeeDetail = () => {
         {String(documentPreview.type || "").toLowerCase().includes("pdf") || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
       </CommonModal>}
 
-      {canManage && hrCanEditModule("employees") && activeTab === "edit" && (
+      {canEditEmployee && activeTab === "edit" && (
       <form id="edit-panel" role="tabpanel" aria-labelledby="edit-tab" ref={editFormRef} onSubmit={updateEmployee} className="scroll-mt-5 overflow-visible rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
         <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -1236,7 +1247,7 @@ const EmployeeDetail = () => {
             maxLength={["mobile", "altMobile", "emergencyNumber"].includes(name) ? 10 : name === "employeeId" ? 40 : name === "name" ? 100 : 100}
             inputMode={["mobile", "altMobile", "emergencyNumber"].includes(name) ? "numeric" : undefined}
             pattern={["mobile", "altMobile", "emergencyNumber"].includes(name) ? "[6-9][0-9]{9}" : undefined}
-            disabled={["employeeId", "hrFileNo"].includes(name) || savingProfile}
+            disabled={savingProfile || (["employeeId", "hrFileNo"].includes(name) && !canEditEmployeeIdentity)}
           />
         ))}
         <CustomDropdown

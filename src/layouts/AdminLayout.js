@@ -12,7 +12,7 @@ const AdminLayout = () => {
     { label: "Attendance Reports", path: "/admin/reports", icon: <FiBarChart2 /> },
     { label: "Leave Reports", path: "/admin/leave-reports", icon: <FiBarChart2 /> },
     { label: "Credentials", path: "/admin/credentials", icon: <FiLock /> },
-    { label: "Role & Access", path: "/admin/roles-access", icon: <FiShield /> },
+    { label: "Employee & Team Access", path: "/admin/roles-access", icon: <FiShield /> },
     { label: "Access & Control", path: "/admin/employee-module-access", icon: <FiShield /> },
     { label: "Activity Logs", path: "/admin/audit-logs", icon: <FiClock /> },
     { label: "System Allotments", path: "/admin/system-allotments", icon: <FiMonitor /> },

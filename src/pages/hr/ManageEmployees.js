@@ -19,7 +19,7 @@ import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 
 const ManageEmployees = () => {
-  const { authApi, hrApi, API } = useApi();
+  const { authApi, hrApi } = useApi();
   const { employees, loading, error, pagination: serverPagination, fetchEmployees } =
     useEmployee();
   const navigate = useNavigate();
@@ -46,11 +46,11 @@ const ManageEmployees = () => {
   useEffect(() => {
     if (user?.role !== "hr") return undefined;
     let active = true;
-    API.get("/users/me").then((res) => {
+    authApi.getProfile().then((res) => {
       if (active) setHrModuleAccess(res.data.data?.moduleAccess || {});
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [user?.role]);
+  }, [authApi, user?.role]);
 
   useEffect(() => {
     if (!isServerPaginated) {

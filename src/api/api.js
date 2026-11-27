@@ -76,6 +76,7 @@ export const hrApi = {
     API.patch(`/hr/candidates/${candidateId}/activate`),
   deleteCandidate: (candidateId) => API.delete(`/hr/candidates/${candidateId}`),
   getEmployees: (params, config = {}) => API.get("/hr/employees", { ...config, params }),
+  getEmployeeEditOptions: () => API.get("/hr/employees/edit-options"),
   getReportingManagers: () => API.get("/hr/reporting-managers"),
   getEmployee: (employeeId) => API.get(`/hr/employees/${employeeId}`),
   createEmployee: (payload) => API.post("/hr/employees", payload),
@@ -194,5 +195,5 @@ export const employeeApi = {
   forgotPassword: (payload) => API.post("/employees/forgot-password", payload),
   resetPassword: (payload) => API.post("/employees/reset-password", payload),
   changePassword: (payload) => API.post("/employees/me/change-password", payload),
-  getBirthdays: () => API.get("/employees/birthdays"),
+  getBirthdays: (params) => API.get("/employees/birthdays", { params }),
 };

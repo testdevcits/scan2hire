@@ -127,22 +127,22 @@ const CardHeader = ({ title, subtitle, action }) => (
 
 // KPI tile with an icon chip — the "dashboard" look
 const Kpi = ({ icon, label, value, tone = "brand" }) => {
-  const { employeeApi } = useApi();
   const tones = {
     brand: "bg-[#fff5f3] text-[#f84525] dark:bg-[#2a1712]",
     dark: "bg-gray-900 text-white dark:bg-black",
     neutral: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200",
   };
   return (
-    <Card className="p-4 flex items-center gap-3 min-w-0 flex-1">
+    <Card className="group relative min-w-0 overflow-hidden p-4 flex items-center gap-3 transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <span className="absolute inset-y-0 left-0 w-1 bg-[#f84525] opacity-70" />
       <span
         className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${tones[tone]}`}
       >
         {icon}
       </span>
-      <div className="min-w-0">
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
-        <p className="text-lg font-bold text-gray-900 dark:text-gray-100 tabular-nums truncate">
+      <div className="min-w-0 pl-1">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">{label}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums truncate">
           {value}
         </p>
       </div>
@@ -182,6 +182,7 @@ const StatusPill = ({ runningBreak, dayStarted, dayEnded }) => {
 
 const EmployeeDashboard = ({ section = "all" }) => {
   const { employeeApi } = useApi();
+  const isDashboard = section === "all";
   const toast = useToast();
   const { confirm } = useModal();
   const [leaveDrafts, setLeaveDrafts] = useState([]);
@@ -189,6 +190,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
   const [draftSaving, setDraftSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [birthdayReminders, setBirthdayReminders] = useState([]);
+  const [birthdayTotal, setBirthdayTotal] = useState(0);
   const [moduleAccess, setModuleAccess] = useState({});
   const [candidates, setCandidates] = useState([]);
   const [interviewLogs, setInterviewLogs] = useState([]);
@@ -265,13 +267,12 @@ const EmployeeDashboard = ({ section = "all" }) => {
       const permissions = accessRes.data.data?.moduleAccess || {};
       const permitted = (key) => permissions[key] === true || permissions[key]?.view === true;
       const empty = () => Promise.resolve({ data: { data: [] } });
-      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, birthdaysRes, draftsRes] = await Promise.all([
+      const [profileRes, attendanceRes, leavesRes, candidatesRes, logsRes, draftsRes] = await Promise.all([
         employeeApi.getProfile(),
         permitted("attendance") ? employeeApi.getAttendance() : empty(),
         permitted("leaves") ? employeeApi.getLeaves() : empty(),
         permitted("interviews") ? employeeApi.getAssignedCandidates() : empty(),
         permitted("interviews") ? employeeApi.getInterviewLogs() : empty(),
-        employeeApi.getBirthdays(),
         permitted("leaveDrafts") ? employeeApi.getLeaveDrafts() : empty(),
       ]);
       setLeaveDrafts(draftsRes.data.data || []);
@@ -285,11 +286,23 @@ const EmployeeDashboard = ({ section = "all" }) => {
       if (probation && !probation.paidLeaveEligible) setLeaveForm(current => ({ ...current, type: 'unpaid_leave' }));
       setCandidates(candidatesRes.data.data || []);
       setInterviewLogs(logsRes.data.data?.logs || []);
-      setBirthdayReminders(birthdaysRes.data.data || []);
     } finally {
       setPageLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isDashboard) return undefined;
+    let active = true;
+    employeeApi.getBirthdays({ limit: 4 })
+      .then((response) => {
+        if (!active) return;
+        setBirthdayReminders(response.data.data || []);
+        setBirthdayTotal(response.data.total ?? response.data.data?.length ?? 0);
+      })
+      .catch(() => { if (active) { setBirthdayReminders([]); setBirthdayTotal(0); } });
+    return () => { active = false; };
+  }, [employeeApi, isDashboard]);
 
   useEffect(() => {
     fetchData().catch((err) =>
@@ -494,7 +507,6 @@ const EmployeeDashboard = ({ section = "all" }) => {
   };
 
   const show = (name) => section === name;
-  const isDashboard = section === "all";
   const effectiveModuleAccess = moduleAccess || profile?.user?.moduleAccess || profile?.moduleAccess || {};
   const canApplyLeave = Boolean(effectiveModuleAccess.leaves?.add || effectiveModuleAccess.leaves?.edit);
   const canViewLeaveDrafts = Boolean(effectiveModuleAccess.leaveDrafts === true || effectiveModuleAccess.leaveDrafts?.view);
@@ -519,6 +531,12 @@ const EmployeeDashboard = ({ section = "all" }) => {
       { work: 0, breaks: 0, present: 0, halfDay: 0, running: 0 }
     );
   }, [currentMonthAttendance]);
+  const pendingLeaveCount = useMemo(
+    () => leaves.filter((leave) => leave.status === "pending").length,
+    [leaves]
+  );
+  const earnedLeaveRemaining = leaveBalance?.earned_leave?.remaining ?? 0;
+  const birthdayPreview = birthdayReminders.slice(0, 4);
 
   const currentAssignedInterviews = useMemo(
     () => {
@@ -558,10 +576,10 @@ const EmployeeDashboard = ({ section = "all" }) => {
   return (
     <>
     {birthdaySplash && <div className={`birthday-overlay birthday-theme-${birthdayTheme} fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#f9c8dc] p-6`}><div className="birthday-stage" aria-hidden="true"><div className="birthday-confetti">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{ left: `${(index * 37) % 100}%`, top: `${(index * 53) % 100}%`, animationDelay: `${(index % 7) * 0.3}s`, '--confetti-rotate': `${index * 31}deg` }} />)}</div><div className="birthday-balloons">{Array.from({ length: 12 }, (_, index) => <span key={index} className={`birthday-balloon balloon-${index % 5}`} style={{ left: `${(index * 31 + 7) % 96}%`, animationDelay: `${-((index * 1.73) % 8)}s`, '--balloon-sway': `${index % 2 ? 32 : -32}px`, '--balloon-duration': `${6 + (index % 5) * 1.1}s`, '--balloon-start': `${index % 3 === 0 ? 25 + index * 4 : 105 + index * 5}px`, '--balloon-scale': `${0.78 + (index % 4) * 0.13}` }}><i /><b /></span>)}</div></div><div className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/80 bg-[#fffafb]/95 px-8 pb-8 pt-7 text-center shadow-[0_25px_70px_#713c6650] backdrop-blur birthday-card"><div className="absolute -top-7 left-1/2 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-[#f84525] text-2xl text-white shadow-lg">🎉</div>{profile?.documents?.photo?.url ? <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="mx-auto mb-4 mt-2 h-28 w-28 rounded-full border-4 border-white object-cover shadow-[0_8px_22px_#b35e8050]" /> : <div className="mx-auto mb-4 mt-2 flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-[#ffe3ed] to-[#f9b3ce] text-3xl font-bold text-[#bd496e] shadow-lg">{String(profile?.name || "You").split(" ").map((part) => part[0]).join("").slice(0, 2)}</div>}<FiGift className="mx-auto mb-2 h-8 w-8 text-[#f84525]" /><p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#e4547d]">Today is your day</p><h2 className="mt-2 text-3xl font-extrabold text-[#25233b]">Happy Birthday!</h2><p className="mt-2 text-[#716d80]">Wishing you a wonderful year ahead.</p><div className="mx-auto mt-6 h-2 w-full overflow-hidden rounded-full bg-[#ffe3eb]"><div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-[#f84525] via-[#ffb347] to-[#f84525]" /></div></div></div>}
-    <div className="h-full flex flex-col gap-4 overflow-hidden">
+    <div className="min-h-full flex flex-col gap-5 overflow-x-hidden overflow-y-auto pb-5">
       {missingDocuments.length > 0 && (
-        <div className="flex-shrink-0 flex items-start gap-3 bg-[#fff5f3] dark:bg-[#2a1712] border border-[#ffd8cf] dark:border-[#5c2c1f] rounded-2xl px-4 py-3">
-          <span className="mt-1 w-2 h-2 rounded-full bg-[#f84525] flex-shrink-0" />
+        <div className="flex-shrink-0 flex items-start gap-3 bg-gradient-to-r from-[#fff5f3] to-white dark:from-[#2a1712] dark:to-gray-900 border border-[#ffd8cf] dark:border-[#5c2c1f] rounded-2xl px-4 py-3 shadow-sm">
+          <span className="mt-1.5 w-2.5 h-2.5 rounded-full bg-[#f84525] flex-shrink-0 ring-4 ring-[#f84525]/10" />
           <p className="text-sm text-gray-700 dark:text-gray-300">
             <span className="font-semibold text-[#f84525]">Documents pending — </span>
             {missingDocuments.join(", ")}.
@@ -570,11 +588,13 @@ const EmployeeDashboard = ({ section = "all" }) => {
       )}
 
       {isDashboard && (
-        <div className="flex-1 min-h-0 flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {/* header row */}
-          <Card className="flex-shrink-0 px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <Card className="relative flex-shrink-0 overflow-hidden border-0 bg-gradient-to-r from-[#fff4f0] via-white to-white px-6 py-5 shadow-sm dark:from-[#2a1712] dark:via-gray-900 dark:to-gray-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <span className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-[#ff9b73] to-[#f84525]" />
+            <div className="pl-1">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#f84525]">Employee dashboard</p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
                 {profile?.name ? `Welcome, ${profile.name}` : "My Dashboard"}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -585,51 +605,75 @@ const EmployeeDashboard = ({ section = "all" }) => {
           </Card>
 
           {/* KPI row */}
-          <div className="flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             <Kpi icon={<FiClock />} label="Live Work Time" value={secondsToClock(liveAttendance.workSeconds)} />
             <Kpi icon={<FiCoffee />} label="Live Break Time" value={secondsToClock(liveAttendance.breakSeconds)} />
             <Kpi icon={<FiCalendar />} label="Present Days" value={monthlySummary.present} tone="dark" />
             <Kpi icon={<FiCalendar />} label="Half Days" value={monthlySummary.halfDay} tone="neutral" />
+            <Kpi icon={<FiCalendar />} label="Earned Leave Left" value={`${earnedLeaveRemaining} days`} />
+            <Kpi icon={<FiBriefcase />} label="Pending Leave Requests" value={pendingLeaveCount} tone="neutral" />
           </div>
 
           {/* main widget row */}
-          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="lg:col-span-2 flex flex-col min-h-0">
-              <CardHeader title="This Month's Birthdays" subtitle={`Birthdays in ${new Date().toLocaleDateString(undefined, { month: "long" })}`} />
-              <div className="flex-1 min-h-0 p-4">
-                {birthdayReminders.length ? (
-                  <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                    {birthdayReminders.map((employee) => (
-                      <div key={employee._id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 bg-[#fff8f6] px-3 py-2.5 dark:border-orange-950 dark:bg-orange-950/20">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{employee.name}</p>
-                          <p className="truncate text-xs text-gray-500">{employee.department || employee.designation || employee.employeeId || "Employee"}</p>
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
+            <Card className="min-w-0 xl:col-span-4">
+              <CardHeader title="Upcoming Birthdays" subtitle={`From today to the end of ${new Date().toLocaleDateString(undefined, { month: "long" })}`} />
+              <div className="min-h-[150px] space-y-2 p-4">
+                {birthdayPreview.length ? (
+                  <>
+                    {birthdayPreview.map((employee) => (
+                      <div key={employee._id} className="flex items-center gap-3 rounded-xl border border-orange-100 bg-[#fff8f6] px-3 py-2.5 dark:border-orange-950 dark:bg-orange-950/20">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-orange-100 text-sm font-bold text-[#f84525] dark:bg-orange-900/40">
+                          {employee.photoUrl ? <img src={employee.photoUrl} alt={employee.name || "Employee"} className="h-full w-full object-cover" /> : String(employee.name || "E").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
                         </div>
-                        <span className="shrink-0 text-sm font-semibold text-[#f84525]">
-                          {new Date(new Date().getFullYear(), new Date().getMonth(), employee.day).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{employee.name}</p>
+                          <p className="truncate text-xs text-gray-500">{employee.designation || employee.department || employee.employeeId || "Employee"}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold text-[#f84525]">{employee.nextBirthday ? new Date(`${employee.nextBirthday}T00:00:00`).toLocaleDateString(undefined, { day: "2-digit", month: "short" }) : "—"}</p>
+                          <p className="text-[11px] text-gray-500">{employee.daysUntil === 0 ? "Today" : `In ${employee.daysUntil} days`}</p>
+                        </div>
                       </div>
                     ))}
-                  </div>
-                ) : <div className="relative flex h-full min-h-56 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"><img src="/2025-3_2025-1_Conative_Wall.jpg" alt="Conative" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 flex items-center justify-center"><span className="rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-gray-600 shadow-sm dark:bg-gray-900/95 dark:text-gray-300">No birthdays this month.</span></div></div>}
+                    {birthdayTotal > birthdayPreview.length && <p className="px-1 text-xs text-gray-500">Showing {birthdayPreview.length} of {birthdayTotal} birthdays this month</p>}
+                  </>
+                ) : <p className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700">No birthdays this month.</p>}
               </div>
             </Card>
 
-            <div className="flex flex-col gap-4 min-h-0">
-              <Card className="relative flex-1 min-h-0 overflow-hidden border-0 bg-gradient-to-br from-[#fff7f3] via-white to-[#fff1ed] p-0 shadow-sm dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-900">
+            <Card className="min-w-0 xl:col-span-4">
+              <CardHeader title="Leave Overview" subtitle="Current balance and recent requests" />
+              <div className="space-y-3 p-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {[["Earned", leaveBalance?.earned_leave], ["Sick", leaveBalance?.sick_leave], ["Optional", leaveBalance?.optional_leave]].map(([label, balance]) => (
+                    <div key={label} className="rounded-xl bg-gray-50 p-3 text-center dark:bg-gray-800">
+                      <p className="text-xs text-gray-500">{label}</p>
+                      <p className="mt-1 text-lg font-bold text-gray-900 dark:text-white">{balance?.remaining ?? 0}</p>
+                      <p className="text-[11px] text-gray-500">left</p>
+                    </div>
+                  ))}
+                </div>
+                {leaves.length ? <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Recent leave requests</p>
+                  {leaves.slice(0, 3).map((leave) => <div key={leave._id} className="flex items-center justify-between gap-2 border-t border-gray-100 pt-2 text-sm dark:border-gray-800"><span className="truncate">{String(leave.type || "Leave").replace(/_/g, " ")} · {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString(undefined, { day: "2-digit", month: "short" }) : "Date pending"}</span><span className={`shrink-0 text-xs font-semibold capitalize ${leave.status === "approved" ? "text-green-600" : leave.status === "rejected" ? "text-red-600" : "text-amber-600"}`}>{leave.status || "pending"}</span></div>)}
+                </div> : <p className="text-sm text-gray-500">No leave requests yet.</p>}
+              </div>
+            </Card>
+
+            <Card className="relative min-w-0 overflow-hidden border-0 bg-gradient-to-br from-[#fff7f3] via-white to-[#fff1ed] p-0 shadow-sm dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-900 xl:col-span-4">
                 <div className="h-2 bg-gradient-to-r from-[#f84525] via-[#ff9b73] to-[#f84525]" />
                 <div className="flex h-full flex-col p-5">
                   <div className="flex items-center gap-3 border-b border-orange-100 pb-4 dark:border-orange-950">
-                    <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain" />{profile?.documents?.photo?.url && <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-14 w-14 rounded-full border-4 border-white object-cover shadow-md" />}</div>
+                    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-gray-800"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain opacity-25" />{profile?.documents?.photo?.url ? <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-12 w-12 rounded-full border-2 border-white object-cover shadow-md" /> : <span className="relative font-bold text-[#f84525]">{String(profile?.name || "E").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>}</div>
                     <div className="min-w-0"><p className="text-lg font-bold text-gray-900 dark:text-white">{profile?.name || "Employee"}</p><p className="text-sm text-[#f84525]">{profile?.designation || "Employee"}</p><p className="mt-1 text-xs text-gray-500">{profile?.department || "Conative IT Solutions"}</p></div>
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
                     {[["Employee ID", profile?.employeeId], ["Email", profile?.email], ["Mobile", profile?.mobile], ["Joining", profile?.dateOfJoining ? new Date(profile.dateOfJoining).toLocaleDateString() : null]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2 dark:bg-gray-800/60"><span className="text-xs text-gray-500 dark:text-gray-400">{label}</span><span className="max-w-[65%] truncate text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{value || "N/A"}</span></div>)}
                   </div>
-                  <div className="mt-auto border-t border-orange-200 pt-3 text-center dark:border-orange-950"><p className="text-xs font-bold uppercase tracking-wide text-[#f84525]">Conative IT Solutions Pvt. Ltd.</p><p className="mt-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">Ph. +91-826-978-8173</p><p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">Office no. 608, Airen Heights, behind Pakiza Mall,<br />Opp. C21 Mall, Indore, M.P. 452010</p></div>
+                  <div className="mt-auto border-t border-orange-200 pt-3 text-center dark:border-orange-950"><p className="text-xs font-bold uppercase tracking-wide text-[#f84525]">Conative IT Solutions Pvt. Ltd.</p><p className="mt-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">Ph. +91-826-978-8173 · Indore</p></div>
                 </div>
-              </Card>
-            </div>
+            </Card>
           </div>
         </div>
       )}
