@@ -8,6 +8,7 @@ import { useEmployee } from "../../../contexts/Hr/EmployeeContext";
 import "./EmployeeDetail.css";
 import EmployeeBackgroundDetails, { EmployeeChecklistDetails } from "../../../components/common/EmployeeBackgroundDetails";
 import EmployeeDocumentHistory from "../../../components/documents/EmployeeDocumentHistory";
+import PdfPageCanvas from "../../../components/documents/PdfPageCanvas";
 import { FiPlus } from "react-icons/fi";
 import { employeeCreateDocumentFields } from "../../../utils/employeeDocumentFields";
 import { bondPeriodLabel } from "../../../utils/bondDates";
@@ -560,9 +561,18 @@ const EmployeeDetail = () => {
         : await fetch(document.url);
       const blob = isPdf ? response.data : await response.blob();
       if (!blob || (blob.type === 'application/json' && blob.size < 10000)) throw new Error('Unable to load document');
-      const blobUrl = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob], { type: isPdf ? 'application/pdf' : (document.type || 'image/jpeg') }));
-      setDocumentPreview({ ...document, url: blobUrl, objectUrl: blobUrl });
-    } catch (error) { toast.error(error.response?.data?.message || "Unable to preview this PDF. Please try again."); }
+      if (isPdf) {
+        const bytes = await blob.arrayBuffer();
+        setDocumentPreview({ ...document, bytes, isPdf: true });
+      } else {
+        const blobUrl = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob], { type: document.type || 'image/jpeg' }));
+        setDocumentPreview({ ...document, url: blobUrl, objectUrl: blobUrl });
+      }
+    } catch (error) {
+      // If the backend proxy is unavailable, let the browser render the public
+      // Cloudinary PDF directly inside the modal instead of forcing a download.
+      toast.error(error.response?.data?.message || "Unable to preview this document. Please try again.");
+    }
   };
 
   // The tab guard intentionally runs when the active tab or fetched HR permissions change.
@@ -1220,7 +1230,7 @@ const EmployeeDetail = () => {
 </section>}
 
       {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
-        {String(documentPreview.type || "").toLowerCase().includes("pdf") || String(documentPreview.type || "").toLowerCase() === "raw" || /\/raw\/upload\//i.test(documentPreview.url) || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
+        {documentPreview.isPdf ? <div className="max-h-[70vh] overflow-auto rounded-sm border bg-gray-100 p-2"><PdfPageCanvas bytes={documentPreview.bytes} /></div> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
       </CommonModal>}
 
       {canEditEmployee && activeTab === "edit" && (
