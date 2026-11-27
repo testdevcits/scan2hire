@@ -552,6 +552,18 @@ const EmployeeDetail = () => {
       window.open(url, "_blank", "noopener,noreferrer");
     }
   };
+  const previewDocument = async (document) => {
+    try {
+      const isPdf = String(document.type || '').toLowerCase().includes('pdf') || String(document.type || '').toLowerCase() === 'raw' || /\/raw\/upload\//i.test(document.url) || /\.pdf(?:$|[?#])/i.test(document.url);
+      const response = isPdf
+        ? await API.get('/hr/document-preview', { params: { url: document.url }, responseType: 'blob' })
+        : await fetch(document.url);
+      const blob = isPdf ? response.data : await response.blob();
+      if (!blob || (blob.type === 'application/json' && blob.size < 10000)) throw new Error('Unable to load document');
+      const blobUrl = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob], { type: isPdf ? 'application/pdf' : (document.type || 'image/jpeg') }));
+      setDocumentPreview({ ...document, url: blobUrl, objectUrl: blobUrl });
+    } catch (error) { toast.error(error.response?.data?.message || "Unable to preview this PDF. Please try again."); }
+  };
 
   // The tab guard intentionally runs when the active tab or fetched HR permissions change.
   useEffect(() => {
@@ -1194,7 +1206,7 @@ const EmployeeDetail = () => {
                 return <div key={key} className={`flex items-center justify-between rounded-lg border px-3 py-3 text-sm ${uploaded ? "border-green-200 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
                   <span title={label} className="min-w-0 break-words text-xs leading-5">{label}</span>
                   {uploaded ? <div className="ml-2 flex shrink-0 gap-2">
-                    {canViewDocument && <button type="button" onClick={() => setDocumentPreview({ label, url, type: documentItem?.resource_type || documentItem?.format || documentItem?.mimeType || documentItem?.mime_type })} className="inline-flex items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button>}
+                    {canViewDocument && <button type="button" onClick={() => previewDocument({ label, url, type: documentItem?.resource_type || documentItem?.format || documentItem?.mimeType || documentItem?.mime_type })} className="inline-flex items-center gap-1 rounded-sm border border-green-300 bg-white px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"><FiEye /> View</button>}
                     {canDownloadDocument && <button type="button" onClick={() => downloadEmployeeDocument(url, label)} className="inline-flex items-center gap-1 rounded-sm border border-blue-300 bg-white px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"><FiDownload /> Download</button>}
                   </div> : <span className="ml-2 shrink-0 text-xs font-semibold">Not uploaded</span>}
                 </div>;
@@ -1208,7 +1220,7 @@ const EmployeeDetail = () => {
 </section>}
 
       {documentPreview && <CommonModal title={documentPreview.label} onClose={() => setDocumentPreview(null)} className="max-w-4xl">
-        {String(documentPreview.type || "").toLowerCase().includes("pdf") || String(documentPreview.type || "").toLowerCase() === "raw" || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(documentPreview.url)}`} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
+        {String(documentPreview.type || "").toLowerCase().includes("pdf") || String(documentPreview.type || "").toLowerCase() === "raw" || /\/raw\/upload\//i.test(documentPreview.url) || /\.pdf(?:$|[?#])/i.test(documentPreview.url) ? <iframe title={documentPreview.label} src={documentPreview.url} className="h-[70vh] w-full rounded-sm border" /> : <img src={documentPreview.url} alt={documentPreview.label} className="max-h-[70vh] w-full object-contain" />}
       </CommonModal>}
 
       {canEditEmployee && activeTab === "edit" && (
@@ -1412,7 +1424,7 @@ const EmployeeDetail = () => {
                 const file = item.documents?.marksheet;
                 const saved = (item.id ? employee.qualifications?.find((entry) => entry.id === item.id) : employee.qualifications?.[index])?.documents?.marksheet;
                 const label = `${item.level || "Qualification"} Marksheet`;
-                return <FileUploadField compact canUpload={canManageDocuments} key={item.id || index} label={label} name={`qualification-document-${item.id || index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" hint="JPG, PNG, WEBP or PDF, up to 5 MB." fileName={file?.name} uploaded={Boolean(file?.url)} disabled={!canManageDocuments || !item.level || savingProfile} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} onPreviewCurrent={saved?.url ? () => setDocumentPreview({ label, url: saved.url, type: saved.resource_type || saved.format }) : undefined} onDownloadCurrent={saved?.url && hrCanDownloadModule("employeeDocuments") ? () => downloadEmployeeDocument(saved.url, label) : undefined} />;
+                return <FileUploadField compact canUpload={canManageDocuments} key={item.id || index} label={label} name={`qualification-document-${item.id || index}`} accept=".pdf,.jpg,.jpeg,.png,.webp" hint="JPG, PNG, WEBP or PDF, up to 5 MB." fileName={file?.name} uploaded={Boolean(file?.url)} disabled={!canManageDocuments || !item.level || savingProfile} onChange={(event) => handleQualificationMarksheet(index, event.target.files?.[0])} onPreviewCurrent={saved?.url ? () => previewDocument({ label, url: saved.url, type: saved.resource_type || saved.format }) : undefined} onDownloadCurrent={saved?.url && hrCanDownloadModule("employeeDocuments") ? () => downloadEmployeeDocument(saved.url, label) : undefined} />;
               })}
             </div>
           </section>}
@@ -1422,7 +1434,7 @@ const EmployeeDetail = () => {
               <h4 className="text-sm font-semibold">{company.companyName}{company.isLastCompany ? " (Last company)" : ""}</h4>
               {lastCompanyDocumentFields.flatMap(([key, label]) => (key === "salarySlips" ? company.documents?.[key] || [] : [company.documents?.[key]]).filter((file) => file?.url).map((file, fileIndex) => <div key={`${key}-${fileIndex}`} className="flex flex-wrap items-center gap-3 text-sm">
                 <span>{label}{key === "salarySlips" ? ` ${fileIndex + 1}` : ""}: {file.name || "Uploaded file"}</span>
-                <button type="button" onClick={() => setDocumentPreview({ label: `${company.companyName} ${label}`, url: file.url, type: file.resource_type || file.format })} className="inline-flex items-center gap-1 text-[#f84525]"><FiEye /> View</button>
+                <button type="button" onClick={() => previewDocument({ label: `${company.companyName} ${label}`, url: file.url, type: file.resource_type || file.format })} className="inline-flex items-center gap-1 text-[#f84525]"><FiEye /> View</button>
                 {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(file.url, `${company.companyName} ${label}`)} className="inline-flex items-center gap-1 text-blue-600"><FiDownload /> Download</button>}
               </div>))}
             </section>)}
@@ -1645,7 +1657,7 @@ const EmployeeDetail = () => {
               <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <span className="font-medium text-gray-800 dark:text-gray-100">{label}</span>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => setDocumentPreview({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>
+                  <button type="button" onClick={() => previewDocument({ label, url: item.url, type: item.resource_type || item.format })} className="inline-flex items-center gap-1.5 rounded-sm border border-orange-200 px-3 py-2 text-xs font-semibold text-[#f84525] hover:bg-orange-50 dark:border-gray-600 dark:hover:bg-gray-800"><FiEye /> View</button>
                   {hrCanDownloadModule("employeeDocuments") && <button type="button" onClick={() => downloadEmployeeDocument(item.url, label)} className="inline-flex items-center gap-1.5 rounded-sm border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-800"><FiDownload /> Download</button>}
                 </div>
               </div>
@@ -1674,7 +1686,7 @@ const EmployeeDetail = () => {
       </section>}
 
       {user?.role === "superadmin" && activeTab === "versionHistory" && <section id="versionHistory-panel" role="tabpanel" aria-labelledby="versionHistory-tab" className="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <EmployeeDocumentHistory employee={employee} documentItems={documentItems} onView={setDocumentPreview} onDownload={downloadEmployeeDocument} canDownload={hrCanDownloadModule("employeeDocuments")} canRestore={user?.role === "superadmin" ? async (version) => { if (!await confirm({ title: "Restore document version", message: `Restore ${version.file?.name || version.documentKey} as the current document?`, confirmText: "Restore" })) return; try { await hrApi.restoreEmployeeDocumentVersion(employeeId, version._id); toast.success("Document version restored"); setActiveTabState("versionHistory"); } catch (error) { toast.error(error.response?.data?.message || "Unable to restore document version"); } } : null} />
+        <EmployeeDocumentHistory employee={employee} documentItems={documentItems} onView={previewDocument} onDownload={downloadEmployeeDocument} canDownload={hrCanDownloadModule("employeeDocuments")} canRestore={user?.role === "superadmin" ? async (version) => { if (!await confirm({ title: "Restore document version", message: `Restore ${version.file?.name || version.documentKey} as the current document?`, confirmText: "Restore" })) return; try { await hrApi.restoreEmployeeDocumentVersion(employeeId, version._id); toast.success("Document version restored"); setActiveTabState("versionHistory"); } catch (error) { toast.error(error.response?.data?.message || "Unable to restore document version"); } } : null} />
       </section>}
 
       {hrCanViewModule("documents") && activeTab === "documentSignatures" && <section className="bg-white rounded-sm shadow overflow-hidden">
