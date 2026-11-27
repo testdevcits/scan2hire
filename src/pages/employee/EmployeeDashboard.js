@@ -22,6 +22,7 @@ import EmptyState from "../../components/common/EmptyState";
 import { useModal } from "../../contexts/ModalContext";
 import { useToast } from "../../contexts/ToastContext";
 import { isTeamLeadUser } from "../../utils/roleUtils";
+import { roundLabels } from "../../utils/candidateInterview";
 
 const minutesToHours = (minutes = 0) =>
   `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -56,16 +57,6 @@ const fileToDataUri = (file) =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-
-const roundLabels = {
-  hr_round: "HR Round",
-  first_round: "Technical Round",
-  second_round: "Machine Test",
-  final: "Final Round",
-  third_round: "Final Round",
-  selected: "Selected",
-  rejected: "Rejected",
-};
 
 const formatRound = (round) => roundLabels[round] || String(round || "").replace("_", " ");
 
@@ -665,7 +656,7 @@ const EmployeeDashboard = ({ section = "all" }) => {
                 <div className="h-2 bg-gradient-to-r from-[#f84525] via-[#ff9b73] to-[#f84525]" />
                 <div className="flex h-full flex-col p-5">
                   <div className="flex items-center gap-3 border-b border-orange-100 pb-4 dark:border-orange-950">
-                    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-gray-800"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain opacity-25" />{profile?.documents?.photo?.url ? <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-12 w-12 rounded-full border-2 border-white object-cover shadow-md" /> : <span className="relative font-bold text-[#f84525]">{String(profile?.name || "E").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>}</div>
+                    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white dark:bg-gray-800"><img src="/logo512.png" alt="Conative" className="absolute inset-0 h-full w-full object-contain opacity-25" />{profile?.documents?.photo?.url ? <img src={profile.documents.photo.url} alt={profile.name || "Employee"} className="relative h-12 w-12 rounded-full object-cover shadow-md" /> : <span className="relative font-bold text-[#f84525]">{String(profile?.name || "E").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>}</div>
                     <div className="min-w-0"><p className="text-lg font-bold text-gray-900 dark:text-white">{profile?.name || "Employee"}</p><p className="text-sm text-[#f84525]">{profile?.designation || "Employee"}</p><p className="mt-1 text-xs text-gray-500">{profile?.department || "Conative IT Solutions"}</p></div>
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
