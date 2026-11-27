@@ -412,15 +412,9 @@ const EmployeeCreate = () => {
     const reviews = (form.initialSalaryReviews || []).map((review) => ({ ...review }));
     if (!reviews.length) return [];
     const sorted = reviews.slice().sort((left, right) => (left.effectiveDate || "").localeCompare(right.effectiveDate || ""));
-    const originalIds = originalSalaryReviews.current.map((review) => review._id);
-    const sortedExistingIds = sorted.filter((review) => review._id).map((review) => review._id);
-    if (originalIds.some((id, index) => sortedExistingIds[index] !== id)) {
-      throw new Error("Keep saved salary increments in their current date order. Update the dates without moving one past another.");
-    }
     let plannedSalary = Number(form.salary);
     if (!Number.isFinite(plannedSalary) || plannedSalary < 0) throw new Error("Enter a valid current salary before saving increments.");
     let previousDate = "";
-    const latestSavedDate = originalSalaryReviews.current.map((review) => review.effectiveDate).sort().at(-1) || "";
     for (const review of sorted) {
       const amount = Number(review.incrementAmount);
       const label = `Increment ${reviews.indexOf(review) + 1}`;
@@ -431,7 +425,6 @@ const EmployeeCreate = () => {
       if (!review.reason?.trim()) throw new Error(`${label}: enter Review remarks.`);
       if (review.reason.length > 1000) throw new Error(`${label}: Review remarks must be at most 1000 characters.`);
       if (previousDate && review.effectiveDate <= previousDate) throw new Error("Schedule salary increments in increasing date order.");
-      if (!review._id && latestSavedDate && review.effectiveDate <= latestSavedDate) throw new Error("New increments must be scheduled after the saved increments.");
       previousDate = review.effectiveDate;
     }
     return sorted;
