@@ -9,6 +9,7 @@ import { ThemeContext } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { useModal } from "../contexts/ModalContext";
 import logo from "../assets/logo.png";
+import HrAssistantChat from "../components/HrAssistantChat";
 
 const SidebarLayout = ({ title, navItems, variant = "default", navLoading = false, canOpenProfile = true }) => {
   const { authApi } = useApi();
@@ -408,6 +409,7 @@ const SidebarLayout = ({ title, navItems, variant = "default", navLoading = fals
           <Outlet />
         </main>
       </div>
+      {["hr", "superadmin"].includes(user?.role) && <HrAssistantChat />}
     </div>
   );
 };

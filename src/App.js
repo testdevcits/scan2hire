@@ -44,6 +44,7 @@ import EmployeeSavedCredentials from "./pages/employee/EmployeeSavedCredentials"
 import EmployeeDocuments from "./pages/employee/EmployeeDocuments";
 import EmployeeLeaveCalendar from "./pages/employee/EmployeeLeaveCalendar";
 import Notifications from "./pages/Notifications";
+import McpDataAssistant from "./pages/McpDataAssistant";
 
 function App() {
   return (
@@ -94,6 +95,7 @@ function App() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="system-allotments" element={<SystemAllotments />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="data-assistant" element={<McpDataAssistant />} />
           <Route path="leave-settings" element={<Navigate to="/admin/settings?tab=leave" replace />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
@@ -130,6 +132,7 @@ function App() {
           <Route path="candidates/list" element={<Candidates />} />
           <Route path="candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="settings" element={<EmployeeSettings />} />
+          <Route path="data-assistant" element={<McpDataAssistant />} />
           <Route path="profile" element={<EmployeeSettings requireProfileAccess />} />
           <Route path="documents" element={<Navigate to="settings" replace />} />
           <Route path="notifications" element={<Notifications />} />

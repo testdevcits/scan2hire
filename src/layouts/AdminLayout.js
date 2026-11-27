@@ -1,5 +1,5 @@
 import SidebarLayout from "./SidebarLayout";
-import { FiBarChart2, FiClock, FiGrid, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiClock, FiGrid, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers, FiZap } from "react-icons/fi";
 
 const AdminLayout = () => {
   const navItems = [
@@ -16,6 +16,7 @@ const AdminLayout = () => {
     { label: "Access & Control", path: "/admin/employee-module-access", icon: <FiShield /> },
     { label: "Activity Logs", path: "/admin/audit-logs", icon: <FiClock /> },
     { label: "System Allotments", path: "/admin/system-allotments", icon: <FiMonitor /> },
+    { label: "Data Assistant", path: "/admin/data-assistant", icon: <FiZap /> },
     { label: "Settings", path: "/admin/settings", icon: <FiSettings /> },
   ];
 

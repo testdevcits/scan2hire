@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { useApi } from "../contexts/ApiContext";
 import { useContext, useEffect, useState } from "react";
-import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiClock, FiFolder, FiLock, FiMonitor, FiSettings, FiShield, FiUserCheck, FiUsers, FiZap } from "react-icons/fi";
 import { AuthContext } from "../contexts/AuthContext";
 import SidebarLayout from "./SidebarLayout";
 
@@ -72,6 +72,7 @@ const HRLayout = () => {
       : []),
     ...(moduleAllowed('credentials') ? [{ label: "Credentials", path: "/hr/credentials", icon: <FiLock /> }] : []),
     ...(moduleAllowed('rolesAccess') ? [{ label: "Roles & Access", path: "/hr/manage-tl", icon: <FiShield /> }] : []),
+    ...(isHr ? [{ label: "Data Assistant", path: "/hr/data-assistant", icon: <FiZap /> }] : []),
     { label: "Settings", path: "/hr/settings", icon: <FiSettings /> },
   ];
 
